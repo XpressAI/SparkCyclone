@@ -6,7 +6,6 @@ import java.nio.file.{Files, Paths}
 import scala.sys.process.Process
 import scala.xml.Properties.isWin
 
-val CMake = config("cmake") extend Test
 val TPC = config("tpc") extend Test
 val VectorEngine = config("ve") extend Test
 
@@ -22,7 +21,6 @@ lazy val root = Project(id = "spark-cyclone-sql-plugin", base = file("."))
   .configs(AcceptanceTest)
   .configs(VectorEngine)
   .configs(TPC)
-  .configs(CMake)
   .settings(version := "1.0.3")
 
 lazy val tracing = project
@@ -73,8 +71,7 @@ lazy val `fun-bench` = project
         val basicTests = Def
           .sequential(
             (ThisProject / Test / testQuick).toTask(""),
-            (root / Test / testQuick).toTask(""),
-            (root / CMake / testQuick).toTask("")
+            (root / Test / testQuick).toTask("")
           )
         val testsWithVe = Def.sequential(basicTests, (root / VectorEngine / testQuick).toTask(""))
         val doSkipTests = (Test / skip).value
@@ -124,22 +121,22 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
-  "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,cmake,ve",
-  "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,cmake,ve",
+  "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,ve",
+  "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,ve",
   "com.lihaoyi" %% "sourcecode" % "0.2.7",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "net.java.dev.jna" % "jna-platform" % "5.8.0",
   "commons-io" % "commons-io" % "2.8.0" % "test",
   "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve,cmake",
+  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve",
   "commons-io" % "commons-io" % "2.10.0",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
   /** Log with logback in our scopes but not in production runs */
-  "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,cmake,ve",
-  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,cmake,ve",
-  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,cmake,ve",
-  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,cmake,ve",
+  "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,ve",
+  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,ve",
+  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,ve",
+  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,ve",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided"
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
 
@@ -164,30 +161,6 @@ Test / parallelExecution := false
 inConfig(Test)(Defaults.testTasks)
 
 Test / testOptions += Tests.Argument("-oD")
-
-
-/**
- * *****************************************************************************
- * CMake Test Settings
- * *****************************************************************************
- */
-
-inConfig(CMake)(Defaults.testTasks)
-
-def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-
-CMake / parallelExecution := true
-CMake / fork := true
-CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
-
-/**
- * Make each test suite run independently
- * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
- */
-CMake / testGrouping := (CMake / definedTests).value.map { suite =>
-  import sbt.Tests._
-  Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
-}
 
 
 /**
@@ -276,7 +249,7 @@ TPC / testOptions := {
 Global / cancelable := true
 
 def otherFilter(name: String): Boolean =
-  !accFilter(name) && !cmakeFilter(name) && !tpcFilter(name)
+  !accFilter(name) && !tpcFilter(name)
 
 Test / testOptions := {
   val options = if ((Test / debugToHtml).value) {
@@ -320,12 +293,12 @@ addCommandAlias(
 
 addCommandAlias(
   "testQuick-all",
-  "; Test / testQuick ; CMake / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
+  "; Test / testQuick ; AcceptanceTest / testQuick ; VectorEngine / testQuick"
 )
 
 addCommandAlias(
   "test-all",
-  "; Test / test ; CMake / test ; AcceptanceTest / test ; VectorEngine / test"
+  "; Test / test ; AcceptanceTest / test ; VectorEngine / test"
 )
 
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
@@ -414,15 +387,18 @@ addCommandAlias("skipBenchTests", "; set `fun-bench` / Test / skip := true")
 addCommandAlias("unskipBenchTests", "; set `fun-bench` / Test / skip := false")
 
 val debugRemotePort = SettingKey[Option[Int]]("debugRemotePort")
-
 ThisBuild / debugRemotePort := None
-
 // set debugRemotePort := Some(5005)
-// this will work in all the scopes because CMake and VectorEngine inherit from Test
-// but specifying directly on CMake and VectorEngine will not work.
-// if you want this setting to be persisted across SBT runs, update your ~/.sbt/1.0/local.sbt to include this specific setting
-// in IntelliJ, this is the "Listen to remote JVM" option; also select 'Auto Restart'
+
 Test / javaOptions ++= {
+  /*
+    Specifying the option here will work in all scopes that inherit the Test
+    scope, but specifying directly in the individual scopes will not work.
+
+    If you want this setting to be persisted across SBT runs, update
+    `~/.sbt/1.0/local.sbt` to include this specific setting.  In IntelliJ, this
+    corresponds to the `Listen to remote JVM` option; also select `Auto Restart`.
+  */
   debugRemotePort.value match {
     case None => Seq.empty
     case Some(port) =>

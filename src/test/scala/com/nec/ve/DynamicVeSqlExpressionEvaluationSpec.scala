@@ -19,7 +19,6 @@
  */
 package com.nec.ve
 
-import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.tpc.TPCHVESqlSpec

@@ -24,7 +24,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec = f8v.toBytePointerColVector.toVeColVector
+          val colVec = f8v.toVeColVector
           val results = veProcess.execute(
             libraryReference = lib,
             functionName = "f",
@@ -46,7 +46,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
-          val colVec = f8v.toBytePointerColVector.toVeColVector
+          val colVec = f8v.toVeColVector
           val results = veProcess.executeMulti(
             libraryReference = lib,
             functionName = "f",
@@ -91,9 +91,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
             val lastString = "cccc"
             withNullableArrowStringVector(List("a", "b", lastString).map(Some.apply)) { sv =>
-              val colVec = f8v.toBytePointerColVector.toVeColVector
-              val colVec2 = f8v2.toBytePointerColVector.toVeColVector
-              val colVecS = sv.toBytePointerColVector.toVeColVector
+              val colVec = f8v.toVeColVector
+              val colVec2 = f8v2.toVeColVector
+              val colVecS = sv.toVeColVector
               val results = veProcess.executeMulti(
                 libraryReference = lib,
                 functionName = groupingFn.name,
@@ -143,7 +143,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     def checkVector(
       valueVector: ValueVector
     )(implicit veProcess: VeProcess, bufferAllocator: BufferAllocator): Unit = {
-      val colVec = valueVector.toBytePointerColVector.toVeColVector
+      val colVec = valueVector.toVeColVector
       val serialized = colVec.serialize()
       val serList = serialized.toList
       val newColVec = colVec.underlying.toUnit.deserialize(serialized)
@@ -227,10 +227,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
               withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
                 withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
-                  val colVec = f8v.toBytePointerColVector.toVeColVector
-                  val colVec2 = f8v2.toBytePointerColVector.toVeColVector
-                  val sVec = sv.toBytePointerColVector.toVeColVector
-                  val sVec2 = sv2.toBytePointerColVector.toVeColVector
+                  val colVec = f8v.toVeColVector
+                  val colVec2 = f8v2.toVeColVector
+                  val sVec = sv.toVeColVector
+                  val sVec2 = sv2.toVeColVector
                   val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
                   val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
                   val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))

@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.cmake.eval
+package com.nec.ve.eval
 
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.GroupByExpression.{GroupByAggregation, GroupByProjection}

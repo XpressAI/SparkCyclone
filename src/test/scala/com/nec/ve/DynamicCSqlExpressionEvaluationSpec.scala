@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.cmake
+package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.spark.SparkAdditions

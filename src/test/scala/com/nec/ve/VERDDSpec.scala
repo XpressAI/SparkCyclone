@@ -50,7 +50,7 @@ final class VERDDSpec
           .map(_.toDouble)
       }.map { arrowVec =>
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-        arrowVec.toBytePointerColVector.toVeColVector
+        arrowVec.toVeColVector
       }.map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs))
         .map(vectors => {
           WithTestAllocator { implicit alloc =>
@@ -89,7 +89,7 @@ object VERDDSpec {
             .map(arrowVec => {
               import SparkCycloneExecutorPlugin.source
               import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-              try arrowVec.toBytePointerColVector.toVeColVector
+              try arrowVec.toVeColVector
               finally arrowVec.close()
             })
             .flatMap(veColVector => {

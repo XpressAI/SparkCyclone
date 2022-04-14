@@ -51,7 +51,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case Some(vecs) => VeColBatch.fromList(vecs)
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
-        VeColBatch.fromList(byteArrayColVectors.map(_.toBytePointerColVector.toVeColVector()))
+        VeColBatch.fromList(byteArrayColVectors.map(_.toVeColVector))
     }
   }
 

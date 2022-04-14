@@ -20,7 +20,6 @@
 package com.nec.ve.eval
 
 import com.nec.arrow.WithTestAllocator
-import com.nec.cmake.eval.OldUnifiedGroupByFunctionGeneration
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.filter.FilterFunction
