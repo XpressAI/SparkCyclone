@@ -20,9 +20,9 @@
 package com.nec.spark.agile.groupby
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.core.{CodeLines, CVector}
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.core.{CVector, CodeLines}
 import com.nec.spark.agile.groupby.GroupByOutline._
 
 final case class GroupByPartialGenerator(
@@ -66,7 +66,7 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
-        allocateOutputPatchPointers,
+        allocateOutputBatchPointers,
         performGrouping(count = s"${inputs.head.name}->count"),
         computeBatchPlacementsPerGroup,
         countBatchSizes,
@@ -86,7 +86,7 @@ final case class GroupByPartialGenerator(
   /**
    * Allocate output as batches and set output batch count
    */
-  private def allocateOutputPatchPointers: CodeLines = {
+  private def allocateOutputBatchPointers: CodeLines = {
     CodeLines.from(
       partialOutputs.map( v =>
         s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${nBuckets}));"

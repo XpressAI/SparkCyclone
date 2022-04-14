@@ -252,8 +252,15 @@ namespace cyclone::tests {
 
     const auto *input = new NullableScalarVec(grouping);
     auto grouped = input->group_indexes();
+
+    cyclone::print_vec("grouped[0]", grouped[0]);
+    cyclone::print_vec("grouped[1]", grouped[1]);
+
     CHECK(grouped[0] == expected_0);
     CHECK(grouped[1] == expected_1);
+    CHECK(grouped.size() == 2);
+
+
   }
 
   TEST_CASE_TEMPLATE("group_indexes works with all valid values (3 groups)", T, int32_t, int64_t, float, double){
@@ -264,24 +271,36 @@ namespace cyclone::tests {
 
     const auto *input = new NullableScalarVec(grouping);
     auto grouped = input->group_indexes();
+
+    cyclone::print_vec("grouped[0]", grouped[0]);
+    cyclone::print_vec("grouped[1]", grouped[1]);
+    cyclone::print_vec("grouped[2]", grouped[2]);
+
     CHECK(grouped[0] == expected_0);
     CHECK(grouped[1] == expected_1);
     CHECK(grouped[2] == expected_2);
+    CHECK(grouped.size() == 3);
   }
 
   TEST_CASE_TEMPLATE("group_indexes works with some invalid values", T, int32_t, int64_t, float, double){
     std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
     std::vector<size_t> expected_0 = { 1, 3, 4, 5, 6, 11, 12 };
     std::vector<size_t> expected_1 = { 7, 8, 9, 10, 13, 14 };
-    std::vector<size_t> expected_2 = { 0, 2 };
+    std::vector<size_t> expected_2 = { 2, 0 };
 
     auto *input = new NullableScalarVec(grouping);
     input->set_validity(0, 0);
     input->set_validity(2, 0);
 
     auto grouped = input->group_indexes();
+
+    cyclone::print_vec("grouped[0]", grouped[0]);
+    cyclone::print_vec("grouped[1]", grouped[1]);
+    cyclone::print_vec("grouped[2]", grouped[2]);
+
     CHECK(grouped[0] == expected_0);
     CHECK(grouped[1] == expected_1);
     CHECK(grouped[2] == expected_2);
+    CHECK(grouped.size() == 3);
   }
 }

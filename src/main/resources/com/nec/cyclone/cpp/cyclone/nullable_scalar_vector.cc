@@ -389,204 +389,55 @@ const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &el
 
 template <typename T>
 const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() const {
-  // Check if validity needs to be checked during grouping
-  bool all_valid = true;
-  const size_t vcount = ceil(count / 64.0);
-  #pragma _NEC vector
-  for (auto i = 0; i < vcount; ++i) {
-    if(validityBuffer[i] != 0xffffffffffffffff){
-      all_valid = false;
-      break;
+  // Short-circuit for simple cases
+  if(count == 0) return {};
+  if(count == 1) return {{0}};
+
+  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+  size_t invalid_count = 0;
+  size_t valid_count = 0;
+#pragma _NEC vector
+#pragma _NEC ivdep
+  for(auto i = 0; i < count; i++){
+    if(get_validity(i)){
+        idx_arr[valid_count++] = i;
+    }else{
+        idx_arr[count - (++invalid_count)] = i;
     }
   }
 
-  if(all_valid){
-    // Fast path: No validity checking needed
+  T* sorted_data = static_cast<T *>(malloc(sizeof(T) * valid_count));
 
-    // Copy data for sorting
-    T* sorted_data = static_cast<T *>(malloc(sizeof(T) * count));
-    #pragma _NEC vector
-    for(auto i = 0; i < count; ++i){
-      sorted_data[i] = data[i];
+  { // Setup valid inputs
+#pragma _NEC vector
+    for (auto i = 0; i < valid_count; i++) {
+        sorted_data[i] = data[idx_arr[i]];
     }
-
-    // Sort data for grouping
-    frovedis::radix_sort(sorted_data, count);
-
-    // Get unique groups
-    std::vector<T> unique_groups = frovedis::set_unique(sorted_data, count);
-    auto unique_group_arr = unique_groups.data();
-    auto unique_group_count = unique_groups.size();
-
-    // clean up sorted_data
-    free(sorted_data);
-
-    // Calculate size of each group
-    size_t* group_sizes = static_cast<size_t *>(malloc(sizeof(size_t) * unique_group_count));
-
-    #pragma _NEC vector
-    for(auto g = 0; g < unique_group_count; ++g){
-      group_sizes[g] = 0;
-      #pragma _NEC vector
-      for(auto i = 0; i < count; ++i){
-        if(unique_group_arr[g] == data[i]){
-          ++group_sizes[g];
-        }
-      }
-    }
-
-    // Setup group indexes in continuous memory
-    size_t* group_indexes = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-
-    // Copy starting indexes for every group
-    size_t* group_pos = static_cast<size_t *>(malloc(sizeof(size_t) * unique_group_count));
-    group_pos[0] = 0;
-    #pragma _NEC vector
-    for(auto g = 1; g < unique_group_count; ++g) {
-      group_pos[g] = group_pos[g-1] + group_sizes[g-1];
-    }
-
-    #pragma _NEC vector
-    for(auto g = 0; g < unique_group_count; ++g){
-      size_t cur_pos = group_pos[g];
-      #pragma _NEC vector
-      for(auto i = 0; i < count; ++i){
-        if(unique_group_arr[g] == data[i]){
-          group_indexes[cur_pos++] = i;
-        }
-      }
-    }
-
-    // Reset group starting points
-    group_pos[0] = 0;
-    #pragma _NEC vector
-    for(auto g = 1; g < unique_group_count; ++g) {
-      group_pos[g] = group_pos[g-1] + group_sizes[g-1];
-    }
-
-    // Setup output
-    std::vector<std::vector<size_t>> result(unique_group_count);
-    for(auto g = 0; g < unique_group_count; ++g) {
-      result[g].resize(group_sizes[g]);
-
-      size_t offset = group_pos[g];
-      auto result_g_arr = result[g].data();
-      auto result_g_size = result[g].size();
-      for(auto i = 0; i < result_g_size; ++i){
-        result_g_arr[i]  = group_indexes[i + offset];
-      }
-    }
-
-    // clean up  group_sizes, group_pos, group_indexes
-    free(group_sizes);
-    free(group_pos);
-    free(group_indexes);
-
-    return result;
-  }else{
-    // Slower path: Need validity checking
-
-    // Copy data for sorting
-    T* sorted_data = static_cast<T *>(malloc(sizeof(T) * count));
-    #pragma _NEC vector
-    for(auto i = 0; i < count; ++i){
-      sorted_data[i] = data[i];
-    }
-
-    // Sort data for grouping
-    frovedis::radix_sort(sorted_data, count);
-
-    // Get unique groups
-    std::vector<T> unique_groups = frovedis::set_unique(sorted_data, count);
-    auto unique_group_arr = unique_groups.data();
-    auto unique_group_count = unique_groups.size();
-
-    // clean up sorted_data
-    free(sorted_data);
-
-    // Calculate size of each group + invalid group
-    size_t* group_sizes = static_cast<size_t *>(malloc(sizeof(size_t) * (unique_group_count + 1)));
-
-    // Count valid groups
-    #pragma _NEC vector
-    for(auto g = 0; g < unique_group_count; ++g){
-      group_sizes[g] = 0;
-      #pragma _NEC vector
-      for(auto i = 0; i < count; ++i){
-        if(get_validity(i) && unique_group_arr[g] == data[i]){
-          ++group_sizes[g];
-        }
-      }
-    }
-
-    // Count invalid groups
-    group_sizes[unique_group_count] = 0;
-    for(auto i = 0; i < count; ++i){
-      if(!get_validity(i)){
-        ++group_sizes[unique_group_count];
-      }
-    }
-
-    // Setup group indexes in continuous memory
-    size_t* group_indexes = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-
-    // Copy starting indexes for every group
-    size_t* group_pos = static_cast<size_t *>(malloc(sizeof(size_t) * (unique_group_count + 1)));
-    group_pos[0] = 0;
-    #pragma _NEC vector
-    for(auto g = 1; g < unique_group_count + 1; ++g) {
-      group_pos[g] = group_pos[g-1] + group_sizes[g-1];
-    }
-
-    // Set valid group indices
-    #pragma _NEC vector
-    for(auto g = 0; g < unique_group_count; ++g){
-      size_t cur_pos = group_pos[g];
-      #pragma _NEC vector
-      for(auto i = 0; i < count; ++i){
-        if(get_validity(i) && unique_group_arr[g] == data[i]){
-            group_indexes[cur_pos++] = i;
-        }
-      }
-    }
-
-    { // Set invalid group indices
-      auto cur_pos = group_pos[unique_group_count];
-      #pragma _NEC vector
-      for(auto i = 0; i < count; ++i){
-        if(!get_validity(i)){
-          group_indexes[cur_pos++] = i;
-        }
-      }
-    }
-
-    // Reset group starting points
-    group_pos[0] = 0;
-    #pragma _NEC vector
-    for(auto g = 1; g < unique_group_count + 1; ++g) {
-      group_pos[g] = group_pos[g-1] + group_sizes[g-1];
-    }
-
-    // Setup output
-    std::vector<std::vector<size_t>> result(unique_group_count + 1);
-    for(auto g = 0; g < unique_group_count + 1; ++g) {
-      result[g].resize(group_sizes[g]);
-
-      size_t offset = group_pos[g];
-      auto result_g_arr = result[g].data();
-      auto result_g_size = result[g].size();
-      for(auto i = 0; i < result_g_size; ++i){
-        result_g_arr[i]  = group_indexes[i + offset];
-      }
-    }
-
-    // clean up  group_sizes, group_pos, group_indexes
-    free(group_sizes);
-    free(group_pos);
-    free(group_indexes);
-
-    return result;
   }
+
+  // Sort data for grouping
+  frovedis::radix_sort(sorted_data, idx_arr, valid_count);
+  std::vector<size_t> group_pos_idxs = frovedis::set_separate(sorted_data, valid_count);
+
+  // Free sorted data, as we no longer need it
+  free(sorted_data);
+
+  std::vector<std::vector<size_t>> result;
+
+#pragma _NEC vector
+  for(auto g = 1; g < group_pos_idxs.size(); g++){
+    std::vector<size_t> output_group(&idx_arr[group_pos_idxs[g - 1]], &idx_arr[group_pos_idxs[g]]);
+    result.push_back(output_group);
+  }
+
+  // Invalid group comes last
+  if(invalid_count > 0){
+    std::vector <size_t> output_group(&idx_arr[count - invalid_count], &idx_arr[count]);
+    result.push_back(output_group);
+  }
+  free(idx_arr);
+
+  return result;
 }
 
 // Forward declare the class template instantiations to prevent linker errors:
