@@ -67,7 +67,8 @@ class SeqOptTConversionsUnitSpec extends AnyWordSpec {
       // Check fields
       colvec.underlying.veType.scalaType should be (classOf[String])
       colvec.underlying.name should be (name)
-      colvec.underlying.source should be(source)
+      colvec.underlying.source should be (source)
+      colvec.underlying.numItems should be (input.size)
       colvec.underlying.buffers.size should be (4)
 
       // Data, starts, and lens buffer capacities should be correctly set

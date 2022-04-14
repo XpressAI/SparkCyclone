@@ -57,7 +57,7 @@ object ArrayTConversions {
           container = None,
           buffers = List(
             Option(dataBuffer),
-            // Since T <: AnyVal, they are non-nullable
+            // Since T <: AnyVal, Array[T] is an array of non-nullable values
             Option(FixedBitSet.ones(input.size))
           ),
           variableSize = None

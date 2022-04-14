@@ -38,23 +38,27 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
     )(cycloneMetrics.registerTransferTime)
   }
 
-  def toByteArrayColVector(): ByteArrayColVector = {
+  def toByteArrayColVector: ByteArrayColVector = {
+    import underlying._
+
+    val buffers = underlying.buffers.flatten.map { ptr =>
+      try {
+        ptr.asBuffer.array
+
+      } catch {
+        case _: UnsupportedOperationException =>
+          val output = Array.fill[Byte](ptr.limit().toInt)(-1)
+          ptr.get(output)
+          output
+      }
+    }
+
     ByteArrayColVector(
-      underlying.copy(
-        container = None,
-        buffers = underlying
-          .map(_.map(bp => {
-            try bp.asBuffer.array()
-            catch {
-              case _: UnsupportedOperationException =>
-                val size = bp.limit()
-                val target: Array[Byte] = Array.fill(size.toInt)(-1)
-                bp.get(target)
-                target
-            }
-          }))
-          .buffers
-      )
+      source,
+      numItems,
+      name,
+      veType,
+      buffers
     )
   }
 }

@@ -47,9 +47,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     val totalSize = bufferSizes.sum
 
     val resultingArray = cycloneMetrics.measureRunningTime(
-      toBytePointerVector()
-        .toByteArrayColVector()
-        .serialize()
+      toBytePointerVector.toByteArrayColVector.serialize
     )(cycloneMetrics.registerSerializationTime)
 
     assert(
@@ -60,7 +58,7 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     resultingArray
   }
 
-  def toBytePointerVector()(implicit veProcess: VeProcess): BytePointerColVector =
+  def toBytePointerVector(implicit veProcess: VeProcess): BytePointerColVector =
     BytePointerColVector(
       underlying.copy(
         container = None,
@@ -156,13 +154,4 @@ object VeColVector {
       buffers = bufferLocations
     )
   )
-
-  def fromArrowVector(valueVector: ValueVector)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColVector = {
-    valueVector.toBytePointerColVector(source).toVeColVector
-  }
 }

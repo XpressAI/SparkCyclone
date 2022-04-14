@@ -20,6 +20,7 @@
 package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
@@ -31,6 +32,7 @@ import org.scalatest.freespec.AnyFreeSpec
 /**
  * This test suite evaluates expressions and Ve logical plans to verify correctness of the key bits.
  */
+@VectorEngineTest
 final class SortExpressionEvaluationSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
 
   import RealExpressionEvaluationUtils._

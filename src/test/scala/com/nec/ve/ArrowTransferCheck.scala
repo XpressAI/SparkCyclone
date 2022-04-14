@@ -4,6 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders._
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableDouble, VeScalarType, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
@@ -15,73 +16,15 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{FieldVector, Float8Vector, ValueVector, VarCharVector}
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
   import OriginalCallingContext.Automatic._
-
-  "Identify check: data that we put into the VE can be retrieved back out" - {
-    "for Float8Vector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-          val arrowVec = colVec.toBytePointerVector.toArrowVector
-
-          try {
-            colVec.free()
-            expect(arrowVec.toString == f8v.toString)
-          } finally arrowVec.close()
-        }
-      }
-    }
-
-    "for VarCharVector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowStringVector(List("Quick", "brown", "fox", "smth smth", "lazy dog")) { f8v =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-          val arrowVec = colVec.toBytePointerVector.toArrowVector
-
-          try {
-            colVec.free()
-            expect(arrowVec.toString == f8v.toString)
-          } finally arrowVec.close()
-        }
-      }
-    }
-
-    "for BigInt" in {
-      WithTestAllocator { implicit alloc =>
-        withDirectBigIntVector(List(1, -1, 1238)) { biv =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(biv)
-          val arrowVec = colVec.toBytePointerVector.toArrowVector
-
-          try {
-            colVec.free()
-            expect(arrowVec.toString == biv.toString)
-          } finally arrowVec.close()
-        }
-      }
-    }
-
-    "for Int" in {
-      WithTestAllocator { implicit alloc =>
-        withDirectIntVector(List(1, 2, 3, -5)) { dirInt =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(dirInt)
-          val arrowVec = colVec.toBytePointerVector.toArrowVector
-
-          try {
-            colVec.free()
-            expect(arrowVec.toString == dirInt.toString)
-          } finally arrowVec.close()
-        }
-      }
-    }
-  }
-
   "Execute our function" in {
     compiledWithHeaders(DoublingFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
+          val colVec = f8v.toBytePointerColVector.toVeColVector
           val results = veProcess.execute(
             libraryReference = lib,
             functionName = "f",
@@ -103,7 +46,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val lib = veProcess.loadLibrary(path)
       WithTestAllocator { implicit alloc =>
         withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
-          val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
+          val colVec = f8v.toBytePointerColVector.toVeColVector
           val results = veProcess.executeMulti(
             libraryReference = lib,
             functionName = "f",
@@ -148,9 +91,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
           withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
             val lastString = "cccc"
             withNullableArrowStringVector(List("a", "b", lastString).map(Some.apply)) { sv =>
-              val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-              val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
-              val colVecS: VeColVector = VeColVector.fromArrowVector(sv)
+              val colVec = f8v.toBytePointerColVector.toVeColVector
+              val colVec2 = f8v2.toBytePointerColVector.toVeColVector
+              val colVecS = sv.toBytePointerColVector.toVeColVector
               val results = veProcess.executeMulti(
                 libraryReference = lib,
                 functionName = groupingFn.name,
@@ -200,7 +143,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     def checkVector(
       valueVector: ValueVector
     )(implicit veProcess: VeProcess, bufferAllocator: BufferAllocator): Unit = {
-      val colVec: VeColVector = VeColVector.fromArrowVector(valueVector)
+      val colVec = valueVector.toBytePointerColVector.toVeColVector
       val serialized = colVec.serialize()
       val serList = serialized.toList
       val newColVec = colVec.underlying.toUnit.deserialize(serialized)
@@ -284,10 +227,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
             withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
               withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
                 withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
-                  val colVec: VeColVector = VeColVector.fromArrowVector(f8v)
-                  val colVec2: VeColVector = VeColVector.fromArrowVector(f8v2)
-                  val sVec: VeColVector = VeColVector.fromArrowVector(sv)
-                  val sVec2: VeColVector = VeColVector.fromArrowVector(sv2)
+                  val colVec = f8v.toBytePointerColVector.toVeColVector
+                  val colVec2 = f8v2.toBytePointerColVector.toVeColVector
+                  val sVec = sv.toBytePointerColVector.toVeColVector
+                  val sVec2 = sv2.toBytePointerColVector.toVeColVector
                   val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
                   val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
                   val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))

@@ -66,7 +66,7 @@ object StaticTypingTestAdditions {
       ): VeColBatch =
         WithTestAllocator { implicit a =>
           withArrowFloat8VectorI(data) { f8v =>
-            VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
+            VeColBatch.fromList(List(f8v.toBytePointerColVector.toVeColVector))
           }
         }
 
@@ -81,7 +81,7 @@ object StaticTypingTestAdditions {
       ): VeColBatch =
         WithTestAllocator { implicit a =>
           withArrowStringVector(data) { vcv =>
-            VeColBatch.fromList(List(VeColVector.fromArrowVector(vcv)))
+            VeColBatch.fromList(List(vcv.toBytePointerColVector.toVeColVector))
           }
         }
       override def veTypes: List[VeType] = List(VeString)
@@ -97,7 +97,10 @@ object StaticTypingTestAdditions {
           withArrowStringVector(data.map(_._1)) { vcv =>
             withArrowFloat8VectorI(data.map(_._2)) { f8v =>
               VeColBatch.fromList(
-                List(VeColVector.fromArrowVector(vcv), VeColVector.fromArrowVector(f8v))
+                List(
+                  vcv.toBytePointerColVector.toVeColVector,
+                  f8v.toBytePointerColVector.toVeColVector
+                )
               )
             }
           }
@@ -116,7 +119,10 @@ object StaticTypingTestAdditions {
           withArrowFloat8VectorI(data.map(_._1)) { vcv =>
             withArrowFloat8VectorI(data.map(_._2)) { f8v =>
               VeColBatch.fromList(
-                List(VeColVector.fromArrowVector(vcv), VeColVector.fromArrowVector(f8v))
+                List(
+                  vcv.toBytePointerColVector.toVeColVector,
+                  f8v.toBytePointerColVector.toVeColVector
+                )
               )
             }
           }
@@ -137,9 +143,9 @@ object StaticTypingTestAdditions {
               withArrowFloat8VectorI(data.map(_._3)) { c =>
                 VeColBatch.fromList(
                   List(
-                    VeColVector.fromArrowVector(a),
-                    VeColVector.fromArrowVector(b),
-                    VeColVector.fromArrowVector(c)
+                    a.toBytePointerColVector.toVeColVector,
+                    b.toBytePointerColVector.toVeColVector,
+                    c.toBytePointerColVector.toVeColVector
                   )
                 )
               }
@@ -165,10 +171,10 @@ object StaticTypingTestAdditions {
                 withArrowFloat8VectorI(data.map(_._3)) { d =>
                   VeColBatch.fromList(
                     List(
-                      VeColVector.fromArrowVector(a),
-                      VeColVector.fromArrowVector(b),
-                      VeColVector.fromArrowVector(c),
-                      VeColVector.fromArrowVector(d)
+                      a.toBytePointerColVector.toVeColVector,
+                      b.toBytePointerColVector.toVeColVector,
+                      c.toBytePointerColVector.toVeColVector,
+                      d.toBytePointerColVector.toVeColVector
                     )
                   )
                 }
@@ -189,7 +195,7 @@ object StaticTypingTestAdditions {
       ): VeColBatch =
         WithTestAllocator { implicit a =>
           withNullableDoubleVector(data) { f8v =>
-            VeColBatch.fromList(List(VeColVector.fromArrowVector(f8v)))
+            VeColBatch.fromList(List(f8v.toBytePointerColVector.toVeColVector))
           }
         }
 
@@ -209,9 +215,9 @@ object StaticTypingTestAdditions {
               withArrowFloat8VectorI(data.map(_._2)) { c =>
                 VeColBatch.fromList(
                   List(
-                    VeColVector.fromArrowVector(a),
-                    VeColVector.fromArrowVector(b),
-                    VeColVector.fromArrowVector(c)
+                    a.toBytePointerColVector.toVeColVector,
+                    b.toBytePointerColVector.toVeColVector,
+                    c.toBytePointerColVector.toVeColVector
                   )
                 )
               }

@@ -1,6 +1,7 @@
 package com.nec.ve.eval
 
 import com.nec.cmake.CMakeBuilder
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{CodeLines, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.core.{CVector, VeScalarType}
@@ -13,6 +14,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import scala.util.Random
 
 @Ignore
+@VectorEngineTest
 final class InStringHoleEvaluationSpec extends AnyWordSpec {
   implicit class EvalOps(evaluation: InStringHoleEvaluation) {
     def execute(input: List[String]): List[Int] = {

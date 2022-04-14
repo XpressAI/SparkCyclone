@@ -2,6 +2,7 @@ package com.nec.cache
 
 import com.nec.arrow.ArrowEncodingSettings
 import com.nec.arrow.colvector.BytePointerColVector
+import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.colvector.VeColBatch.{VeColVector, VeColVectorSource}
@@ -31,7 +32,7 @@ object ColumnarBatchToVeColBatch {
             .map(i =>
               columnarBatch.column(i).getOptionalArrowValueVector match {
                 case Some(acv) =>
-                  VeColVector.fromArrowVector(acv)
+                  acv.toBytePointerColVector.toVeColVector
                 case None =>
                   val field = arrowSchema.getFields.get(i)
                   columnarBatch.column(i)

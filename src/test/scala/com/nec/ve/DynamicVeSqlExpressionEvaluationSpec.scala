@@ -20,6 +20,7 @@
 package com.nec.ve
 
 import com.nec.cmake.DynamicCSqlExpressionEvaluationSpec
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.tpc.TPCHVESqlSpec
 import org.apache.spark.sql.SparkSession
@@ -32,6 +33,7 @@ object DynamicVeSqlExpressionEvaluationSpec {
     TPCHVESqlSpec.VeConfiguration(failFast = true)
 }
 
+@VectorEngineTest
 final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEvaluationSpec {
 
   override def configuration: SparkSession.Builder => SparkSession.Builder =

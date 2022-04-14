@@ -3,6 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.WithTestAllocator
 import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.RichVectors.RichFloat8
@@ -20,6 +21,7 @@ import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class VERDDSpec
   extends AnyFreeSpec
   with SparkAdditions
@@ -48,7 +50,7 @@ final class VERDDSpec
           .map(_.toDouble)
       }.map { arrowVec =>
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-        VeColVector.fromArrowVector(arrowVec)
+        arrowVec.toBytePointerColVector.toVeColVector
       }.map(ve => veProcess.execute(ref, "f", List(ve), DoublingFunction.outputs))
         .map(vectors => {
           WithTestAllocator { implicit alloc =>
@@ -87,7 +89,7 @@ object VERDDSpec {
             .map(arrowVec => {
               import SparkCycloneExecutorPlugin.source
               import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-              try VeColVector.fromArrowVector(arrowVec)
+              try arrowVec.toBytePointerColVector.toVeColVector
               finally arrowVec.close()
             })
             .flatMap(veColVector => {

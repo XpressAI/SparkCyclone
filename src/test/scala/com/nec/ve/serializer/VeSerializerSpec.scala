@@ -4,6 +4,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8VectorI
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.WithTestAllocator
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.{VeColBatch, VeKernelInfra, WithVeProcess}
@@ -11,6 +12,7 @@ import org.scalatest.freespec.AnyFreeSpec
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 
+@VectorEngineTest
 final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
   import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
 
@@ -19,7 +21,7 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
       withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
         withArrowFloat8VectorI(List(-1, -2, -3)) { f8v2 =>
           val colVec: VeColBatch = VeColBatch.fromList(
-            List(VeColVector.fromArrowVector(f8v), VeColVector.fromArrowVector(f8v2))
+            List(f8v.toBytePointerColVector.toVeColVector, f8v2.toBytePointerColVector.toVeColVector)
           )
           val theBatch = VeColBatch.deserialize(colVec.serialize())
           val gotVecStr = theBatch.cols.head.toBytePointerVector.toArrowVector.toString
@@ -38,7 +40,7 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
       withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
         withArrowFloat8VectorI(List(-1, -2, -3)) { f8v2 =>
           val veColBatch: VeColBatch = VeColBatch.fromList(
-            List(VeColVector.fromArrowVector(f8v), VeColVector.fromArrowVector(f8v2))
+            List(f8v.toBytePointerColVector.toVeColVector, f8v2.toBytePointerColVector.toVeColVector)
           )
           val byteArrayOutputStream = new ByteArrayOutputStream()
           val dataOutputStream = new DataOutputStream(byteArrayOutputStream)
@@ -67,7 +69,7 @@ final class VeSerializerSpec extends AnyFreeSpec with WithVeProcess with VeKerne
       withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
         withArrowFloat8VectorI(List(-1, -2, -3)) { f8v2 =>
           val veColBatch: VeColBatch = VeColBatch.fromList(
-            List(VeColVector.fromArrowVector(f8v), VeColVector.fromArrowVector(f8v2))
+            List(f8v.toBytePointerColVector.toVeColVector, f8v2.toBytePointerColVector.toVeColVector)
           )
 
           val byteArrayOutputStream = new ByteArrayOutputStream()

@@ -1,12 +1,14 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.PureVeFunctions.PartitioningFunction
-import com.nec.ve.VERDDSpec.{exchangeBatches, MultiFunctionName}
+import com.nec.ve.VERDDSpec.{MultiFunctionName, exchangeBatches}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
+@VectorEngineTest
 final class ExchangeOnLocalSpec
   extends AnyFreeSpec
   with SparkAdditions

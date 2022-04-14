@@ -163,8 +163,22 @@ Test / unmanagedJars ++= sys.env
 Test / parallelExecution := false
 inConfig(Test)(Defaults.testTasks)
 
-/** To do things more cleanly */
+Test / testOptions += Tests.Argument("-oD")
+
+
+/**
+ * *****************************************************************************
+ * CMake Test Settings
+ * *****************************************************************************
+ */
+
+inConfig(CMake)(Defaults.testTasks)
+
+def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
+
 CMake / parallelExecution := true
+CMake / fork := true
+CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 /**
  * Make each test suite run independently
@@ -175,15 +189,21 @@ CMake / testGrouping := (CMake / definedTests).value.map { suite =>
   Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
 }
 
-/** Vector Engine specific configuration */
-VectorEngine / parallelExecution := false
+
+/**
+ * *****************************************************************************
+ * Vector Engine Test Settings
+ * *****************************************************************************
+ */
+
 inConfig(VectorEngine)(Defaults.testTasks)
-def veFilter(name: String): Boolean = name.startsWith("com.nec.ve")
+
+VectorEngine / parallelExecution := false
 VectorEngine / fork := true
 VectorEngine / run / fork := true
 
 /**
- * Make each test suite run independently
+ * Make each test suite run independently:
  * https://stackoverflow.com/questions/61072140/forking-each-scalatest-suite-with-sbt
  */
 VectorEngine / testGrouping := (VectorEngine / definedTests).value.map { suite =>
@@ -191,28 +211,42 @@ VectorEngine / testGrouping := (VectorEngine / definedTests).value.map { suite =
   Group(suite.name, Seq(suite), SubProcess(ForkOptions()))
 }
 
-/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
+// Generate `java.hprof.txt` in the project root for very simple profiling
 VectorEngine / run / javaOptions ++= {
   // The feature was removed in JDK9, however for Spark we must support JDK8
-  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
+  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8")) {
     List("-agentlib:hprof=cpu=samples")
-  else Nil
+  } else {
+    Nil
+  }
 }
+
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
-VectorEngine / testOptions := Seq(Tests.Filter(veFilter))
+VectorEngine / testOptions := Seq(Tests.Argument("-n", "com.nec.cyclone.annotations.VectorEngineTest"))
+
+
+/**
+ * *****************************************************************************
+ * TPCH Benchmark Settings
+ * *****************************************************************************
+ */
+
+inConfig(TPC)(Defaults.testTasks)
+
+def tpcFilter(name: String): Boolean = name.startsWith("com.nec.tpc")
 
 TPC / parallelExecution := false
-inConfig(TPC)(Defaults.testTasks)
-def tpcFilter(name: String): Boolean = name.startsWith("com.nec.tpc")
 TPC / fork := true
 TPC / run / fork := true
 
-/** This generates a file 'java.hprof.txt' in the project root for very simple profiling. * */
+// Generate `java.hprof.txt` in the project root for very simple profiling
 TPC / run / javaOptions ++= {
   // The feature was removed in JDK9, however for Spark we must support JDK8
-  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8"))
+  if (ManagementFactory.getRuntimeMXBean.getVmVersion.startsWith("1.8")) {
     List("-agentlib:hprof=cpu=samples")
-  else Nil
+  } else {
+    Nil
+  }
 }
 
 TPC / sourceDirectory := baseDirectory.value / "src" / "test"
@@ -238,28 +272,35 @@ TPC / testOptions := {
   }
 }
 
-/** CMake specific configuration */
-inConfig(CMake)(Defaults.testTasks)
-def cmakeFilter(name: String): Boolean = name.startsWith("com.nec.cmake")
-CMake / fork := true
-CMake / testOptions := Seq(Tests.Filter(cmakeFilter))
 
 Global / cancelable := true
 
 def otherFilter(name: String): Boolean =
-  !accFilter(name) && !veFilter(name) && !cmakeFilter(name) && !tpcFilter(name)
+  !accFilter(name) && !cmakeFilter(name) && !tpcFilter(name)
 
 Test / testOptions := {
-  if ((Test / debugToHtml).value)
+  val options = if ((Test / debugToHtml).value) {
     Seq(
-      Tests.Filter(otherFilter),
       Tests.Argument("-h", "target/test-html"),
       Tests.Argument("-Dmarkup=true")
     )
-  else Seq(Tests.Filter(otherFilter))
+  } else {
+    Seq.empty
+  }
+
+  options ++ Seq(
+    Tests.Filter(otherFilter),
+    Tests.Argument("-l", "com.nec.cyclone.annotations.VectorEngineTest")
+  )
 }
 
-/** Acceptance Testing configuration */
+
+/**
+ * *****************************************************************************
+ * Acceptance Test Settings
+ * *****************************************************************************
+ */
+
 AcceptanceTest / parallelExecution := false
 lazy val AcceptanceTest = config("acc") extend Test
 inConfig(AcceptanceTest)(Defaults.testTasks)
@@ -288,6 +329,13 @@ addCommandAlias(
 )
 
 addCommandAlias("fmt", ";scalafmtSbt;scalafmtAll")
+
+
+/**
+ * *****************************************************************************
+ * Assembly / Deployment Settings
+ * *****************************************************************************
+ */
 
 assembly / assemblyMergeStrategy := {
   case v if v.contains("module-info.class")   => MergeStrategy.discard
@@ -359,8 +407,6 @@ deployExamples := {
   logger.info("Uploaded examples.")
 }
 
-Test / testOptions += Tests.Argument("-oD")
-
 val bench = inputKey[Unit]("Runs JMH benchmarks in fun-bench")
 bench := (`fun-bench` / Jmh / run).evaluated
 
@@ -398,19 +444,16 @@ lazy val tpchbench = project
     libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
     libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-// test suite settings
+    // test suite settings
     Test / fork := true,
     javaOptions ++= Seq("-Xms2G", "-Xmx32G", "-XX:+CMSClassUnloadingEnabled"),
-// Show runtime of tests
+    // Show runtime of tests
     Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
-
-// JAR file settings
-
-// don't include Scala in the JAR file
-//assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
-
-// Add the JAR file naming conventions described here: https://github.com/MrPowers/spark-style-guide#jar-files
-// You can add the JAR file naming conventions by running the shell script
+    // JAR file settings
+    // don't include Scala in the JAR file
+    // assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false)
+    // Add the JAR file naming conventions described here: https://github.com/MrPowers/spark-style-guide#jar-files
+    // You can add the JAR file naming conventions by running the shell script
   )
 
 lazy val `tpcbench-run` = project
@@ -456,6 +499,7 @@ lazy val `tpcbench-run` = project
     Test / fork := true
   )
   .dependsOn(tracing)
+
 
 /**
  * *****************************************************************************
@@ -586,6 +630,13 @@ cycloneVeLibrary := {
   cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
 }
 cycloneVeLibrary / logBuffered := false
+
+
+/**
+ * *****************************************************************************
+ * Rddbench Build Settings
+ * *****************************************************************************
+ */
 
 lazy val `rddbench` = project
   .dependsOn(root)

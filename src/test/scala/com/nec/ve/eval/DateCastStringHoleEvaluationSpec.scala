@@ -1,6 +1,7 @@
 package com.nec.ve.eval
 
 import com.nec.cmake.CMakeBuilder
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
@@ -14,6 +15,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @Ignore
+@VectorEngineTest
 final class DateCastStringHoleEvaluationSpec extends AnyFlatSpec {
   "It" should "correctly map string to date" in {
     val list = List("1970-01-01", "2000-01-01", "1960-01-01", "2022-12-31")
