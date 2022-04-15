@@ -1,20 +1,17 @@
 package com.nec.ve
 
-import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders._
-import com.nec.arrow.WithTestAllocator
-import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.arrow.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.spark.agile.core.{VeNullableDouble, VeScalarType, VeString}
+import com.nec.spark.agile.core.{VeNullableDouble, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
-import com.nec.util.RichVectors.{RichFloat8, RichVarCharVector}
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector}
+import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{FieldVector, Float8Vector, ValueVector, VarCharVector}
+import scala.util.Random
+import org.scalatest.matchers.should.Matchers._
 import org.scalatest.freespec.AnyFreeSpec
+import com.nec.arrow.colvector.BytePointerColVector
 
 @VectorEngineTest
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
@@ -22,54 +19,47 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   "Execute our function" in {
     compiledWithHeaders(DoublingFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          val colVec = f8v.toBytePointerColVector.toVeColVector
-          val results = veProcess.execute(
-            libraryReference = lib,
-            functionName = "f",
-            cols = List(colVec),
-            results = List(VeNullableDouble.makeCVector("outd"))
-          )
-          expect(results.size == 1)
-          val vec = results.head.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
-          val result = vec.toList
-          try expect(result == List[Double](2, 4, 6))
-          finally vec.close()
-        }
-      }
+      val colvec = Seq[Double](1, 2, 3).map(Some(_)).toBytePointerColVector("input").toVeColVector
+
+      val outputs = veProcess.execute(
+        libraryReference = lib,
+        functionName = "f",
+        cols = List(colvec),
+        results = List(VeNullableDouble.makeCVector("output"))
+      )
+
+      outputs.map(_.toBytePointerVector.toSeqOpt[Double].flatten) should be (Seq(Seq[Double](2, 4, 6)))
     }
   }
 
   "Execute multi-function" in {
     compiledWithHeaders(PartitioningFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(95, 99, 105, 500, 501)) { f8v =>
-          val colVec = f8v.toBytePointerColVector.toVeColVector
-          val results = veProcess.executeMulti(
-            libraryReference = lib,
-            functionName = "f",
-            cols = List(colVec),
-            results = List(VeNullableDouble.makeCVector("outd"))
-          )
+      val colvec = Seq[Double](95, 99, 105, 500, 501).map(Some(_)).toBytePointerColVector("input").toVeColVector
 
-          val plainResults: List[(Int, Option[Double])] = results.map { case (index, vecs) =>
-            val vec = vecs.head
-            index -> {
-              val av = vec.toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
-              val avl = av.toList
-              try if (avl.isEmpty) None else Some(avl.max)
-              finally av.close()
-            }
-          }
+      val outputs = veProcess.executeMulti(
+        libraryReference = lib,
+        functionName = "f",
+        cols = List(colvec),
+        results = List(VeNullableDouble.makeCVector("output"))
+      )
 
-          val expectedResult: List[(Int, Option[Double])] =
-            List((0, Some(99)), (1, Some(105)), (2, None), (3, None), (4, Some(501)))
-
-          expect(plainResults == expectedResult)
+      val results: List[(Int, Option[Double])] = outputs.map { case (index, vecs) =>
+        index -> {
+          val tmp = vecs.head.toBytePointerVector.toSeqOpt[Double].flatten
+          if (tmp.isEmpty) None else Some(tmp.max)
         }
       }
+
+      val expected = List(
+        (0, Some(99.0)),
+        (1, Some(105.0)),
+        (2, None),
+        (3, None),
+        (4, Some(501.0))
+      )
+
+      results should be (expected)
     }
   }
 
@@ -86,124 +76,74 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
     compiledWithHeaders(groupingFn.toCFunction) { path =>
       val lib = veProcess.loadLibrary(path)
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          withArrowFloat8VectorI(List(9, 8, 7)) { f8v2 =>
-            val lastString = "cccc"
-            withNullableArrowStringVector(List("a", "b", lastString).map(Some.apply)) { sv =>
-              val colVec = f8v.toBytePointerColVector.toVeColVector
-              val colVec2 = f8v2.toBytePointerColVector.toVeColVector
-              val colVecS = sv.toBytePointerColVector.toVeColVector
-              val results = veProcess.executeMulti(
-                libraryReference = lib,
-                functionName = groupingFn.name,
-                cols = List(colVec, colVecS, colVec2),
-                results = List(
-                  VeNullableDouble,
-                  VeString,
-                  VeNullableDouble
-                ).zipWithIndex.map { case (vt, i) => vt.makeCVector(s"out_${i}") }
-              )
 
-              val plainResultsD: List[(Int, List[(Double, String, Double)])] = results.map {
-                case (index, vecs) =>
-                  val vecFloat = vecs(0).toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
-                  val vecStr = vecs(1).toBytePointerVector.toArrowVector.asInstanceOf[VarCharVector]
-                  val vecFl2 = vecs(2).toBytePointerVector.toArrowVector.asInstanceOf[Float8Vector]
-                  try {
-                    index -> vecFloat.toList.zip(vecFl2.toList).zip(vecStr.toList).map {
-                      case ((a, b), c) => (a, c, b)
-                    }
-                  } finally {
-                    vecStr.close()
-                    vecFloat.close()
-                    vecFl2.close()
-                  }
-              }
+      val lastString = "cccc"
+      val colvec1 = Seq[Double](1, 2, 3).map(Some(_)).toBytePointerColVector("1").toVeColVector
+      val colvec2 = Seq[Double](9, 8, 7).map(Some(_)).toBytePointerColVector("2").toVeColVector
+      val colvecS = Seq("a", "b", lastString).map(Some(_)).toBytePointerColVector("3").toVeColVector
 
-              val allSets = plainResultsD.flatMap(_._2).toSet
+      val outputs = veProcess.executeMulti(
+        libraryReference = lib,
+        functionName = groupingFn.name,
+        cols = List(colvec1, colvecS, colvec2),
+        results = List(VeNullableDouble, VeString, VeNullableDouble).zipWithIndex
+          .map { case (vt, i) => vt.makeCVector(s"out_${i}") }
+      )
 
-              val expectedGroups: Set[(Double, String, Double)] =
-                Set((1, "a", 9), (2, "b", 8), (3, lastString, 7))
-
-              assert(
-                plainResultsD.map(_._2.size).toSet == Set(1, 2),
-                "We expect the groups to have exactly size 2 and 1 each because of the split"
-              )
-              assert(allSets == expectedGroups, "we verify that we get back the data we had put in")
-            }
-          }
-        }
+      val results: List[(Int, List[(Double, String, Double)])] = outputs.map { case (index, vecs) =>
+        index -> (
+          vecs(0).toBytePointerVector.toSeqOpt[Double].flatten,
+          vecs(1).toBytePointerVector.toSeqOpt[String].flatten,
+          vecs(2).toBytePointerVector.toSeqOpt[Double].flatten,
+        ).zipped.toList
       }
+
+      results.map(_._2.size).toSet == Set(1, 2)
+      results.flatMap(_._2).toSet should be (Set[(Double, String, Double)]((1, "a", 9), (2, "b", 8), (3, lastString, 7)))
     }
   }
 
   "We can serialize/deserialize VeColVector" - {
+    def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
+      val colvec1 = input.toVeColVector
+      val serialized = colvec1.serialize
+      val colvec2 = colvec1.underlying.toUnit.deserialize(serialized)
 
-    def checkVector(
-      valueVector: ValueVector
-    )(implicit veProcess: VeProcess, bufferAllocator: BufferAllocator): Unit = {
-      val colVec = valueVector.toBytePointerColVector.toVeColVector
-      val serialized = colVec.serialize()
-      val serList = serialized.toList
-      val newColVec = colVec.underlying.toUnit.deserialize(serialized)
-      expect(
-        newColVec.containerLocation != colVec.containerLocation,
-        newColVec.bufferLocations != colVec.bufferLocations
-      )
-      val newSerialized = newColVec.serialize().toList
-      val newSerList = newSerialized.toList
-      assert(newSerList == serList, "Serializing a deserialized one should yield the same result")
-      val newColVecArrow = newColVec.toBytePointerVector.toArrowVector
-      try {
-        colVec.free()
-        newColVec.free()
-        expect(newColVecArrow.toString == valueVector.toString)
-      } finally newColVecArrow.close()
+      colvec1.containerLocation should not be (colvec2.containerLocation)
+      colvec1.bufferLocations should not be (colvec2.bufferLocations)
+      colvec2.serialize.toSeq should be (serialized.toSeq)
 
+      colvec2.toBytePointerVector
     }
 
-    "for Float8Vector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List(1, 2, 3)) { f8v =>
-          checkVector(f8v)
-        }
-      }
+    "for Int" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Int] should be (input)
     }
-    "for IntVector" in {
-      WithTestAllocator { implicit alloc =>
-        withDirectIntVector(List(1, 2, 3)) { f8v =>
-          checkVector(f8v)
-        }
-      }
+
+    "for Short" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000).toShort) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Short] should be (input)
     }
-    "for BigIntVector" in {
-      WithTestAllocator { implicit alloc =>
-        withDirectBigIntVector(List(1, 2, 3)) { f8v =>
-          checkVector(f8v)
-        }
-      }
+
+    "for Long" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Long] should be (input)
     }
-    "for VarCharVector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowStringVector(List("1", "2", "3x")) { sv =>
-          checkVector(sv)
-        }
-      }
+
+    "for Float" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextFloat * 1000) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Float] should be (input)
     }
-    "for empty VarCharVector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowStringVector(List.empty) { sv =>
-          checkVector(sv)
-        }
-      }
+
+    "for Double" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextDouble * 1000) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Double] should be (input)
     }
-    "for an empty Float8Vector" in {
-      WithTestAllocator { implicit alloc =>
-        withArrowFloat8VectorI(List.empty) { f8v =>
-          checkVector(f8v)
-        }
-      }
+
+    "for String" in {
+      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextString(Random.nextInt(30))) else None)
+      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[String] should be (input)
     }
   }
 
@@ -219,45 +159,30 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
   "We can merge multiple VeColBatches" in {
     val mergeFn = MergeFunction("merger", List(VeNullableDouble, VeString))
 
-    compiledWithHeaders(mergeFn.toCFunction) {
-      path =>
-        val lib = veProcess.loadLibrary(path)
-        WithTestAllocator { implicit alloc =>
-          withArrowFloat8VectorI(List(1, 2, 3, -1)) { f8v =>
-            withArrowStringVector(Seq("a", "b", "c", "x")) { sv =>
-              withArrowStringVector(Seq("d", "e", "f")) { sv2 =>
-                withArrowFloat8VectorI(List(2, 3, 4)) { f8v2 =>
-                  val colVec = f8v.toBytePointerColVector.toVeColVector
-                  val colVec2 = f8v2.toBytePointerColVector.toVeColVector
-                  val sVec = sv.toBytePointerColVector.toVeColVector
-                  val sVec2 = sv2.toBytePointerColVector.toVeColVector
-                  val colBatch1: VeColBatch = VeColBatch(colVec.numItems, List(colVec, sVec))
-                  val colBatch2: VeColBatch = VeColBatch(colVec2.numItems, List(colVec2, sVec2))
-                  val bg = VeBatchOfBatches.fromVeColBatches(List(colBatch1, colBatch2))
-                  val r: List[VeColVector] = veProcess.executeMultiIn(
-                    libraryReference = lib,
-                    functionName = mergeFn.name,
-                    batches = bg,
-                    results = colBatch1.cols.zipWithIndex.map { case (vcv, idx) =>
-                      vcv.veType.makeCVector(s"o_${idx}")
-                    }
-                  )
+    compiledWithHeaders(mergeFn.toCFunction) { path =>
+      val lib = veProcess.loadLibrary(path)
 
-                  val resultVecs: List[FieldVector] = r.map(_.toBytePointerVector.toArrowVector)
+      val colvec1 = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("1").toVeColVector
+      val colvec2 = Seq[Double](2, 3, 4).map(Some(_)).toBytePointerColVector("2").toVeColVector
+      val svec1 = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("3").toVeColVector
+      val svec2 = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("4").toVeColVector
 
-                  try {
-                    val nums = resultVecs(0).asInstanceOf[Float8Vector].toListSafe
-                    val strs = resultVecs(1).asInstanceOf[VarCharVector].toList
+      val colbatch1 = VeColBatch(colvec1.numItems, List(colvec1, svec1))
+      val colbatch2 = VeColBatch(colvec2.numItems, List(colvec2, svec2))
+      val batches = VeBatchOfBatches.fromVeColBatches(List(colbatch1, colbatch2))
 
-                    val expected = List(1, 2, 3, -1, 2, 3, 4).map(v => Option(v))
-                    val expectedStrs = Seq("a", "b", "c", "x", "d", "e", "f")
-                    expect(nums == expected, strs == expectedStrs)
-                  } finally resultVecs.foreach(_.close())
-                }
-              }
-            }
-          }
+      val outputs = veProcess.executeMultiIn(
+        libraryReference = lib,
+        functionName = mergeFn.name,
+        batches = batches,
+        results = colbatch1.cols.zipWithIndex.map { case (vcv, idx) =>
+          vcv.veType.makeCVector(s"o_${idx}")
         }
+      )
+
+      outputs.size should be (2)
+      outputs(0).toBytePointerVector.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
+      outputs(1).toBytePointerVector.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
     }
   }
 }

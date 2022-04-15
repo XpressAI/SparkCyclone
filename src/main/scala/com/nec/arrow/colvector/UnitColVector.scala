@@ -51,7 +51,7 @@ final case class UnitColVector(underlying: GenericColVector[Unit]) {
         name,
         veType,
         buffers
-      ).toBytePointerColVector.toVeColVector
+      ).toVeColVector
     }(metrics.registerDeserializationTime)
   }
 

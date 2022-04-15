@@ -3,7 +3,9 @@ package com.nec.arrow.colvector
 import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.ve.colvector.VeColVector
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -119,7 +121,7 @@ object ArrowVectorConversions {
     }
   }
 
-  implicit class ValueVectorToToBPCV(vector: ValueVector) {
+  implicit class ValueVectorToBPCV(vector: ValueVector) {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       vector match {
         case vec: SmallIntVector =>
@@ -265,6 +267,15 @@ object ArrowVectorConversions {
           variableSize = Some((dataBuffer.limit() / 4).toInt)
         )
       )
+    }
+  }
+
+  implicit class ValueVectorToVeColVector(vector: ValueVector) {
+    def toVeColVector(implicit veProcess: VeProcess,
+                      source: VeColVectorSource,
+                      context: VeProcess.OriginalCallingContext,
+                      metrics: VeProcessMetrics): VeColVector = {
+      vector.toBytePointerColVector.toVeColVector
     }
   }
 }

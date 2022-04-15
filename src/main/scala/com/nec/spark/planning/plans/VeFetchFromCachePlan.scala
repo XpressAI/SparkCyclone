@@ -49,7 +49,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
             case Left(veColVector)         => veColVector
             case Right(baColVector) =>
               import ImplicitMetrics._
-              baColVector.toBytePointerColVector.toVeColVector()
+              baColVector.toVeColVector
           })
           logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
           collectBatchMetrics(OUTPUT, res)

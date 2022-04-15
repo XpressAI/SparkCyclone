@@ -4,11 +4,9 @@ import com.nec.arrow.colvector.ArrayTConversions._
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.util.RichVectors.RichFloat8
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import org.apache.arrow.vector.Float8Vector
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 

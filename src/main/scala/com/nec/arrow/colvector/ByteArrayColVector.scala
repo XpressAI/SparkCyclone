@@ -6,6 +6,9 @@ import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import com.nec.spark.agile.core.VeString
+import com.nec.ve.VeProcess
+import com.nec.ve.VeProcessMetrics
+import com.nec.ve.colvector.VeColVector
 
 final case class ByteArrayColVector private[colvector] (
   source: VeColVectorSource,
@@ -55,6 +58,13 @@ final case class ByteArrayColVector private[colvector] (
         pointers.map(Some(_)).toList
       )
     )
+  }
+
+  def toVeColVector(implicit veProcess: VeProcess,
+                    source: VeColVectorSource,
+                    context: VeProcess.OriginalCallingContext,
+                    metrics: VeProcessMetrics): VeColVector = {
+    toBytePointerColVector.toVeColVector
   }
 
   def serialize: Array[Byte] = {
