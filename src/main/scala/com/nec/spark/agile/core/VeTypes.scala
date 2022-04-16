@@ -33,7 +33,7 @@ case object VeString extends VeType {
 
 sealed trait VeScalarType extends VeType {
   def makeCVector(name: String): CVector = CScalarVector(name, this)
-  def containerSize: Int = 20
+  final def containerSize: Int = 20
   final def isString: Boolean = false
   def cScalarType: String
   def cSize: Int

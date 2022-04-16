@@ -294,9 +294,9 @@ class BasicVeRDD[T](
     val klass = typeTag.mirror.runtimeClass(tpe)
     val klassTag = ClassTag[Any](klass)
     val veVector = if(tpe =:= typeOf[Instant]){
-      valsIter.map(_.asInstanceOf[Instant].toFrovedisDateTime).toArray.toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector()
+      valsIter.map(_.asInstanceOf[Instant].toFrovedisDateTime).toArray.toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector
     }else{
-      ArrayTToBPCV(valsIter.toArray(klassTag))(klassTag).toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector()
+      ArrayTToBPCV(valsIter.toArray(klassTag))(klassTag).toBytePointerColVector(s"inputs-${index}-${seriesIndex}").toVeColVector
     }
     veVector
   }

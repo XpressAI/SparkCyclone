@@ -83,7 +83,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
   def serializeToStreamSize: Int = {
     List(4, 4) ++ cols.flatMap { col =>
-      List(4, 4, 4, col.underlying.toUnit.streamedSize, 4, 4, 4, col.serializedSize)
+      List(4, 4, 4, col.toUnit.streamedSize, 4, 4, 4, col.serializedSize)
     }
   }.sum
 
@@ -97,7 +97,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
       dataOutputStream.writeInt(DescLengthId)
       dataOutputStream.writeInt(-1)
       dataOutputStream.writeInt(DescDataId)
-      colVector.underlying.toUnit.toStreamFast(dataOutputStream)
+      colVector.toUnit.toStream(dataOutputStream)
       dataOutputStream.writeInt(PayloadBytesLengthId)
       // no bytes length as it's a stream here
       dataOutputStream.writeInt(-1)
@@ -179,12 +179,12 @@ object VeColBatch {
         // not used, stream based now
         val descLength = din.readInt()
         ensureId(din.readInt(), DescDataId)
-        val unitColVector = UnitColVector.fromStreamFast(din)
+        val unitColVector = UnitColVector.fromStream(din)
         ensureId(din.readInt(), PayloadBytesLengthId)
         // ignored here, because we read stream-based
         val payloadLength = din.readInt()
         ensureId(din.readInt(), PayloadBytesId)
-        unitColVector.deserializeFromStream(din)
+        unitColVector.withData(din)
       } catch {
         case e: Throwable =>
           val stuffAfter =

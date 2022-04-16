@@ -107,7 +107,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
       val colvec1 = input.toVeColVector
       val serialized = colvec1.serialize
-      val colvec2 = colvec1.underlying.toUnit.deserialize(serialized)
+      val colvec2 = colvec1.toUnit.withData(serialized)
 
       colvec1.containerLocation should not be (colvec2.containerLocation)
       colvec1.bufferLocations should not be (colvec2.bufferLocations)

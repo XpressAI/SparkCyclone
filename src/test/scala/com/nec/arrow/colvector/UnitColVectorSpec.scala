@@ -9,28 +9,24 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, Da
 
 final class UnitColVectorSpec extends AnyFreeSpec {
   val ucv = UnitColVector(
-    GenericColVector(
-      VeColVectorSource("tested"),
-      9,
-      "test",
-      Some(123),
-      VeNullableInt,
-      (),
-      buffers = List((), ())
-    )
+    VeColVectorSource("tested"),
+    "test",
+    VeNullableInt,
+    9,
+    Some(123)
   )
 
   "It works" in {
     val baos = new ByteArrayOutputStream()
     val daos = new DataOutputStream(baos)
-    try ucv.toStreamFast(daos)
+    try ucv.toStream(daos)
     finally daos.close()
 
     val bytes: Array[Byte] = baos.toByteArray
 
     val bais = new ByteArrayInputStream(bytes)
     val dais = new DataInputStream(bais)
-    val ucvOut = UnitColVector.fromStreamFast(dais)
+    val ucvOut = UnitColVector.fromStream(dais)
     expect(ucvOut == ucv, ucv.streamedSize == bytes.length)
   }
 }

@@ -15,7 +15,7 @@ final case class UnitColBatch(underlying: GenericColBatch[UnitColVector]) {
     val theMap = underlying.cols
       .zip(seqs)
       .map { case (unitCv, bytes) =>
-        unitCv -> unitCv.deserialize(bytes)
+        unitCv -> unitCv.withData(bytes)
       }
       .toMap
 

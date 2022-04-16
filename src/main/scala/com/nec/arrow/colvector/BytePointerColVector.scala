@@ -12,30 +12,32 @@ import org.bytedeco.javacpp.BytePointer
  */
 
 final case class BytePointerColVector(underlying: GenericColVector[Option[BytePointer]]) {
-  def toVeColVector()(implicit
-    veProcess: VeProcess,
-    _source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColVector =
-    VeColVector(
-      transferBuffersToVe()
-        .map(_.getOrElse(-1))
-    ).newContainer()
+  def toVeColVector(implicit source: VeColVectorSource,
+                    process: VeProcess,
+                    context: OriginalCallingContext,
+                    metrics: VeProcessMetrics): VeColVector = {
+    val buffers = metrics.measureRunningTime {
+      underlying.buffers.flatten.map(process.putPointer)
+    }(metrics.registerTransferTime)
 
-  def transferBuffersToVe()(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): GenericColVector[Option[Long]] = {
-    cycloneMetrics.measureRunningTime(
-      underlying
-        .map(_.map(bp => {
-          veProcess.putPointer(bp)
-        }))
-        .copy(source = source)
-    )(cycloneMetrics.registerTransferTime)
+    val container = VeColVector.buildContainer(
+      underlying.veType,
+      underlying.numItems,
+      buffers,
+      underlying.variableSize
+    )
+
+    VeColVector(
+      GenericColVector(
+        source,
+        underlying.numItems,
+        underlying.name,
+        underlying.variableSize,
+        underlying.veType,
+        container,
+        buffers
+      )
+    )
   }
 
   def toByteArrayColVector: ByteArrayColVector = {

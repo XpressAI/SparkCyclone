@@ -1,6 +1,6 @@
 package com.nec.ve.colvector
 
-import com.nec.arrow.ArrowTransferStructures._
+// import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
@@ -22,7 +22,6 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       veProcess.writeToStream(outStream, bufPos, bufLen)
     }
 
-  def toUnit: UnitColVector = underlying.toUnit
   def allAllocations = containerLocation :: bufferLocations
   def bufferLocations = underlying.buffers
   def containerLocation = underlying.containerLocation
@@ -39,6 +38,17 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
 
   def nonEmpty: Boolean = numItems > 0
   def isEmpty: Boolean = !nonEmpty
+
+  def toUnit: UnitColVector = {
+    UnitColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      variableSize
+    )
+  }
+
 
   /**
    * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
@@ -74,63 +84,16 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
       )
     )
 
-  def newContainer()(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
-  ): VeColVector =
-    copy(underlying = {
-      veType match {
-        case _: VeScalarType =>
-          // todo replace without using JNA at all
-          val double_vector = new nullable_double_vector()
-          val v_bb = double_vector.getPointer.getByteBuffer(0, 20)
-          v_bb.putLong(0, buffers(0))
-          v_bb.putLong(8, buffers(1))
-          v_bb.putInt(16, numItems)
-          val bytePointer = new BytePointer(v_bb)
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case VeString =>
-          // todo use to replace without JNA at all
-          val vcvr = new nullable_varchar_vector()
-          vcvr.count = numItems
-          vcvr.data = buffers(0)
-          vcvr.offsets = buffers(1)
-          vcvr.lengths = buffers(2)
-          vcvr.validityBuffer = buffers(3)
-          vcvr.dataSize =
-            variableSize.getOrElse(sys.error("Invalid state - VeString has no variableSize"))
-
-          val bytePointer = {
-            val v_bb = vcvr.getPointer.getByteBuffer(0, (8 * 4) + (4 * 2))
-            v_bb.putLong(0, vcvr.data)
-            v_bb.putLong(8, vcvr.offsets)
-            v_bb.putLong(16, vcvr.lengths)
-            v_bb.putLong(24, vcvr.validityBuffer)
-            v_bb.putInt(32, vcvr.dataSize)
-            v_bb.putInt(36, vcvr.count)
-            new BytePointer(v_bb)
-          }
-
-          underlying.copy(container = veProcess.putPointer(bytePointer))
-        case other => sys.error(s"Other $other not supported.")
-      }
-    }.copy(source = source))
-
-  def containerSize: Int = veType.containerSize
-
-  def free()(implicit
-    veProcess: VeProcess,
-    veColVectorSource: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
-  ): Unit = {
+  def free()(implicit dsource: VeColVectorSource,
+           process: VeProcess,
+           context: OriginalCallingContext): Unit = {
     require(
-      veColVectorSource == source,
-      s"Intended to `free` in ${source}, but got ${veColVectorSource} context."
+      dsource == underlying.source,
+      s"Intended to `free` in ${underlying.source}, but got ${dsource} context."
     )
-    allAllocations.foreach(veProcess.free)
-  }
 
+    allAllocations.foreach(process.free)
+  }
 }
 
 //noinspection ScalaUnusedSymbol
@@ -154,4 +117,48 @@ object VeColVector {
       buffers = bufferLocations
     )
   )
+
+  def buildContainer(veType: VeType,
+                     count: Int,
+                     buffers: Seq[Long],
+                     dataSizeO: Option[Int])
+                    (implicit source: VeColVectorSource,
+                     process: VeProcess,
+                     context: OriginalCallingContext): Long = {
+    veType match {
+      case stype: VeScalarType =>
+        require(buffers.size == 2, s"Exactly 2 VE buffer pointers are required to construct container for ${stype}")
+
+        // Declare the struct in host memory
+        // The layout of `nullable_T_vector` is the same for all T = primitive
+        val ptr = new BytePointer(stype.containerSize.toLong)
+
+        // Assign the data, validity, and count values
+        ptr.putLong(0, buffers(0))
+        ptr.putLong(8, buffers(1))
+        ptr.putInt(16, count.abs)
+
+        // Copy the struct to VE and return the VE pointer
+        process.putPointer(ptr)
+
+      case VeString =>
+        require(buffers.size == 4, s"Exactly 4 VE buffer pointers are required to construct container for ${VeString}")
+        require(dataSizeO.nonEmpty, s"datasize is required to construct container for ${VeString}")
+        val Some(dataSize) = dataSizeO
+
+        // Declare the struct in host memory
+        val ptr = new BytePointer(VeString.containerSize.toLong)
+
+        // Assign the data, validity, and count values
+        ptr.putLong(0,  buffers(0))
+        ptr.putLong(8,  buffers(1))
+        ptr.putLong(16, buffers(2))
+        ptr.putLong(24, buffers(3))
+        ptr.putInt(32,  dataSize.abs)
+        ptr.putInt(36,  count.abs)
+
+        // Copy the struct to VE and return the VE pointer
+        process.putPointer(ptr)
+    }
+  }
 }
