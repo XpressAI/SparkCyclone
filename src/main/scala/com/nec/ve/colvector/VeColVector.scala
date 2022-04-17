@@ -10,8 +10,116 @@ import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
-
+import org.slf4j.LoggerFactory
 import java.io.OutputStream
+
+// TODO: remove
+trait ColVectorUtilsTrait {
+  def numItems: Int
+  def veType: VeType
+  def dataSize: Option[Int]
+
+  private[colvector] def bufferSizes: Seq[Int] = {
+    val validitySize = Math.ceil(numItems / 64.0).toInt * 8
+
+    veType match {
+      case stype: VeScalarType =>
+        Seq(
+          numItems * stype.cSize,
+          validitySize
+        )
+
+      case VeString =>
+        dataSize.toSeq.map(_ * 4) ++
+        Seq(
+          numItems * 4,
+          numItems * 4,
+          validitySize
+        )
+    }
+  }
+}
+
+final case class VeColVector2 private[colvector] (
+  source: VeColVectorSource,
+  name: String,
+  veType: VeType,
+  numItems: Int,
+  buffers: Seq[Long],
+  dataSize: Option[Int],
+  container: Long
+) extends ColVectorUtilsTrait {
+  private val logger = LoggerFactory.getLogger(getClass)
+  private var memoryFreed = false
+
+  def allocations: Seq[Long] = {
+    Seq(container) ++ buffers
+  }
+
+  // TODO: remove toByteArrayColVector
+  def serialize(implicit process: VeProcess,
+                metrics: VeProcessMetrics): Array[Byte] = {
+    val array = metrics.measureRunningTime {
+      toBytePointerVector.toByteArrayColVector.serialize
+    }(metrics.registerSerializationTime)
+
+    assert(
+      array.length == bufferSizes.sum,
+      "Resulting array should be same size as sum of all buffer sizes"
+    )
+
+    array
+  }
+
+  def toStream(stream: OutputStream)(implicit process: VeProcess): Unit = {
+    buffers.zip(bufferSizes).foreach { case (start, size) =>
+      process.writeToStream(stream, start, size)
+    }
+  }
+
+  // def toSparkColumnVector: ColumnVector = {
+  //   new VeColColumnarVector(Left(this), veType.toSparkType)
+  // }
+
+  def toBytePointerVector(implicit process: VeProcess): BytePointerColVector = {
+    val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
+      val ptr = new BytePointer(size)
+      process.get(location, ptr, size)
+      ptr
+    }
+
+    BytePointerColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      nbuffers
+    )
+  }
+
+  def toUnitColVector: UnitColVector = {
+    UnitColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      dataSize
+    )
+  }
+
+  def free(implicit dsource: VeColVectorSource,
+           process: VeProcess,
+           context: OriginalCallingContext): Unit = {
+    if (memoryFreed) {
+      logger.warn(s"[VE MEMORY ${container}] double free called!")
+
+    } else {
+      require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
+      allocations.foreach(process.free)
+      memoryFreed = true
+    }
+  }
+}
 
 final case class VeColVector(underlying: GenericColVector[Long]) {
   def serializedSize: Int = underlying.bufferSizes.sum

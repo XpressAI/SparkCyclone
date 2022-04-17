@@ -12,37 +12,17 @@ final case class UnitColVector private[colvector] (
   name: String,
   veType: VeType,
   numItems: Int,
-  dataSizeO: Option[Int],
-) {
+  dataSize: Option[Int],
+) extends ColVectorUtilsTrait {
   require(
     numItems >= 0,
     s"[${getClass.getName}] numItems should be >= 0"
   )
 
   require(
-    if (veType == VeString) dataSizeO.nonEmpty else dataSizeO.isEmpty,
-    s"""VE type is ${veType} but dataSizeO ${if (dataSizeO.isEmpty) "is" else "is not"} empty"""
+    if (veType == VeString) dataSize.nonEmpty else dataSize.isEmpty,
+    s"""VE type is ${veType} but dataSize ${if (dataSize.isEmpty) "is" else "is not"} empty"""
   )
-
-  private[colvector] def bufferSizes: Seq[Int] = {
-    val validitySize = Math.ceil(numItems / 64.0).toInt * 8
-
-    veType match {
-      case stype: VeScalarType =>
-        Seq(
-          numItems * stype.cSize,
-          validitySize
-        )
-
-      case VeString =>
-        dataSizeO.toSeq.map(_ * 4) ++
-        Seq(
-          numItems * 4,
-          numItems * 4,
-          validitySize
-        )
-    }
-  }
 
   def withData(stream: InputStream)(implicit source: VeColVectorSource,
                                     process: VeProcess,
@@ -55,7 +35,7 @@ final case class UnitColVector private[colvector] (
       veType,
       numItems,
       buffers,
-      dataSizeO
+      dataSize
     )
 
     VeColVector(
@@ -63,7 +43,7 @@ final case class UnitColVector private[colvector] (
         source,
         numItems,
         name,
-        dataSizeO,
+        dataSize,
         veType,
         container,
         buffers.toList
@@ -97,7 +77,7 @@ final case class UnitColVector private[colvector] (
     stream.writeBytes(name)
     stream.writeInt(UnitColVector.VeTypeToTag(veType))
     stream.writeInt(numItems)
-    stream.writeInt(dataSizeO.getOrElse(-1))
+    stream.writeInt(dataSize.getOrElse(-1))
   }
 
   def streamedSize: Int = {
