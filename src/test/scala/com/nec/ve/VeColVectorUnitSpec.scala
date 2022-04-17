@@ -20,11 +20,11 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
     val colvec = input.toBytePointerColVector(name).toVeColVector
 
     // Check fields
-    colvec.underlying.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
-    colvec.underlying.name should be (name)
-    colvec.underlying.source should be (source)
-    colvec.underlying.numItems should be (input.size)
-    colvec.underlying.buffers.size should be (2)
+    colvec.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
+    colvec.name should be (name)
+    colvec.source should be (source)
+    colvec.numItems should be (input.size)
+    colvec.buffers.size should be (2)
 
     // Check conversion
     colvec.toBytePointerVector.toSeqOpt[T] should be (input)
@@ -59,11 +59,11 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
       val colvec = input.toBytePointerColVector(name).toVeColVector
 
       // Check fields
-      colvec.underlying.veType.scalaType should be (classOf[String])
-      colvec.underlying.name should be (name)
-      colvec.underlying.source should be (source)
-      colvec.underlying.numItems should be (input.size)
-      colvec.underlying.buffers.size should be (4)
+      colvec.veType.scalaType should be (classOf[String])
+      colvec.name should be (name)
+      colvec.source should be (source)
+      colvec.numItems should be (input.size)
+      colvec.buffers.size should be (4)
 
 
       // Check conversion

@@ -39,15 +39,13 @@ final case class UnitColVector private[colvector] (
     )
 
     VeColVector(
-      GenericColVector(
-        source,
-        numItems,
-        name,
-        dataSize,
-        veType,
-        container,
-        buffers.toList
-      )
+      source,
+      name,
+      veType,
+      numItems,
+      buffers,
+      dataSize,
+      container
     )
   }
 

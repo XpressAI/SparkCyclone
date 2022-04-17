@@ -138,15 +138,15 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
       logger.trace(
         s"Data at ${
           veColBatch.cols
-            .map(_.containerLocation)
+            .map(_.container)
         } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
       )
     } else {
       val (cached, notCached) = veColBatch.cols.partition(cachedCols.values.contains)
       logger.trace(s"Will clean up data for ${
         cached
-          .map(_.bufferLocations)
-      }, and not clean up for ${notCached.map(_.allAllocations)}")
+          .map(_.buffers)
+      }, and not clean up for ${notCached.map(_.allocations)}")
       notCached.foreach(_.free())
     }
   }

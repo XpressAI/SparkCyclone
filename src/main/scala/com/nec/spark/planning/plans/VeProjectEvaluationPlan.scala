@@ -164,7 +164,6 @@ object VeProjectEvaluationPlan {
       .collect {
         case (col, idx) if !idsToPass.contains(idx) => col
       }
-    if (!colsToCleanUp.isEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
+    if (colsToCleanUp.nonEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
   }
-
 }

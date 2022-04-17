@@ -10,7 +10,7 @@ import org.bytedeco.javacpp.BytePointer
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
 
-final case class VeColVector2 private[colvector] (
+final case class VeColVector private[colvector] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,
@@ -47,9 +47,9 @@ final case class VeColVector2 private[colvector] (
     }
   }
 
-  // def toSparkColumnVector: ColumnVector = {
-  //   new VeColColumnarVector(Left(this), veType.toSparkType)
-  // }
+  def toSparkColumnVector: ColumnVector = {
+    new VeColColumnarVector(Left(this), veType.toSparkType)
+  }
 
   def toBytePointerVector(implicit process: VeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
@@ -77,9 +77,9 @@ final case class VeColVector2 private[colvector] (
     )
   }
 
-  def free(implicit dsource: VeColVectorSource,
-           process: VeProcess,
-           context: OriginalCallingContext): Unit = {
+  def free()(implicit dsource: VeColVectorSource,
+             process: VeProcess,
+             context: OriginalCallingContext): Unit = {
     if (memoryFreed) {
       logger.warn(s"[VE MEMORY ${container}] double free called!")
 
@@ -91,110 +91,7 @@ final case class VeColVector2 private[colvector] (
   }
 }
 
-final case class VeColVector(underlying: GenericColVector[Long]) {
-  def serializedSize: Int = underlying.bufferSizes.sum
-
-  def serializeToStream(outStream: OutputStream)(implicit veProcess: VeProcess): Unit =
-    underlying.buffers.zip(underlying.bufferSizes).foreach { case (bufPos, bufLen) =>
-      veProcess.writeToStream(outStream, bufPos, bufLen)
-    }
-
-  def allAllocations = containerLocation :: bufferLocations
-  def bufferLocations = underlying.buffers
-  def containerLocation = underlying.containerLocation
-  def source = underlying.source
-  def numItems = underlying.numItems
-  def name = underlying.name
-  def variableSize = underlying.variableSize
-  def veType = underlying.veType
-  def buffers = underlying.buffers
-
-  import underlying._
-  def toInternalVector(): ColumnVector =
-    new VeColColumnarVector(Left(this), veType.toSparkType)
-
-  def nonEmpty: Boolean = numItems > 0
-  def isEmpty: Boolean = !nonEmpty
-
-  def toUnit: UnitColVector = {
-    UnitColVector(
-      source,
-      name,
-      veType,
-      numItems,
-      variableSize
-    )
-  }
-
-
-  /**
-   * Retrieve data from veProcess, put it into a Byte Array. Uses bufferSizes.
-   */
-  def serialize()(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Array[Byte] = {
-    val totalSize = bufferSizes.sum
-
-    val resultingArray = cycloneMetrics.measureRunningTime(
-      toBytePointerVector.toByteArrayColVector.serialize
-    )(cycloneMetrics.registerSerializationTime)
-
-    assert(
-      resultingArray.length == totalSize,
-      "Resulting array should be same size as sum of all buffer sizes"
-    )
-
-    resultingArray
-  }
-
-  def toBytePointerVector(implicit process: VeProcess): BytePointerColVector = {
-    val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
-      val ptr = new BytePointer(size)
-      process.get(location, ptr, size)
-      ptr
-    }
-
-    BytePointerColVector(
-      underlying.source,
-      underlying.name,
-      underlying.veType,
-      underlying.numItems,
-      nbuffers
-    )
-  }
-
-  def free()(implicit dsource: VeColVectorSource,
-           process: VeProcess,
-           context: OriginalCallingContext): Unit = {
-    require(
-      dsource == underlying.source,
-      s"Intended to `free` in ${underlying.source}, but got ${dsource} context."
-    )
-
-    allAllocations.foreach(process.free)
-  }
-}
-
-//noinspection ScalaUnusedSymbol
 object VeColVector {
-  def apply(
-    source: VeColVectorSource,
-    numItems: Int,
-    name: String,
-    variableSize: Option[Int],
-    veType: VeType,
-    containerLocation: Long,
-    bufferLocations: List[Long]
-  ): VeColVector = VeColBatch.VeColVector(
-    GenericColVector[Long](
-      source = source,
-      numItems = numItems,
-      name = name,
-      variableSize = variableSize,
-      veType = veType,
-      container = containerLocation,
-      buffers = bufferLocations
-    )
-  )
-
   def buildContainer(veType: VeType,
                      count: Int,
                      buffers: Seq[Long],
@@ -220,7 +117,7 @@ object VeColVector {
 
       case VeString =>
         require(buffers.size == 4, s"Exactly 4 VE buffer pointers are required to construct container for ${VeString}")
-        require(dataSizeO.nonEmpty, s"datasize is required to construct container for ${VeString}")
+        require(dataSizeO.nonEmpty, s"dataSize is required to construct container for ${VeString}")
         val Some(dataSize) = dataSizeO
 
         // Declare the struct in host memory

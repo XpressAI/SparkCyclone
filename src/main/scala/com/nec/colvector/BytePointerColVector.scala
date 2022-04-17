@@ -49,15 +49,13 @@ final case class BytePointerColVector private[colvector] (
     )
 
     VeColVector(
-      GenericColVector(
-        source,
-        numItems,
-        name,
-        dataSize,
-        veType,
-        container,
-        nbuffers.toList
-      )
+      source,
+      name,
+      veType,
+      numItems,
+      nbuffers,
+      dataSize,
+      container
     )
   }
 

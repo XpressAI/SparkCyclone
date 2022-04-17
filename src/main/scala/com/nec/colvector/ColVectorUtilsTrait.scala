@@ -7,7 +7,15 @@ trait ColVectorUtilsTrait {
   def veType: VeType
   def dataSize: Option[Int]
 
-  private[colvector] def bufferSizes: Seq[Int] = {
+  final def nonEmpty: Boolean = {
+    numItems > 0
+  }
+
+  final def isEmpty: Boolean = {
+    !nonEmpty
+  }
+
+  final def bufferSizes: Seq[Int] = {
     val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
     veType match {
