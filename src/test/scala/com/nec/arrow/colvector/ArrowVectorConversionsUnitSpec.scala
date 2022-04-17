@@ -18,14 +18,14 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
     val colvec = input.toBytePointerColVector
 
     // Check fields
-    colvec.underlying.name should be (input.getName)
-    colvec.underlying.source should be (source)
-    colvec.underlying.numItems should be (input.getValueCount)
+    colvec.name should be (input.getName)
+    colvec.source should be (source)
+    colvec.numItems should be (input.getValueCount)
 
     // Check data buffer capacity
     if (input.isInstanceOf[BaseFixedWidthVector]) {
-      val capacity = input.getValueCount * colvec.underlying.veType.asInstanceOf[VeScalarType].cSize
-      colvec.underlying.buffers(0).get.capacity() should be (capacity)
+      val capacity = input.getValueCount * colvec.veType.asInstanceOf[VeScalarType].cSize
+      colvec.buffers(0).capacity() should be (capacity)
     }
 
     // Check data, starts, and lens buffer capacities
@@ -36,9 +36,9 @@ class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
         accum + size
       }
 
-      colvec.underlying.buffers(0).get.capacity() should be (capacity)
-      colvec.underlying.buffers(1).get.capacity() should be (input.getValueCount * 4)
-      colvec.underlying.buffers(2).get.capacity() should be (input.getValueCount * 4)
+      colvec.buffers(0).capacity() should be (capacity)
+      colvec.buffers(1).capacity() should be (input.getValueCount * 4)
+      colvec.buffers(2).capacity() should be (input.getValueCount * 4)
     }
 
     // Convert back

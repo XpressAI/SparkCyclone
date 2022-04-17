@@ -1,49 +1,69 @@
 package com.nec.arrow.colvector
 
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.colvector.VeColVector
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.bytedeco.javacpp.BytePointer
 
-/**
- * Storage of a col vector as serialized Arrow buffers, that are in BytePointers.
- * We use Option[] because the `container` has no BytePointer.
- */
+final case class BytePointerColVector private[colvector] (
+  source: VeColVectorSource,
+  name: String,
+  veType: VeType,
+  numItems: Int,
+  buffers: Seq[BytePointer],
+) {
+  require(
+    numItems >= 0,
+    s"[${getClass.getName}] numItems should be >= 0"
+  )
 
-final case class BytePointerColVector(underlying: GenericColVector[Option[BytePointer]]) {
+  require(
+    buffers.size == (if (veType == VeString) 4 else 2),
+    s"[${getClass.getName}] Number of BytePointer's does not match the requirement for ${veType}"
+  )
+
+  def dataSize: Option[Int] = {
+    veType match {
+      case _: VeScalarType =>
+        None
+
+      case VeString =>
+        Some(buffers(0).limit().toInt / 4)
+    }
+  }
+
   def toVeColVector(implicit source: VeColVectorSource,
                     process: VeProcess,
                     context: OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
-    val buffers = metrics.measureRunningTime {
-      underlying.buffers.flatten.map(process.putPointer)
+    val nbuffers = metrics.measureRunningTime {
+      buffers.map(process.putPointer)
     }(metrics.registerTransferTime)
 
     val container = VeColVector.buildContainer(
-      underlying.veType,
-      underlying.numItems,
-      buffers,
-      underlying.variableSize
+      veType,
+      numItems,
+      nbuffers,
+      dataSize
     )
 
     VeColVector(
       GenericColVector(
         source,
-        underlying.numItems,
-        underlying.name,
-        underlying.variableSize,
-        underlying.veType,
+        numItems,
+        name,
+        dataSize,
+        veType,
         container,
-        buffers
+        nbuffers.toList
       )
     )
   }
 
   def toByteArrayColVector: ByteArrayColVector = {
-    import underlying._
-
-    val buffers = underlying.buffers.flatten.map { ptr =>
+    val nbuffers = buffers.map { ptr =>
       try {
         ptr.asBuffer.array
 
@@ -57,10 +77,10 @@ final case class BytePointerColVector(underlying: GenericColVector[Option[BytePo
 
     ByteArrayColVector(
       source,
-      numItems,
       name,
       veType,
-      buffers
+      numItems,
+      nbuffers
     )
   }
 }

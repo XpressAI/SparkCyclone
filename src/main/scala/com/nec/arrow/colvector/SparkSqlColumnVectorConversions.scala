@@ -82,17 +82,13 @@ object SparkSqlColumnVectorConversions {
 
     private[colvector] def scalarToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = size,
-          name = name,
-          veType = veScalarType,
-          container = None,
-          buffers = List(
-            Option(scalarDataBuffer(size)),
-            Option(validityBuffer(size))
-          ),
-          variableSize = None
+        source,
+        name,
+        veScalarType,
+        size,
+        Seq(
+          scalarDataBuffer(size),
+          validityBuffer(size)
         )
       )
     }
@@ -113,19 +109,15 @@ object SparkSqlColumnVectorConversions {
       val (dataBuffer, startsBuffer, lensBuffer) = bytesAA.constructBuffers
 
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = size,
-          name = name,
-          veType = VeString,
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(startsBuffer),
-            Option(lensBuffer),
-            Option(validityBuffer(size))
-          ),
-          variableSize = Some(dataBuffer.limit().toInt / 4)
+        source,
+        name,
+        VeString,
+        size,
+        Seq(
+          dataBuffer,
+          startsBuffer,
+          lensBuffer,
+          validityBuffer(size)
         )
       )
     }

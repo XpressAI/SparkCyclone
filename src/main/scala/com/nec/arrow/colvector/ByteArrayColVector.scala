@@ -1,25 +1,28 @@
 package com.nec.arrow.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.core.VeType
+import com.nec.spark.agile.core.{VeString, VeType}
+import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.colvector.VeColVector
 import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
-import com.nec.spark.agile.core.VeString
-import com.nec.ve.VeProcess
-import com.nec.ve.VeProcessMetrics
-import com.nec.ve.colvector.VeColVector
 
 final case class ByteArrayColVector private[colvector] (
   source: VeColVectorSource,
-  numItems: Int,
   name: String,
   veType: VeType,
+  numItems: Int,
   buffers: Seq[Array[Byte]]
 ) {
   require(
+    numItems >= 0,
+    s"[${getClass.getName}] numItems should be >= 0"
+  )
+
+  require(
     buffers.size == (if (veType == VeString) 4 else 2),
-    s"${getClass.getName} Number of Array[Byte]'s does not match the requirement for ${veType}"
+    s"[${getClass.getName}] Number of Array[Byte]'s does not match the requirement for ${veType}"
   )
 
   require(
@@ -30,7 +33,7 @@ final case class ByteArrayColVector private[colvector] (
       // Else there should be no empty buffer
       buffers.filter(_.size <= 0).isEmpty
     },
-    s"${getClass.getName} should not contain empty Array[Byte]'s"
+    s"[${getClass.getName}] Should not contain empty Array[Byte]'s"
   )
 
   def toSparkColumnVector: ColumnVector = {
@@ -46,17 +49,11 @@ final case class ByteArrayColVector private[colvector] (
     }
 
     BytePointerColVector(
-      GenericColVector(
-        source,
-        numItems,
-        name,
-        // Populate variableSize for the VeString case
-        // The first Array[Byte] is where the data is stored
-        if (veType == VeString) Some(pointers.head.limit().toInt / 4) else None,
-        veType,
-        None,
-        pointers.map(Some(_)).toList
-      )
+      source,
+      name,
+      veType,
+      numItems,
+      pointers
     )
   }
 

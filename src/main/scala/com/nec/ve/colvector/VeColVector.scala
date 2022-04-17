@@ -1,6 +1,5 @@
 package com.nec.ve.colvector
 
-// import com.nec.arrow.ArrowTransferStructures._
 import com.nec.arrow.colvector.ArrowVectorConversions._
 import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
@@ -68,21 +67,21 @@ final case class VeColVector(underlying: GenericColVector[Long]) {
     resultingArray
   }
 
-  def toBytePointerVector(implicit veProcess: VeProcess): BytePointerColVector =
+  def toBytePointerVector(implicit process: VeProcess): BytePointerColVector = {
+    val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
+      val ptr = new BytePointer(size)
+      process.get(location, ptr, size)
+      ptr
+    }
+
     BytePointerColVector(
-      underlying.copy(
-        container = None,
-        buffers = {
-          buffers
-            .zip(bufferSizes)
-            .map { case (veBufferLocation, veBufferSize) =>
-              val targetBuf = new BytePointer(veBufferSize)
-              veProcess.get(veBufferLocation, targetBuf, veBufferSize)
-              Option(targetBuf)
-            }
-        }
-      )
+      underlying.source,
+      underlying.name,
+      underlying.veType,
+      underlying.numItems,
+      nbuffers
     )
+  }
 
   def free()(implicit dsource: VeColVectorSource,
            process: VeProcess,

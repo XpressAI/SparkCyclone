@@ -17,17 +17,17 @@ class SeqOptTConversionsUnitSpec extends AnyWordSpec {
     val colvec = input.toBytePointerColVector(name)
 
     // Check fields
-    colvec.underlying.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
-    colvec.underlying.name should be (name)
-    colvec.underlying.source should be (source)
-    colvec.underlying.numItems should be (input.size)
-    colvec.underlying.buffers.size should be (2)
+    colvec.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
+    colvec.name should be (name)
+    colvec.source should be (source)
+    colvec.numItems should be (input.size)
+    colvec.buffers.size should be (2)
 
     // Data buffer capacity should be correctly set
-    colvec.underlying.buffers(0).get.capacity() should be (input.size.toLong * colvec.underlying.veType.asInstanceOf[VeScalarType].cSize)
+    colvec.buffers(0).capacity() should be (input.size.toLong * colvec.veType.asInstanceOf[VeScalarType].cSize)
 
     // Check validity buffer
-    val validityBuffer = colvec.underlying.buffers(1).get
+    val validityBuffer = colvec.buffers(1)
     validityBuffer.capacity() should be ((input.size / 8.0).ceil.toLong)
     val bitset = FixedBitSet.from(validityBuffer)
     0.until(input.size).foreach(i => bitset.get(i) should be (input(i).nonEmpty))
@@ -65,21 +65,21 @@ class SeqOptTConversionsUnitSpec extends AnyWordSpec {
       val colvec = input.toBytePointerColVector(name)(source)
 
       // Check fields
-      colvec.underlying.veType.scalaType should be (classOf[String])
-      colvec.underlying.name should be (name)
-      colvec.underlying.source should be (source)
-      colvec.underlying.numItems should be (input.size)
-      colvec.underlying.buffers.size should be (4)
+      colvec.veType.scalaType should be (classOf[String])
+      colvec.name should be (name)
+      colvec.source should be (source)
+      colvec.numItems should be (input.size)
+      colvec.buffers.size should be (4)
 
       // Data, starts, and lens buffer capacities should be correctly set
       val capacity = input.foldLeft(0) { case (accum, x) =>
         accum + x.map(_.getBytes("UTF-32LE").size).getOrElse(0)
       }
-      colvec.underlying.buffers(0).get.capacity() should be (capacity)
-      colvec.underlying.buffers(1).get.capacity() should be (input.size.toLong * 4)
-      colvec.underlying.buffers(2).get.capacity() should be (input.size.toLong * 4)
+      colvec.buffers(0).capacity() should be (capacity)
+      colvec.buffers(1).capacity() should be (input.size.toLong * 4)
+      colvec.buffers(2).capacity() should be (input.size.toLong * 4)
 
-      val bitset = FixedBitSet.from(colvec.underlying.buffers(3).get)
+      val bitset = FixedBitSet.from(colvec.buffers(3))
       0.until(input.size).foreach(i => bitset.get(i) should be (input(i).nonEmpty))
 
       // Check conversion - null String values should be preserved as well

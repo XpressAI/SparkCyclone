@@ -18,8 +18,6 @@ final case class GenericColVector[Data](
     s"Expecting buffersizes to equal buffers in size (${bufferSizes.size} & ${buffers.size})"
   )
 
-  // def toUnit: UnitColVector = UnitColVector(map(_ => ()))
-
   require(
     bufferSizes.size == buffers.size,
     s"Expecting buffersizes to equal buffers in size (${bufferSizes.size} & ${buffers.size})"
