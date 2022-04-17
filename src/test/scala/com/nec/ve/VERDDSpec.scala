@@ -1,8 +1,8 @@
 package com.nec.ve
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.colvector.BytePointerColVector
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.BytePointerColVector
+import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}

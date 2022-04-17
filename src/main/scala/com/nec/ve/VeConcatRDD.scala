@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.native.{CompiledVeFunction, FunctionTyping}
 import com.nec.spark.agile.merge.MergeFunction
-import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeColBatch.VeBatchOfBatches
 import org.apache.spark.rdd.RDD
 
 import scala.language.experimental.macros

@@ -1,8 +1,8 @@
 package com.nec.ve
 
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.arrow.colvector.SeqOptTConversions._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.VeProcess.OriginalCallingContext
 import scala.reflect.ClassTag
 import scala.util.Random

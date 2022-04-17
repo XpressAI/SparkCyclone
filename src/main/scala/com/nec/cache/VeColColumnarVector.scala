@@ -1,8 +1,7 @@
 package com.nec.cache
 
-import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.colvector.{ByteArrayColVector, VeColVector}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized._
 import org.apache.spark.unsafe.types.UTF8String

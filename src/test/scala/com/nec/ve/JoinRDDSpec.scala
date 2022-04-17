@@ -1,7 +1,7 @@
 package com.nec.ve
 
-import com.nec.arrow.colvector.ArrayTConversions._
-import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig

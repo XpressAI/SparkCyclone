@@ -1,14 +1,13 @@
-package com.nec.ve.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
-import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
+import com.nec.colvector.ArrowVectorConversions._
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps.ExtendedInstant
-import com.nec.ve
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.{colvector, ve}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -215,8 +214,8 @@ object VeColBatch {
     unitObj.deserialize(seqs)
   }
 
-  type VeColVector = com.nec.ve.colvector.VeColVector
-  val VeColVector = com.nec.ve.colvector.VeColVector
+  type VeColVector = colvector.VeColVector
+  val VeColVector = colvector.VeColVector
 
   def apply(numRows: Int, cols: List[VeColVector]): VeColBatch =
     ve.VeColBatch(GenericColBatch(numRows, cols))

@@ -1,10 +1,10 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.colvector.VeColVector
+import com.nec.colvector.VeColBatch.VeColVectorSource
+
 import java.io.{DataInputStream, DataOutputStream, InputStream}
 
 final case class UnitColVector private[colvector] (

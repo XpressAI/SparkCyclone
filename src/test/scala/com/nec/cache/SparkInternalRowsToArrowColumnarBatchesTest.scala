@@ -1,7 +1,7 @@
 package com.nec.cache
 
-import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.WithTestAllocator
+import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}

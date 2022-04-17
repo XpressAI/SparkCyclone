@@ -1,7 +1,7 @@
 package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.WithTestAllocator
+import com.nec.colvector.WithTestAllocator
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.CFunction
@@ -10,7 +10,7 @@ import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
 import com.nec.ve.{VeColBatch, VeKernelInfra, VeProcess, WithVeProcess}
 import org.scalatest.Ignore

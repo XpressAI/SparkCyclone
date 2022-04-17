@@ -1,9 +1,9 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
 import com.nec.util.ReflectionOps._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
@@ -94,7 +94,7 @@ object SparkSqlColumnVectorConversions {
     }
 
     private[colvector] def varCharToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
-      import com.nec.arrow.colvector.ArrayTConversions._
+      import ArrayTConversions._
 
       // Construct UTF-32lE Array[Array[Byte]]
       val bytesAA = 0.until(size).toArray.map { i =>

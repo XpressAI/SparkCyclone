@@ -1,6 +1,5 @@
 package com.nec.cache
 
-import com.nec.arrow.ArrowEncodingSettings
 import com.nec.cache.DualMode.cachedBatchesToDualModeInternalRows
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.SparkContext

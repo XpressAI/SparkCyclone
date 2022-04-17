@@ -1,10 +1,10 @@
 package com.nec.ve
 
+import com.nec.colvector.VeColVector
 import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps._
-import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.VeSerializer
 import org.apache.spark._
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
@@ -286,7 +286,7 @@ class BasicVeRDD[T](
   //}
 
   def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
-    import com.nec.arrow.colvector.ArrayTConversions._
+    import com.nec.colvector.ArrayTConversions._
     import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
     import com.nec.spark.SparkCycloneExecutorPlugin._
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext

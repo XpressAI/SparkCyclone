@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.arrow.colvector.ArrayTConversions.ArrayTToBPCV
+import com.nec.colvector.ArrayTConversions.ArrayTToBPCV
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer

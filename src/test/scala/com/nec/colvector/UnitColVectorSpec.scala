@@ -1,8 +1,10 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.eed3si9n.expecty.Expecty.expect
+import com.nec.colvector.UnitColVector
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
+
 import scala.util.Random
 import java.io._
 import java.util.UUID

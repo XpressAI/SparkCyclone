@@ -1,4 +1,4 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
 

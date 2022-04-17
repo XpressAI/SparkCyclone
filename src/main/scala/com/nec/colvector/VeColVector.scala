@@ -1,44 +1,14 @@
-package com.nec.ve.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.arrow.colvector.{BytePointerColVector, GenericColVector, UnitColVector}
 import com.nec.cache.VeColColumnarVector
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import org.apache.arrow.vector._
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
-
-// TODO: remove
-trait ColVectorUtilsTrait {
-  def numItems: Int
-  def veType: VeType
-  def dataSize: Option[Int]
-
-  private[colvector] def bufferSizes: Seq[Int] = {
-    val validitySize = Math.ceil(numItems / 64.0).toInt * 8
-
-    veType match {
-      case stype: VeScalarType =>
-        Seq(
-          numItems * stype.cSize,
-          validitySize
-        )
-
-      case VeString =>
-        dataSize.toSeq.map(_ * 4) ++
-        Seq(
-          numItems * 4,
-          numItems * 4,
-          validitySize
-        )
-    }
-  }
-}
 
 final case class VeColVector2 private[colvector] (
   source: VeColVectorSource,

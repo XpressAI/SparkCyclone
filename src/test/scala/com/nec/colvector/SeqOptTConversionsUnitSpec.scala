@@ -1,7 +1,7 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
 import com.nec.util.FixedBitSet
 import scala.reflect.ClassTag

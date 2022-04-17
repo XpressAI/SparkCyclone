@@ -1,4 +1,4 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import org.apache.arrow.memory.BufferAllocator

@@ -2,7 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
 import com.nec.spark.planning._
-import com.nec.ve.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeColBatch.VeBatchOfBatches
 import com.nec.ve.{VeColBatch, VeRDDOps}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD

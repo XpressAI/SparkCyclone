@@ -1,6 +1,6 @@
 package com.nec.spark.planning.plans
 
-import com.nec.arrow.ArrowEncodingSettings
+import com.nec.cache.ArrowEncodingSettings
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.ve.VeColBatch

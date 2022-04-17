@@ -1,4 +1,4 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeColBatch.VeColVectorSource

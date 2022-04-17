@@ -1,7 +1,7 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
@@ -114,10 +114,10 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
 
     "correctly serialize to Array[Byte]" in {
       val buffers = Seq(
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes
       )
       val colvec = ByteArrayColVector(VeColVectorSource(s"${UUID.randomUUID}"), s"${UUID.randomUUID}", VeString, Random.nextInt(100), buffers)
 

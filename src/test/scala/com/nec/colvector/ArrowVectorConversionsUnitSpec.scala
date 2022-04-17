@@ -1,8 +1,8 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import scala.util.Random
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator
