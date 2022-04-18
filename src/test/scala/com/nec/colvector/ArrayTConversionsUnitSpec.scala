@@ -1,8 +1,8 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.arrow.colvector.ArrayTConversions._
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -17,17 +17,17 @@ class ArrayTConversionsUnitSpec extends AnyWordSpec {
     val colvec = input.toBytePointerColVector(name)
 
     // Check fields
-    colvec.underlying.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
-    colvec.underlying.name should be (name)
-    colvec.underlying.source should be (source)
-    colvec.underlying.numItems should be (input.size)
-    colvec.underlying.buffers.size should be (2)
+    colvec.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
+    colvec.name should be (name)
+    colvec.source should be (source)
+    colvec.numItems should be (input.size)
+    colvec.buffers.size should be (2)
 
     // Data buffer capacity should be correctly set
-    colvec.underlying.buffers(0).get.capacity() should be (input.size.toLong * colvec.underlying.veType.asInstanceOf[VeScalarType].cSize)
+    colvec.buffers(0).capacity() should be (input.size.toLong * colvec.veType.asInstanceOf[VeScalarType].cSize)
 
     // Check validity buffer
-    val validityBuffer = colvec.underlying.buffers(1).get
+    val validityBuffer = colvec.buffers(1)
     validityBuffer.capacity() should be ((input.size / 8.0).ceil.toLong)
     for (i <- 0 until validityBuffer.capacity().toInt) {
       validityBuffer.get(i) should be (-1.toByte)
@@ -68,18 +68,18 @@ class ArrayTConversionsUnitSpec extends AnyWordSpec {
       val colvec = input.toBytePointerColVector(name)(source)
 
       // Check fields
-      colvec.underlying.veType.scalaType should be (classOf[String])
-      colvec.underlying.name should be (name)
-      colvec.underlying.source should be(source)
-      colvec.underlying.buffers.size should be (4)
+      colvec.veType.scalaType should be (classOf[String])
+      colvec.name should be (name)
+      colvec.source should be(source)
+      colvec.buffers.size should be (4)
 
       // Data, starts, and lens buffer capacities should be correctly set
       val capacity = input.foldLeft(0) { case (accum, x) =>
         accum + (if (x == null) 0 else x.getBytes("UTF-32LE").size)
       }
-      colvec.underlying.buffers(0).get.capacity() should be (capacity)
-      colvec.underlying.buffers(1).get.capacity() should be (input.size.toLong * 4)
-      colvec.underlying.buffers(2).get.capacity() should be (input.size.toLong * 4)
+      colvec.buffers(0).capacity() should be (capacity)
+      colvec.buffers(1).capacity() should be (input.size.toLong * 4)
+      colvec.buffers(2).capacity() should be (input.size.toLong * 4)
 
       // Check conversion - null String values should be preserved as well
       colvec.toArray[String] should be (input)

@@ -1,11 +1,10 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import org.bytedeco.javacpp._
-
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
+import org.bytedeco.javacpp._
 
 object ArrayTConversions {
   implicit class ArrayTToBPCV[T : ClassTag](input: Array[T]) {
@@ -49,18 +48,13 @@ object ArrayTConversions {
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = input.size,
-          name = name,
-          veType = VeScalarType.fromJvmType[T],
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            // Since T <: AnyVal, Array[T] is an array of non-nullable values
-            Option(FixedBitSet.ones(input.size))
-          ),
-          variableSize = None
+        source,
+        name,
+        VeScalarType.fromJvmType[T],
+        input.size,
+        Seq(
+          dataBuffer,
+          FixedBitSet.ones(input.size)
         )
       )
     }
@@ -125,30 +119,26 @@ object ArrayTConversions {
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
       val (dataBuffer, startsBuffer, lensBuffer) = constructBuffers
+
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = input.size,
-          name = name,
-          veType = VeString,
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(startsBuffer),
-            Option(lensBuffer),
-            Option(validityBuffer)
-          ),
-          variableSize = Some(dataBuffer.limit().toInt / 4)
+        source,
+        name,
+        VeString,
+        input.size,
+        Seq(
+          dataBuffer,
+          startsBuffer,
+          lensBuffer,
+          validityBuffer
         )
       )
     }
   }
 
   implicit class BPCVToArrayT(input: BytePointerColVector) {
-    private[colvector] lazy val underlying = input.underlying
-    private[colvector] lazy val numItems = underlying.numItems
-    private[colvector] lazy val veType = underlying.veType
-    private[colvector] lazy val buffers = underlying.buffers.flatten
+    private[colvector] lazy val numItems = input.numItems
+    private[colvector] lazy val veType = input.veType
+    private[colvector] lazy val buffers = input.buffers
 
     private[colvector] def toStringArray: Array[String] = {
       val dataBuffer = buffers(0)
@@ -185,7 +175,7 @@ object ArrayTConversions {
       val klass = implicitly[ClassTag[T]].runtimeClass
       require(klass == veType.scalaType, s"Requested type ${klass.getName} does not match the VeType: ${veType}")
 
-      val dataBuffer = input.underlying.buffers(0).get
+      val dataBuffer = buffers(0)
 
       if (klass == classOf[Int]) {
         val output = new Array[Int](numItems)

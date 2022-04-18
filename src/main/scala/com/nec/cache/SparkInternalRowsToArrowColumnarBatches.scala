@@ -1,6 +1,5 @@
 package com.nec.cache
 
-import com.nec.arrow.ArrowEncodingSettings
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeProcessMetrics
 import com.typesafe.scalalogging.LazyLogging

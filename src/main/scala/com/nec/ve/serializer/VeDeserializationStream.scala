@@ -1,6 +1,6 @@
 package com.nec.ve.serializer
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}

@@ -1,8 +1,9 @@
 package com.nec.ve
 
+import com.nec.colvector.VeColVector
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.agile.merge.MergeFunction
-import com.nec.ve.colvector.VeColBatch.{VeBatchOfBatches, VeColVector}
+import com.nec.colvector.VeColBatch.VeBatchOfBatches
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.{Partition, TaskContext}
 

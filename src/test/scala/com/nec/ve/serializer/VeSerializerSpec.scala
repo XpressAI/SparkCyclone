@@ -1,11 +1,10 @@
 package com.nec.ve.serializer
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.arrow.ArrowVectorBuilders.withArrowFloat8VectorI
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.arrow.WithTestAllocator
+import com.nec.colvector.ArrowVectorBuilders.withArrowFloat8VectorI
+import com.nec.colvector.{VeColVector, WithTestAllocator}
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.{VeColBatch, VeKernelInfra, WithVeProcess}
 import org.scalatest.freespec.AnyFreeSpec

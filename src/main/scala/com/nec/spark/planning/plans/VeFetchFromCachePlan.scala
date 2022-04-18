@@ -1,11 +1,10 @@
 package com.nec.spark.planning.plans
 
-import com.nec.arrow.colvector.ByteArrayColVector
 import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
+import com.nec.colvector.{ByteArrayColVector, VeColVector}
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVector
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute

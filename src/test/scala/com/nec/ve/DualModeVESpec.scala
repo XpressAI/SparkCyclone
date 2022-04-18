@@ -1,8 +1,7 @@
 package com.nec.ve
 
-import com.nec.arrow.ArrowEncodingSettings
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
-import com.nec.cache.CycloneCacheBase
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase}
 import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}

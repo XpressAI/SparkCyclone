@@ -1,26 +1,8 @@
-/*
- * Copyright (c) 2021 Xpress AI.
- *
- * This file is part of Spark Cyclone.
- * See https://github.com/XpressAI/SparkCyclone for further info.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-package com.nec.arrow
+package com.nec.colvector
+
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.arrow.vector.types.pojo.Schema
+import org.apache.arrow.vector.{BigIntVector, FieldVector, Float8Vector, IntVector, VarCharVector}
 
 import java.util
 
@@ -51,8 +33,8 @@ object ArrowVectorBuilders {
   }
 
   def withNullableArrowStringVector[T](
-    stringBatch: Seq[Option[String]]
-  )(f: VarCharVector => T): T = {
+                                        stringBatch: Seq[Option[String]]
+                                      )(f: VarCharVector => T): T = {
     import org.apache.arrow.vector.VectorSchemaRoot
     WithTestAllocator { alloc =>
       val vcv = schema.findField("value").createVector(alloc).asInstanceOf[VarCharVector]
@@ -64,7 +46,7 @@ object ArrowVectorBuilders {
         vcv.setValueCount(stringBatch.length)
         stringBatch.view.zipWithIndex.foreach {
           case (Some(str), idx) => vcv.setSafe(idx, str.getBytes("utf8"), 0, str.length)
-          case (None, idx)      => vcv.setNull(idx)
+          case (None, idx) => vcv.setNull(idx)
         }
         f(vcv)
       } finally vcv.close()
@@ -90,9 +72,10 @@ object ArrowVectorBuilders {
       } finally vcv.close()
     }
   }
+
   def withArrowFloat8VectorI[T](
-    data: Seq[Double]
-  )(f: Float8Vector => T)(implicit alloc: BufferAllocator): T = {
+                                 data: Seq[Double]
+                               )(f: Float8Vector => T)(implicit alloc: BufferAllocator): T = {
     val vcv = new Float8Vector(s"value$vectorCount", alloc)
     vectorCount += 1
     vcv.allocateNew()
@@ -151,7 +134,7 @@ object ArrowVectorBuilders {
         vcv.setValueCount(data.size)
 
         data.zipWithIndex.foreach {
-          case (None, idx)      => vcv.setNull(idx)
+          case (None, idx) => vcv.setNull(idx)
           case (Some(str), idx) => vcv.setSafe(idx, str)
         }
 
@@ -169,7 +152,7 @@ object ArrowVectorBuilders {
         vcv.setValueCount(data.size)
 
         data.zipWithIndex.foreach {
-          case (None, idx)      => vcv.setNull(idx)
+          case (None, idx) => vcv.setNull(idx)
           case (Some(str), idx) => vcv.setSafe(idx, str)
         }
 

@@ -1,8 +1,8 @@
 package com.nec.ve
 
-import com.nec.arrow.{ArrowEncodingSettings, WithTestAllocator}
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.cache.ColumnarBatchToVeColBatch
+import com.nec.colvector.WithTestAllocator
+import com.nec.colvector.ArrowVectorConversions._
+import com.nec.cache.{ArrowEncodingSettings, ColumnarBatchToVeColBatch}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.VeProcess.OriginalCallingContext

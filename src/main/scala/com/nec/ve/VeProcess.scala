@@ -186,7 +186,7 @@ object VeProcess {
 
     private implicit class RichVCV(veColVector: VeColVector) {
       def register()(implicit context: OriginalCallingContext): VeColVector = {
-        veColVector.bufferLocations.zip(veColVector.underlying.bufferSizes).foreach {
+        veColVector.buffers.zip(veColVector.bufferSizes).foreach {
           case (location, size) =>
             logger.trace(
               s"Registering allocation of ${size} at ${location}; original source is ${context.fullName.value}#${context.line.value}"
@@ -237,7 +237,7 @@ object VeProcess {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
-        lp.put(vcv.containerLocation)
+        lp.put(vcv.container)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
@@ -286,9 +286,9 @@ object VeProcess {
             numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-            variableSize = None
+            container = outContainerLocation,
+            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+            dataSize = None
           ).register()
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
@@ -298,10 +298,10 @@ object VeProcess {
             source = source,
             numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(32)),
+            dataSize = Some(bytePointer.getInt(32)),
             veType = VeString,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(
+            container = outContainerLocation,
+            buffers = Seq(
               bytePointer.getLong(0),
               bytePointer.getLong(8),
               bytePointer.getLong(16),
@@ -343,7 +343,7 @@ object VeProcess {
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
         val lp = new LongPointer(1)
-        lp.put(vcv.containerLocation)
+        lp.put(vcv.container)
         veo.veo_args_set_stack(our_args, 0, index, new BytePointer(lp), 8)
       }
       val outPointers = results.map { veType =>
@@ -406,14 +406,14 @@ object VeProcess {
               numItems = bytePointer.getInt(36),
               name = name,
               veType = VeString,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(
+              container = outContainerLocation,
+              buffers = Seq(
                 bytePointer.getLong(0),
                 bytePointer.getLong(8),
                 bytePointer.getLong(16),
                 bytePointer.getLong(24)
               ),
-              variableSize = Some(bytePointer.getInt(32))
+              dataSize = Some(bytePointer.getInt(32))
             ).register()
           case (outPointer, CScalarVector(name, r)) =>
             val outContainerLocation = outPointer.get(set)
@@ -428,9 +428,9 @@ object VeProcess {
               numItems = bytePointer.getInt(16),
               name = name,
               veType = r,
-              containerLocation = outContainerLocation,
-              bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-              variableSize = None
+              container = outContainerLocation,
+              buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+              dataSize = None
             ).register()
         }
       }
@@ -456,7 +456,7 @@ object VeProcess {
         val byteSize = 8 * batches.batches.size
         val lp = new LongPointer(batches.batches.size)
         colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
-          lp.put(idx, col.containerLocation)
+          lp.put(idx, col.container)
         }
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
       }
@@ -506,9 +506,9 @@ object VeProcess {
             numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-            variableSize = None
+            container = outContainerLocation,
+            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+            dataSize = None
           ).register()
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
@@ -518,10 +518,10 @@ object VeProcess {
             source = source,
             numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(32)),
+            dataSize = Some(bytePointer.getInt(32)),
             veType = VeString,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(
+            container = outContainerLocation,
+            buffers = Seq(
               bytePointer.getLong(0),
               bytePointer.getLong(8),
               bytePointer.getLong(16),
@@ -565,7 +565,7 @@ object VeProcess {
 
         left.batches.zipWithIndex.foreach{ case (b, bIdx) =>
           val col = b.cols(cIdx)
-          lp.put(bIdx, col.containerLocation)
+          lp.put(bIdx, col.container)
         }
 
         veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
@@ -577,7 +577,7 @@ object VeProcess {
 
         right.batches.zipWithIndex.foreach{ case (b, bIdx) =>
           val col = b.cols(cIdx)
-          lp.put(bIdx, col.containerLocation)
+          lp.put(bIdx, col.container)
         }
 
         veo.veo_args_set_stack(our_args, 0, metaParamCount + leftColCount + cIdx, new BytePointer(lp), byteSize)
@@ -630,9 +630,9 @@ object VeProcess {
             numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-            variableSize = None
+            container = outContainerLocation,
+            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+            dataSize = None
           ).register()
         case (outPointer, CVarChar(name)) =>
           val outContainerLocation = outPointer.get()
@@ -642,10 +642,10 @@ object VeProcess {
             source = source,
             numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(32)),
+            dataSize = Some(bytePointer.getInt(32)),
             veType = VeString,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(
+            container = outContainerLocation,
+            buffers = Seq(
               bytePointer.getLong(0),
               bytePointer.getLong(8),
               bytePointer.getLong(16),
@@ -682,7 +682,7 @@ object VeProcess {
 
         inputs.batches.zipWithIndex.foreach{ case (b, bIdx) =>
           val col = b.cols(cIdx)
-          lp.put(bIdx, col.containerLocation)
+          lp.put(bIdx, col.container)
         }
 
         veo.veo_args_set_stack(our_args, veo.VEO_INTENT_IN, metaParamCount + cIdx, new BytePointer(lp), byteSize)
@@ -790,9 +790,9 @@ object VeProcess {
             numItems = bytePointer.getInt(16),
             name = name,
             veType = scalar,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(bytePointer.getLong(0), bytePointer.getLong(8)),
-            variableSize = None
+            container = outContainerLocation,
+            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+            dataSize = None
           ).register()
         case CVarChar(name) =>
           val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
@@ -801,10 +801,10 @@ object VeProcess {
             source = source,
             numItems = bytePointer.getInt(36),
             name = name,
-            variableSize = Some(bytePointer.getInt(32)),
+            dataSize = Some(bytePointer.getInt(32)),
             veType = VeString,
-            containerLocation = outContainerLocation,
-            bufferLocations = List(
+            container = outContainerLocation,
+            buffers = Seq(
               bytePointer.getLong(0),
               bytePointer.getLong(8),
               bytePointer.getLong(16),

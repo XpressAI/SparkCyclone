@@ -1,14 +1,13 @@
-package com.nec.ve.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
-import com.nec.arrow.colvector.{GenericColBatch, UnitColBatch, UnitColVector}
+import com.nec.colvector.ArrowVectorConversions._
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps.ExtendedInstant
-import com.nec.ve
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.{colvector, ve}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -83,7 +82,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
 
   def serializeToStreamSize: Int = {
     List(4, 4) ++ cols.flatMap { col =>
-      List(4, 4, 4, col.underlying.toUnit.streamedSize, 4, 4, 4, col.serializedSize)
+      List(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
     }
   }.sum
 
@@ -97,12 +96,12 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
       dataOutputStream.writeInt(DescLengthId)
       dataOutputStream.writeInt(-1)
       dataOutputStream.writeInt(DescDataId)
-      colVector.underlying.toUnit.toStreamFast(dataOutputStream)
+      colVector.toUnitColVector.toStream(dataOutputStream)
       dataOutputStream.writeInt(PayloadBytesLengthId)
       // no bytes length as it's a stream here
       dataOutputStream.writeInt(-1)
       dataOutputStream.writeInt(PayloadBytesId)
-      colVector.serializeToStream(dataOutputStream)
+      colVector.toStream(dataOutputStream)
     }
 
   }
@@ -112,7 +111,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     val objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
     objectOutputStream.writeObject(toUnit)
     objectOutputStream.writeInt(cols.size)
-    underlying.cols.map(_.serialize()).foreach(objectOutputStream.writeObject)
+    underlying.cols.map(_.serialize).foreach(objectOutputStream.writeObject)
     objectOutputStream.flush()
     objectOutputStream.close()
     byteArrayOutputStream.flush()
@@ -124,14 +123,14 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   def numRows: Int = underlying.numRows
   def cols: List[VeColVector] = underlying.cols
 
-  def toUnit: UnitColBatch = UnitColBatch(underlying.map(_.toUnit))
+  def toUnit: UnitColBatch = UnitColBatch(underlying.map(_.toUnitColVector))
 
   def free()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
   ): Unit =
-    cols.foreach(_.free())
+    cols.foreach(_.free)
 
   def toArrowColumnarBatch()(implicit
     bufferAllocator: BufferAllocator,
@@ -144,13 +143,13 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   }
 
   def toInternalColumnarBatch(): ColumnarBatch = {
-    val vecs = underlying.cols.map(_.toInternalVector())
+    val vecs = underlying.cols.map(_.toSparkColumnVector)
     val cb = new ColumnarBatch(vecs.toArray)
     cb.setNumRows(underlying.numRows)
     cb
   }
 
-  def totalBufferSize: Int = underlying.cols.flatMap(_.underlying.bufferSizes).sum
+  def totalBufferSize: Int = underlying.cols.flatMap(_.bufferSizes).sum
 }
 
 object VeColBatch {
@@ -179,12 +178,12 @@ object VeColBatch {
         // not used, stream based now
         val descLength = din.readInt()
         ensureId(din.readInt(), DescDataId)
-        val unitColVector = UnitColVector.fromStreamFast(din)
+        val unitColVector = UnitColVector.fromStream(din)
         ensureId(din.readInt(), PayloadBytesLengthId)
         // ignored here, because we read stream-based
         val payloadLength = din.readInt()
         ensureId(din.readInt(), PayloadBytesId)
-        unitColVector.deserializeFromStream(din)
+        unitColVector.withData(din)
       } catch {
         case e: Throwable =>
           val stuffAfter =
@@ -215,20 +214,20 @@ object VeColBatch {
     unitObj.deserialize(seqs)
   }
 
-  type VeColVector = com.nec.ve.colvector.VeColVector
-  val VeColVector = com.nec.ve.colvector.VeColVector
+  type VeColVector = colvector.VeColVector
+  val VeColVector = colvector.VeColVector
 
   def apply(numRows: Int, cols: List[VeColVector]): VeColBatch =
     ve.VeColBatch(GenericColBatch(numRows, cols))
 
   def fromList(lv: List[VeColVector]): VeColBatch = {
     assert(lv.nonEmpty)
-    VeColBatch(GenericColBatch(numRows = lv.head.underlying.numItems, lv))
+    VeColBatch(GenericColBatch(numRows = lv.head.numItems, lv))
   }
 
   def from(vecs: VeColVector*): VeColBatch = {
     assert(vecs.nonEmpty)
-    VeColBatch(GenericColBatch(numRows = vecs.head.underlying.numItems, vecs.toList))
+    VeColBatch(GenericColBatch(numRows = vecs.head.numItems, vecs.toList))
   }
 
   def empty: VeColBatch = {
@@ -246,11 +245,11 @@ object VeColBatch {
       else {
         batches.head.underlying.cols.zipWithIndex.map { case (vcv, idx) =>
           ColumnGroup(
-            veType = vcv.underlying.veType,
+            veType = vcv.veType,
             relatedColumns = batches
               .map(_.underlying.cols.apply(idx))
               .ensuring(
-                cond = _.forall(_.underlying.veType == vcv.underlying.veType),
+                cond = _.forall(_.veType == vcv.veType),
                 msg = "All types should match up"
               )
           )

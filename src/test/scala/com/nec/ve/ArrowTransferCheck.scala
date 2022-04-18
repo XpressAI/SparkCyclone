@@ -1,6 +1,7 @@
 package com.nec.ve
 
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.BytePointerColVector
+import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableDouble, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
@@ -8,10 +9,10 @@ import com.nec.spark.agile.merge.MergeFunction
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.ve.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
+
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.freespec.AnyFreeSpec
-import com.nec.arrow.colvector.BytePointerColVector
 
 @VectorEngineTest
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
@@ -107,10 +108,10 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
     def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
       val colvec1 = input.toVeColVector
       val serialized = colvec1.serialize
-      val colvec2 = colvec1.underlying.toUnit.deserialize(serialized)
+      val colvec2 = colvec1.toUnitColVector.withData(serialized)
 
-      colvec1.containerLocation should not be (colvec2.containerLocation)
-      colvec1.bufferLocations should not be (colvec2.bufferLocations)
+      colvec1.container should not be (colvec2.container)
+      colvec1.buffers should not be (colvec2.buffers)
       colvec2.serialize.toSeq should be (serialized.toSeq)
 
       colvec2.toBytePointerVector

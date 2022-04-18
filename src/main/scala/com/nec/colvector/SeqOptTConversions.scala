@@ -1,8 +1,8 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.ArrayTConversions._
+import ArrayTConversions._
 import com.nec.spark.agile.core._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.collection.mutable.{Seq => MSeq}
 import com.nec.util.FixedBitSet
@@ -70,17 +70,13 @@ object SeqOptTConversions {
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = input.size,
-          name = name,
-          veType = VeScalarType.fromJvmType[T],
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(constructValidityBuffer(input))
-          ),
-          variableSize = None
+        source,
+        name,
+        VeScalarType.fromJvmType[T],
+        input.size,
+        Seq(
+          dataBuffer,
+          constructValidityBuffer(input)
         )
       )
     }
@@ -98,30 +94,26 @@ object SeqOptTConversions {
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
       val (dataBuffer, startsBuffer, lensBuffer) = constructBuffers
+
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = input.size,
-          name = name,
-          veType = VeString,
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(startsBuffer),
-            Option(lensBuffer),
-            Option(constructValidityBuffer(input))
-          ),
-          variableSize = Some(dataBuffer.limit().toInt / 4)
+        source,
+        name,
+        VeString,
+        input.size,
+        Seq(
+          dataBuffer,
+          startsBuffer,
+          lensBuffer,
+          constructValidityBuffer(input)
         )
       )
     }
   }
 
   implicit class BPCVToSeqOptT(input: BytePointerColVector) {
-    private[colvector] lazy val underlying = input.underlying
-    private[colvector] lazy val numItems = underlying.numItems
-    private[colvector] lazy val veType = underlying.veType
-    private[colvector] lazy val buffers = underlying.buffers.flatten
+    private[colvector] lazy val numItems = input.numItems
+    private[colvector] lazy val veType = input.veType
+    private[colvector] lazy val buffers = input.buffers
 
     private[colvector] def toStringArray: Seq[Option[String]] = {
       val dataBuffer = buffers(0)
@@ -158,8 +150,8 @@ object SeqOptTConversions {
       val klass = implicitly[ClassTag[T]].runtimeClass
       require(klass == veType.scalaType, s"Requested type ${klass.getName} does not match the VeType: ${veType}")
 
-      val dataBuffer = input.underlying.buffers(0).get
-      val bitset = FixedBitSet.from(input.underlying.buffers(1).get)
+      val dataBuffer = buffers(0)
+      val bitset = FixedBitSet.from(buffers(1))
 
       if (klass == classOf[Int]) {
         val buffer = new IntPointer(dataBuffer)

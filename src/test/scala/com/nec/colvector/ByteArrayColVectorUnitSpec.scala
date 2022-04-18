@@ -1,7 +1,7 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.arrow.colvector.SeqOptTConversions._
+import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
@@ -22,7 +22,7 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
     colvec.numItems should be (input.size)
     colvec.veType.scalaType should be (implicitly[ClassTag[T]].runtimeClass)
     colvec.buffers.size should be (2)
-    colvec.toBytePointerColVector.underlying.variableSize shouldBe empty
+    colvec.toBytePointerColVector.dataSize shouldBe empty
 
     // Check conversion
     colvec.toBytePointerColVector.toSeqOpt[T] should be (input)
@@ -62,7 +62,7 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
       colvec.numItems should be (input.size)
       colvec.veType.scalaType should be (classOf[String])
       colvec.buffers.size should be (4)
-      colvec.toBytePointerColVector.underlying.variableSize should be (Some(colvec.buffers.head.size / 4))
+      colvec.toBytePointerColVector.dataSize should be (Some(colvec.buffers.head.size / 4))
 
       // Check conversion
       colvec.toBytePointerColVector.toSeqOpt[String] should be (input)
@@ -73,15 +73,15 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
       val name = s"${UUID.randomUUID}"
 
       assertThrows[IllegalArgumentException] {
-        ByteArrayColVector(source, Random.nextInt(100), name, VeNullableInt, Seq.empty[Array[Byte]])
+        ByteArrayColVector(source, name, VeNullableInt, Random.nextInt(100), Seq.empty[Array[Byte]])
       }
 
       assertThrows[IllegalArgumentException] {
         ByteArrayColVector(
           source,
-          Random.nextInt(100),
           name,
           VeNullableInt,
+          Random.nextInt(100),
           Seq(Array.empty[Byte], Array.empty[Byte], Array.empty[Byte], Array.empty[Byte])
         )
       }
@@ -89,9 +89,9 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
       noException should be thrownBy {
         ByteArrayColVector(
           source,
-          Random.nextInt(100),
           name,
           VeNullableInt,
+          Random.nextInt(100),
           Seq(
             Random.nextString(Random.nextInt(100) + 1).getBytes,
             Random.nextString(Random.nextInt(100) + 1).getBytes
@@ -114,12 +114,12 @@ class ByteArrayColVectorUnitSpec extends AnyWordSpec {
 
     "correctly serialize to Array[Byte]" in {
       val buffers = Seq(
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes,
-        Random.nextString(Random.nextInt(100) + 1).getBytes
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes,
+        Random.nextString(Random.nextInt(100) + 10).getBytes
       )
-      val colvec = ByteArrayColVector(VeColVectorSource(s"${UUID.randomUUID}"), Random.nextInt(100), s"${UUID.randomUUID}", VeString, buffers)
+      val colvec = ByteArrayColVector(VeColVectorSource(s"${UUID.randomUUID}"), s"${UUID.randomUUID}", VeString, Random.nextInt(100), buffers)
 
       colvec.serialize.toSeq should be (buffers.foldLeft(Array.empty[Byte])(_ ++ _).toSeq)
     }

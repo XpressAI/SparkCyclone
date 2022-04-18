@@ -1,10 +1,10 @@
 package com.nec.native
 
+import com.nec.colvector.VeColVector
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.ve.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColVector
 
 import java.nio.file.Paths
 import scala.reflect.ClassTag

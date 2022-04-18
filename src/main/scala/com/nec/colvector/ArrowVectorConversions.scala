@@ -1,11 +1,11 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
-import com.nec.arrow.colvector.TypeLink.{ArrowToVe, VeToArrow}
+import TypeLink.{ArrowToVe, VeToArrow}
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.colvector.VeColVector
+import com.nec.colvector.VeColBatch.VeColVectorSource
+
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -21,14 +21,13 @@ object ArrowVectorConversions {
   }
 
   implicit class BPCVToFieldVector(input: BytePointerColVector) {
-    private[colvector] lazy val underlying = input.underlying
-    private[colvector] lazy val numItems = underlying.numItems
-    private[colvector] lazy val buffers = underlying.buffers.flatten
-    private[colvector] lazy val bufferAdresses = underlying.buffers.flatten.map(_.address())
+    private[colvector] lazy val numItems = input.numItems
+    private[colvector] lazy val buffers = input.buffers
+    private[colvector] lazy val bufferAdresses = buffers.map(_.address())
 
     private[colvector] def toScalarArrow(typ: VeScalarType)(implicit allocator: BufferAllocator): FieldVector = {
-      val vec = VeToArrow(typ).makeArrow(underlying.name)(allocator)
-      if (numItems > 0) {
+      val vec = VeToArrow(typ).makeArrow(input.name)(allocator)
+      if (input.numItems > 0) {
         val dataSize = numItems * typ.cSize
         vec.setValueCount(numItems)
 
@@ -44,7 +43,7 @@ object ArrowVectorConversions {
     }
 
     private[colvector] def toShortArrow(implicit allocator: BufferAllocator): SmallIntVector = {
-      val vec = new SmallIntVector(underlying.name, allocator)
+      val vec = new SmallIntVector(input.name, allocator)
       if (numItems > 0) {
         vec.setValueCount(numItems)
 
@@ -64,7 +63,7 @@ object ArrowVectorConversions {
     }
 
     private[colvector] def toVarCharArrow(implicit allocator: BufferAllocator): VarCharVector = {
-      val vec = new VarCharVector(underlying.name, allocator)
+      val vec = new VarCharVector(input.name, allocator)
 
       if (numItems > 0) {
         // Allocate and set count
@@ -104,7 +103,7 @@ object ArrowVectorConversions {
     }
 
     def toArrowVector(implicit bufferAllocator: BufferAllocator): FieldVector = {
-      underlying.veType match {
+      input.veType match {
         case VeNullableShort =>
           // Specialize this case because Int values in VeNullableShort need to be cast to Short
           toShortArrow
@@ -148,17 +147,13 @@ object ArrowVectorConversions {
       }
 
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = vector.getValueCount,
-          name = vector.getName,
-          veType = veType,
-          container = None,
-          buffers = List(
-            Option(new BytePointer(vector.getDataBuffer.nioBuffer)),
-            Option(new BytePointer(vector.getValidityBuffer.nioBuffer))
-          ),
-          variableSize = None
+        source,
+        vector.getName,
+        veType,
+        vector.getValueCount,
+        Seq(
+          new BytePointer(vector.getDataBuffer.nioBuffer),
+          new BytePointer(vector.getValidityBuffer.nioBuffer)
         )
       )
     }
@@ -174,23 +169,18 @@ object ArrowVectorConversions {
       }
 
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = vector.getValueCount,
-          name = vector.getName,
-          // Keep the VE type information here
-          veType = VeNullableShort,
-          container = None,
-          buffers = List(
-            /*
-              Cast to BytePointer and manually set the capacity value to account
-              for the size difference between the two pointer types (casting
-              JavaCPP pointers literally copies the capacity value over as is).
-            */
-            Option(new BytePointer(buffer).capacity(vector.getValueCount.toLong * 4)),
-            Option(new BytePointer(vector.getValidityBuffer.nioBuffer))
-          ),
-          variableSize = None
+        source,
+        vector.getName,
+        VeNullableShort,
+        vector.getValueCount,
+        Seq(
+          /*
+            Cast to BytePointer and manually set the capacity value to account
+            for the size difference between the two pointer types (casting
+            JavaCPP pointers literally copies the capacity value over as is).
+          */
+          new BytePointer(buffer).capacity(vector.getValueCount.toLong * 4),
+          new BytePointer(vector.getValidityBuffer.nioBuffer)
         )
       )
     }
@@ -251,20 +241,17 @@ object ArrowVectorConversions {
 
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
       val (dataBuffer, startsBuffer, lensBuffer) = constructBuffers
+
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = vector.getValueCount,
-          name = vector.getName,
-          veType = VeString,
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(startsBuffer),
-            Option(lensBuffer),
-            Option(new BytePointer(vector.getValidityBuffer.nioBuffer))
-          ),
-          variableSize = Some((dataBuffer.limit() / 4).toInt)
+        source,
+        vector.getName,
+        VeString,
+        vector.getValueCount,
+        Seq(
+          dataBuffer,
+          startsBuffer,
+          lensBuffer,
+          new BytePointer(vector.getValidityBuffer.nioBuffer)
         )
       )
     }

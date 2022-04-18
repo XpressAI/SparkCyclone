@@ -1,9 +1,8 @@
 package com.nec.cache
 
-import com.nec.arrow.ArrowEncodingSettings
-import com.nec.arrow.colvector.BytePointerColVector
-import com.nec.arrow.colvector.ArrowVectorConversions._
-import com.nec.arrow.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.BytePointerColVector
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.{VeColBatch, VeProcessMetrics}
 import com.nec.ve.VeProcess.OriginalCallingContext

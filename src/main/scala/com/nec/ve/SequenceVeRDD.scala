@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.arrow.colvector.ArrayTConversions.ArrayTToBPCV
+import com.nec.colvector.ArrayTConversions.ArrayTToBPCV
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
@@ -57,10 +57,9 @@ object SequenceVeRDD {
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-      val part = Array[Long](iter.next())
-      val colVector = part.toBytePointerColVector(s"seq-${part(0)}")
-      val veColVec = colVector.toVeColVector()
-      val batch = VeColBatch.fromList(List(veColVec))
+      val part = Array[Long](iter.next)
+      val colvec = part.toBytePointerColVector(s"seq-${part(0)}").toVeColVector
+      val batch = VeColBatch.fromList(List(colvec))
 
       Iterator(func.evalFunction(batch))
     })

@@ -1,9 +1,9 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
 import com.nec.util.ReflectionOps._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
@@ -82,23 +82,19 @@ object SparkSqlColumnVectorConversions {
 
     private[colvector] def scalarToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = size,
-          name = name,
-          veType = veScalarType,
-          container = None,
-          buffers = List(
-            Option(scalarDataBuffer(size)),
-            Option(validityBuffer(size))
-          ),
-          variableSize = None
+        source,
+        name,
+        veScalarType,
+        size,
+        Seq(
+          scalarDataBuffer(size),
+          validityBuffer(size)
         )
       )
     }
 
     private[colvector] def varCharToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
-      import com.nec.arrow.colvector.ArrayTConversions._
+      import ArrayTConversions._
 
       // Construct UTF-32lE Array[Array[Byte]]
       val bytesAA = 0.until(size).toArray.map { i =>
@@ -113,19 +109,15 @@ object SparkSqlColumnVectorConversions {
       val (dataBuffer, startsBuffer, lensBuffer) = bytesAA.constructBuffers
 
       BytePointerColVector(
-        GenericColVector(
-          source = source,
-          numItems = size,
-          name = name,
-          veType = VeString,
-          container = None,
-          buffers = List(
-            Option(dataBuffer),
-            Option(startsBuffer),
-            Option(lensBuffer),
-            Option(validityBuffer(size))
-          ),
-          variableSize = Some(dataBuffer.limit().toInt / 4)
+        source,
+        name,
+        VeString,
+        size,
+        Seq(
+          dataBuffer,
+          startsBuffer,
+          lensBuffer,
+          validityBuffer(size)
         )
       )
     }

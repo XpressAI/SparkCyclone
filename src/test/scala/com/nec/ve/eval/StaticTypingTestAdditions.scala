@@ -19,14 +19,14 @@
  */
 package com.nec.ve.eval
 
-import com.nec.arrow.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
-import com.nec.arrow.WithTestAllocator
-import com.nec.arrow.colvector.SeqOptTConversions._
-import com.nec.arrow.colvector.ArrowVectorConversions._
+import com.nec.colvector.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
+import com.nec.colvector.WithTestAllocator
+import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
 
 /**

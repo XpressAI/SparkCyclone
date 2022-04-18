@@ -19,7 +19,7 @@
  */
 package com.nec.ve.eval
 
-import com.nec.arrow.WithTestAllocator
+import com.nec.colvector.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.filter.FilterFunction
@@ -28,7 +28,7 @@ import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
-import com.nec.ve.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.eval.StaticTypingTestAdditions._
 import com.typesafe.scalalogging.LazyLogging
 

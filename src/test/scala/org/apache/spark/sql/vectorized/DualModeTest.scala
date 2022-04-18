@@ -36,12 +36,12 @@ final class DualModeTest extends AnyFreeSpec {
   "Accessing private class happens Ok" in {
     val vcv = VeColVector(
       VeColVectorSource("unit test"),
-      3,
       "test",
-      None,
       VeNullableInt,
+      3,
+      Seq(1, 2),
+      None,
       -1,
-      List(1, 2)
     )
     val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
     val cv = new VeColColumnarVector(Left(vcv), IntegerType)

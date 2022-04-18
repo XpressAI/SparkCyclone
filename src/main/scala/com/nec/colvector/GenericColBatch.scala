@@ -1,4 +1,4 @@
-package com.nec.arrow.colvector
+package com.nec.colvector
 
 final case class GenericColBatch[Data](numRows: Int, cols: List[Data]) {
   def nonEmpty: Boolean = numRows > 0
