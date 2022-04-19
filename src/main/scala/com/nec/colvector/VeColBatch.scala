@@ -123,7 +123,9 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   def numRows: Int = underlying.numRows
   def cols: List[VeColVector] = underlying.cols
 
-  def toUnit: UnitColBatch = UnitColBatch(underlying.map(_.toUnitColVector))
+  def toUnit: UnitColBatch = {
+    UnitColBatch(underlying.cols.map(_.toUnitColVector))
+  }
 
   def free()(implicit
     veProcess: VeProcess,
@@ -211,7 +213,7 @@ object VeColBatch {
     val seqs = (0 until numCols).map { _ =>
       objectInputStream.readObject().asInstanceOf[Array[Byte]]
     }.toList
-    unitObj.deserialize(seqs)
+    unitObj.withData(seqs)
   }
 
   type VeColVector = colvector.VeColVector
