@@ -20,9 +20,11 @@
 package com.nec.spark
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, launched, params, pluginContext}
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}

@@ -2,7 +2,6 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
 import org.bytedeco.javacpp._
 

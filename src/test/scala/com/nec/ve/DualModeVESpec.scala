@@ -5,7 +5,7 @@ import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase}
 import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector

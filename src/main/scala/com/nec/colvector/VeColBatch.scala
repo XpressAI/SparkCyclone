@@ -1,13 +1,12 @@
 package com.nec.colvector
 
 import com.nec.colvector.ArrowVectorConversions._
+import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps.ExtendedInstant
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import com.nec.{colvector, ve}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -19,12 +18,12 @@ import scala.util.Try
 
 //noinspection AccessorLikeMethodIsEmptyParen
 final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
-  def toCPUSeq[T: TypeTag](): Seq[T] = {
+  def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
-      case Nil => toArray[T](0)(ClassTag(tag.mirror.runtimeClass(tag.tpe))).toSeq
+      case Nil => toArray[T](0)(ClassTag(tag.mirror.runtimeClass(tag.tpe)), process).toSeq
       case args => args.zipWithIndex.map { case (t, idx) =>
-          toArray(idx)(ClassTag(tag.mirror.runtimeClass(t))).toSeq
+          toArray(idx)(ClassTag(tag.mirror.runtimeClass(t)), process).toSeq
         }.transpose.map { r =>
           val size = r.size
           if(r.isEmpty || size > 22){
@@ -58,26 +57,8 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     }
   }
 
-  def toArray[T: ClassTag](colIdx: Int): Array[T] = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    implicit val allocator: RootAllocator = new RootAllocator(Int.MaxValue)
-
-    val klass = implicitly[ClassTag[T]].runtimeClass
-
-    val arrowBatch = toArrowColumnarBatch()
-    (if (klass == classOf[Int]) {
-      arrowBatch.column(colIdx).getInts(0, arrowBatch.numRows())
-    } else if (klass == classOf[Long]) {
-      arrowBatch.column(colIdx).getLongs(0, arrowBatch.numRows())
-    } else if (klass == classOf[Float]) {
-      arrowBatch.column(colIdx).getFloats(0, arrowBatch.numRows())
-    } else if (klass == classOf[Double]) {
-      arrowBatch.column(colIdx).getDoubles(0, arrowBatch.numRows())
-    } else if (klass == classOf[Instant]) {
-      arrowBatch.column(0).getLongs(0, arrowBatch.numRows()).map(ExtendedInstant.fromFrovedisDateTime)
-    } else {
-      throw new NotImplementedError(s"Cannot extract Array[T] from ColumnarBatch for T = ${klass}")
-    }).asInstanceOf[Array[T]]
+  def toArray[T: ClassTag](idx: Int)(implicit process: VeProcess): Array[T] = {
+    underlying.cols(idx).toBytePointerColVector.toArray[T]
   }
 
   def serializeToStreamSize: Int = {
@@ -138,7 +119,7 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
     bufferAllocator: BufferAllocator,
     veProcess: VeProcess
   ): ColumnarBatch = {
-    val vecs = underlying.cols.map(_.toBytePointerVector.toArrowVector)
+    val vecs = underlying.cols.map(_.toBytePointerColVector.toArrowVector)
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(underlying.numRows)
     cb
@@ -216,11 +197,13 @@ object VeColBatch {
     unitObj.withData(seqs)
   }
 
-  type VeColVector = colvector.VeColVector
-  val VeColVector = colvector.VeColVector
+  // type VeColVector = colvector.VeColVector
+  // val VeColVector = colvector.VeColVector
 
-  def apply(numRows: Int, cols: List[VeColVector]): VeColBatch =
-    ve.VeColBatch(GenericColBatch(numRows, cols))
+  def apply(numRows: Int, cols: List[VeColVector]): VeColBatch = {
+    VeColBatch(GenericColBatch(numRows, cols))
+  }
+
 
   def fromList(lv: List[VeColVector]): VeColBatch = {
     assert(lv.nonEmpty)
@@ -286,20 +269,4 @@ object VeColBatch {
       )
     )
   }
-
-  final case class VeColVectorSource(identifier: String)
-
-  object VeColVectorSource {
-
-    def make(implicit fullName: sourcecode.FullName, line: sourcecode.Line): VeColVectorSource =
-      VeColVectorSource(s"${fullName.value}#${line.value}")
-
-    object Automatic {
-      implicit def veColVectorSource(implicit
-        fullName: sourcecode.FullName,
-        line: sourcecode.Line
-      ): VeColVectorSource = make
-    }
-  }
-
 }

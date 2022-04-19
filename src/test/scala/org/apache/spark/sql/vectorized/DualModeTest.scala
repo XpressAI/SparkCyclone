@@ -2,8 +2,8 @@ package org.apache.spark.sql.vectorized
 
 import com.nec.cache.{DualMode, VeColColumnarVector}
 import com.nec.spark.agile.core.VeNullableInt
-import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.VeColBatch
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType

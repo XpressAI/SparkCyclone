@@ -10,9 +10,9 @@ import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
-import com.nec.ve.{VeColBatch, VeKernelInfra, VeProcess, WithVeProcess}
+import com.nec.ve.{VeKernelInfra, VeProcess, WithVeProcess}
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 

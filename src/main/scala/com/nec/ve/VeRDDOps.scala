@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.serializer.{DualBatchOrBytes, VeSerializer}

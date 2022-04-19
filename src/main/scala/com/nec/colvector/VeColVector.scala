@@ -1,7 +1,6 @@
 package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
@@ -30,7 +29,7 @@ final case class VeColVector private[colvector] (
   def serialize(implicit process: VeProcess,
                 metrics: VeProcessMetrics): Array[Byte] = {
     val array = metrics.measureRunningTime {
-      toBytePointerVector.toByteArrayColVector.serialize
+      toBytePointerColVector.toByteArrayColVector.serialize
     }(metrics.registerSerializationTime)
 
     assert(
@@ -51,7 +50,7 @@ final case class VeColVector private[colvector] (
     new VeColColumnarVector(Left(this), veType.toSparkType)
   }
 
-  def toBytePointerVector(implicit process: VeProcess): BytePointerColVector = {
+  def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
       val ptr = new BytePointer(size)
       process.get(location, ptr, size)

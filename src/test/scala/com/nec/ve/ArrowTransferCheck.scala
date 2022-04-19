@@ -7,7 +7,8 @@ import com.nec.spark.agile.core.{VeNullableDouble, VeString}
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
-import com.nec.ve.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeColBatch
+import com.nec.colvector.VeColBatch.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
 
 import scala.util.Random
@@ -29,7 +30,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
         results = List(VeNullableDouble.makeCVector("output"))
       )
 
-      outputs.map(_.toBytePointerVector.toSeqOpt[Double].flatten) should be (Seq(Seq[Double](2, 4, 6)))
+      outputs.map(_.toBytePointerColVector.toSeqOpt[Double].flatten) should be (Seq(Seq[Double](2, 4, 6)))
     }
   }
 
@@ -47,7 +48,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
       val results: List[(Int, Option[Double])] = outputs.map { case (index, vecs) =>
         index -> {
-          val tmp = vecs.head.toBytePointerVector.toSeqOpt[Double].flatten
+          val tmp = vecs.head.toBytePointerColVector.toSeqOpt[Double].flatten
           if (tmp.isEmpty) None else Some(tmp.max)
         }
       }
@@ -93,9 +94,9 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
       val results: List[(Int, List[(Double, String, Double)])] = outputs.map { case (index, vecs) =>
         index -> (
-          vecs(0).toBytePointerVector.toSeqOpt[Double].flatten,
-          vecs(1).toBytePointerVector.toSeqOpt[String].flatten,
-          vecs(2).toBytePointerVector.toSeqOpt[Double].flatten,
+          vecs(0).toBytePointerColVector.toSeqOpt[Double].flatten,
+          vecs(1).toBytePointerColVector.toSeqOpt[String].flatten,
+          vecs(2).toBytePointerColVector.toSeqOpt[Double].flatten,
         ).zipped.toList
       }
 
@@ -114,7 +115,7 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       colvec1.buffers should not be (colvec2.buffers)
       colvec2.serialize.toSeq should be (serialized.toSeq)
 
-      colvec2.toBytePointerVector
+      colvec2.toBytePointerColVector
     }
 
     "for Int" in {
@@ -182,8 +183,8 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       )
 
       outputs.size should be (2)
-      outputs(0).toBytePointerVector.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
-      outputs(1).toBytePointerVector.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
+      outputs(0).toBytePointerColVector.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
+      outputs(1).toBytePointerColVector.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
     }
   }
 }

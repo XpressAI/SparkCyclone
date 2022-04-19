@@ -1,9 +1,9 @@
 package com.nec.ve
 
-import com.nec.colvector.VeColVector
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.{Partition, TaskContext}
 
@@ -22,7 +22,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
 
     val batches = concatInputs.iterator(split, context)
     batches.map { case (key, veColBatch) =>
-      val res = (key, veColBatch.toCPUSeq[T]())
+      val res = (key, veColBatch.toCPUSeq[T])
       veColBatch.free()
       res
     }
@@ -60,7 +60,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
         import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
-        val array = veColBatch.toCPUSeq[T]()
+        val array = veColBatch.toCPUSeq[T]
         veColBatch.free()
 
         (key, array)

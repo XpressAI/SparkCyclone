@@ -4,9 +4,9 @@ import com.nec.colvector.BytePointerColVector
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.{VeColBatch, VeProcessMetrics}
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeColBatch, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext

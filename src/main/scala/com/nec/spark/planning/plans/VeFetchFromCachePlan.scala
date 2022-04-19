@@ -3,7 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
 import com.nec.colvector.{ByteArrayColVector, VeColVector}
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD

@@ -3,7 +3,6 @@ package com.nec.colvector
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
 import com.nec.util.ReflectionOps._
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._

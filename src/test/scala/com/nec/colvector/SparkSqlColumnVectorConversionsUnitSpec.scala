@@ -4,7 +4,7 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID

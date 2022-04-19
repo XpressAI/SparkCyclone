@@ -1,9 +1,10 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.colvector.VeColBatch
+import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
 
 trait DataCleanup {

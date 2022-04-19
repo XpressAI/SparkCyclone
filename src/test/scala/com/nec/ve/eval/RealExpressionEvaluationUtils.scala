@@ -28,7 +28,7 @@ import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions._
 import com.typesafe.scalalogging.LazyLogging
 

@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.nec.native.CompiledVeFunction
 import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 

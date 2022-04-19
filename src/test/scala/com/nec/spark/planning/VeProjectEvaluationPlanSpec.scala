@@ -4,8 +4,8 @@ import com.nec.spark.agile.core.VeNullableInt
 import com.nec.spark.planning.VeProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
 import com.nec.spark.planning.plans.VeProjectEvaluationPlan
 import com.nec.spark.planning.plans.VeProjectEvaluationPlan.ProjectionContext
-import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.VeColBatch
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.Ignore

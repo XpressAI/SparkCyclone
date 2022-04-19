@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.colvector.VeColVector
+import com.nec.colvector.{VeColVector, VeColBatch}
 import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
@@ -111,7 +111,7 @@ trait VeRDD[T] extends RDD[T] {
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.flatMap { veColBatch =>
-        val res = veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]
         veColBatch.free()
         res
       }
@@ -140,7 +140,7 @@ trait VeRDD[T] extends RDD[T] {
 
     val batches = inputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      val res = veColBatch.toCPUSeq[T]()
+      val res = veColBatch.toCPUSeq[T]
       veColBatch.free()
       res
     }
@@ -190,7 +190,7 @@ abstract class ChainedVeRDD[T](
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.map { veColBatch =>
-        val res = veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]
         veColBatch.free()
         res
       }
@@ -326,7 +326,7 @@ class BasicVeRDD[T](
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.map { veColBatch =>
-        val res = veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]
         veColBatch.free()
         res
       }

@@ -3,8 +3,9 @@ package com.nec.cache
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericColBatch, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 

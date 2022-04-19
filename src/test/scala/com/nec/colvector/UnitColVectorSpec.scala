@@ -3,7 +3,7 @@ package com.nec.colvector
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.colvector.UnitColVector
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 
 import scala.util.Random
 import java.io._

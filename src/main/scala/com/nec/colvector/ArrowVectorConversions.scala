@@ -3,8 +3,6 @@ package com.nec.colvector
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import com.nec.colvector.VeColBatch.VeColVectorSource
-
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._

@@ -3,11 +3,6 @@ package com.nec.colvector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 final case class ByteArrayColBatch(columns: Seq[ByteArrayColVector]) {
-  require(
-    columns.nonEmpty,
-    s"[${getClass.getName}] Number of columns needs to be > 0"
-  )
-
   def numRows: Int = {
     columns.head.numItems
   }

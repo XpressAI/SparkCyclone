@@ -26,8 +26,10 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 
 /**
  * Boilerplate to deal with making the tests nice and tight.
@@ -241,7 +243,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double)] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
+          col.toBytePointerColVector.toSeqOpt[Double].flatten.toList
         } match {
           case colA :: colB :: Nil => colA.zip(colB)
         }
@@ -255,7 +257,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double, Double)] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
+          col.toBytePointerColVector.toSeqOpt[Double].flatten.toList
 
         } match {
           case colA :: colB :: colC :: Nil =>
@@ -274,7 +276,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Double, Double, Double)] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
+          col.toBytePointerColVector.toSeqOpt[Double].flatten.toList
         } match {
           case colA :: colB :: colC :: colD :: Nil =>
             colA.zip(colB).zip(colC).zip(colD).map { case (((a, b), c), d) =>
@@ -290,7 +292,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[Option[Double]] = {
         veColBatch.cols.flatMap { col =>
-          col.toBytePointerVector.toSeqOpt[Double].toList
+          col.toBytePointerColVector.toSeqOpt[Double].toList
         }
       }
     }
@@ -299,7 +301,7 @@ object StaticTypingTestAdditions {
 
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Int] = {
         veColBatch.cols.flatMap { col =>
-          col.toBytePointerVector.toSeqOpt[Int].flatten.toList
+          col.toBytePointerColVector.toSeqOpt[Int].flatten.toList
         }
       }
     }
@@ -308,7 +310,7 @@ object StaticTypingTestAdditions {
 
       override def retrieve(veColBatch: VeColBatch)(implicit veProcess: VeProcess): List[Double] = {
         veColBatch.cols.flatMap { col =>
-          col.toBytePointerVector.toSeqOpt[Double].flatten.toList
+          col.toBytePointerColVector.toSeqOpt[Double].flatten.toList
         }
       }
     }
@@ -320,7 +322,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Double, Option[Double])] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].toList
+          col.toBytePointerColVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: Nil => colA.flatten.zip(colB)
         }
@@ -334,7 +336,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Double)] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].toList
+          col.toBytePointerColVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB.flatten).zip(colC.flatten).map { case ((a, b), c) => (a, b, c) }
@@ -349,7 +351,7 @@ object StaticTypingTestAdditions {
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(Option[Double], Double, Option[Double])] = {
         veColBatch.cols.map { col =>
-          col.toBytePointerVector.toSeqOpt[Double].toList
+          col.toBytePointerColVector.toSeqOpt[Double].toList
         } match {
           case colA :: colB :: colC :: Nil =>
             colA.zip(colB.flatten).zip(colC).map { case ((a, b), c) => (a, b, c) }
@@ -362,7 +364,7 @@ object StaticTypingTestAdditions {
       override def retrieve(
         veColBatch: VeColBatch
       )(implicit veProcess: VeProcess): List[(String, Double)] = {
-        val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerVector)
+        val colA :: colB :: Nil = veColBatch.cols.map(_.toBytePointerColVector)
         colA.toSeqOpt[String].flatten.toList.zip(colB.toSeqOpt[Double].flatten.toList)
       }
     }

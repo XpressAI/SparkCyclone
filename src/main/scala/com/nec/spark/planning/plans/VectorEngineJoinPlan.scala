@@ -3,7 +3,8 @@ package com.nec.spark.planning.plans
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
 import com.nec.spark.planning._
 import com.nec.colvector.VeColBatch.VeBatchOfBatches
-import com.nec.ve.{VeColBatch, VeRDDOps}
+import com.nec.colvector.VeColBatch
+import com.nec.ve.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
