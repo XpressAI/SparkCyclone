@@ -78,9 +78,9 @@ object DualMode {
           .map(_.asInstanceOf[CachedVeBatch].dualVeBatch.toEither)
           .flatMap {
             case Left(veColBatch) =>
-              veColBatch.toInternalColumnarBatch().rowIterator().asScala
-            case Right(byteArrayColBatch) =>
-              byteArrayColBatch.toInternalColumnarBatch().rowIterator().asScala
+              veColBatch.toInternalColumnarBatch().rowIterator.asScala
+            case Right(baColBatch) =>
+              baColBatch.toSparkColumnarBatch.rowIterator.asScala
           }
       }
       .take(1)

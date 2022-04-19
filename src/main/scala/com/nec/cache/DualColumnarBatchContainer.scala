@@ -18,9 +18,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case Some(vecs) => Left(VeColBatch.fromList(vecs))
       case None =>
         val cols = vecs.flatMap(_.right.toSeq)
-        Right(
-          ByteArrayColBatch(GenericColBatch(numRows = cols.head.numItems, cols = cols))
-        )
+        Right(ByteArrayColBatch(cols))
     }
   }
 
