@@ -142,8 +142,20 @@ namespace cyclone::benchmarks {
     NullableScalarVec<int64_t>* input2 = create_input(3500000,  420);
     NullableScalarVec<int64_t>* input3 = create_input(3500000, 9001);
 
-    ankerl::nanobench::Bench().run("vector_multi_group", [&]() {
+    ankerl::nanobench::Bench().run("vector_multi_group (many groups)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_multi_group(input1, input2, input3));
+    });
+
+    free(input1);
+    free(input2);
+    free(input3);
+
+    NullableScalarVec<int64_t>* input4 = create_input(3500000,  25);
+    NullableScalarVec<int64_t>* input5 = create_input(3500000,  75);
+    NullableScalarVec<int64_t>* input6 = create_input(3500000, 150);
+
+    ankerl::nanobench::Bench().run("vector_multi_group (150 groups)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_multi_group(input4, input5, input6));
     });
   }
 }
