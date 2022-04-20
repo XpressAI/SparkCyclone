@@ -401,6 +401,20 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
   for(auto g = 1; g < group_pos.size(); g++){
     auto start = group_pos[g - 1];
     auto end = group_pos[g];
+
+    auto total_el_count = end - start;
+    if(total_el_count == 1){
+      // Shortcut for single element groups
+      if(iter_order_arr == nullptr){
+        idx_arr[start] = start;
+      }else{
+        idx_arr[start] = iter_order_arr[start];
+      }
+      out_group_pos.push_back(start);
+
+      continue;
+    }
+
     size_t cur_invalid_count = 0;
     size_t cur_valid_count = 0;
 
