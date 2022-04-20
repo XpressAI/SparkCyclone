@@ -396,6 +396,7 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
     return;
   }
 
+  out_group_pos.clear();
   out_group_pos.push_back({group_pos.front()});
   for(auto g = 1; g < group_pos.size(); g++){
     auto start = group_pos[g - 1];

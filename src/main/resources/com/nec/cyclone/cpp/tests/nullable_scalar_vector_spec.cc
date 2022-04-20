@@ -303,4 +303,42 @@ namespace cyclone::tests {
     CHECK(grouped[2] == expected_2);
     CHECK(grouped.size() == 3);
   }
+
+  TEST_CASE("group_indexes_on_subset works (with different types)"){
+    std::vector<long> grouping_1 = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+    auto *input1 = new NullableScalarVec(grouping_1);
+
+    std::vector<double> grouping_2 = { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
+    auto *input2 = new NullableScalarVec(grouping_2);
+
+    std::vector<int> grouping_3 = {  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1 };
+    auto *input3 = new NullableScalarVec(grouping_3);
+
+    std::vector<std::vector<size_t>> expected = {{11}, {4}, {1, 3}, {0, 6, 12}, {5}, {9}, {7}, {14}, {2, 8, 10}, {13}};
+
+    size_t count = grouping_1.size();
+    size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+    size_t* b_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+
+    std::vector<size_t> a_pos_idxs;
+    std::vector<size_t> b_pos_idxs;
+
+    input1->group_indexes_on_subset(nullptr, {0, count}, a_arr, a_pos_idxs);
+    input2->group_indexes_on_subset(a_arr, a_pos_idxs, b_arr, b_pos_idxs);
+    input3->group_indexes_on_subset(b_arr, b_pos_idxs, a_arr, a_pos_idxs);
+
+    std::cout << "Result Array: ";
+    for(auto i = 0; i < count; i++){
+      std::cout << a_arr[i];
+    }
+    cyclone::print_vec("a_pos_idxs", a_pos_idxs);
+
+    free(a_arr);
+    free(b_arr);
+    free(input1);
+    free(input2);
+    free(input3);
+
+    CHECK(result == expected);
+  }
 }
