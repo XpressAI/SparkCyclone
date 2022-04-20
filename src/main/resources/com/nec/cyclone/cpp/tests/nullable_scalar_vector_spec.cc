@@ -324,28 +324,44 @@ namespace cyclone::tests {
     std::vector<std::vector<size_t>> expected = {{11}, {4}, {1, 3}, {0, 6, 12}, {5}, {9}, {7}, {14}, {2, 8, 10}, {13}};
 
     size_t count = grouping_1.size();
+    size_t start_group_pos[2] = {0, count};
     size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
     size_t* b_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
 
-    std::vector<size_t> a_pos_idxs;
-    std::vector<size_t> b_pos_idxs;
+    size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+    size_t* b_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
 
-    input1->group_indexes_on_subset(nullptr, {0, count}, a_arr, a_pos_idxs);
-    cyclone::print_vec("first grouping", a_pos_idxs);
+    size_t a_pos_idxs_size;
+    size_t b_pos_idxs_size;
+
+    input1->group_indexes_on_subset(nullptr, start_group_pos, 2, a_arr, a_pos_idxs, a_pos_idxs_size);
+    std::cout << "Pos Idxs: ";
+    for(auto i = 0; i < a_pos_idxs_size; i++){
+      std::cout << a_pos_idxs[i] << " ";
+    }
+    std::cout << std::endl;
     std::cout << "Result Array: ";
     for(auto i = 0; i < count; i++){
       std::cout << a_arr[i] << " ";
     }
     std::cout << std::endl;
-    input2->group_indexes_on_subset(a_arr, a_pos_idxs, b_arr, b_pos_idxs);
-    cyclone::print_vec("second grouping", b_pos_idxs);
+    input2->group_indexes_on_subset(a_arr, a_pos_idxs, a_pos_idxs_size, b_arr, b_pos_idxs, b_pos_idxs_size);
+    std::cout << "Pos Idxs: ";
+    for(auto i = 0; i < b_pos_idxs_size; i++){
+      std::cout << b_pos_idxs[i] << " ";
+    }
+    std::cout << std::endl;
     std::cout << "Result Array: ";
     for(auto i = 0; i < count; i++){
       std::cout << b_arr[i] << " ";
     }
     std::cout << std::endl;
-    input3->group_indexes_on_subset(b_arr, b_pos_idxs, a_arr, a_pos_idxs);
-    cyclone::print_vec("third grouping", a_pos_idxs);
+    input3->group_indexes_on_subset(b_arr, b_pos_idxs, b_pos_idxs_size, a_arr, a_pos_idxs, a_pos_idxs_size);
+    std::cout << "Pos Idxs: ";
+    for(auto i = 0; i < a_pos_idxs_size; i++){
+      std::cout << a_pos_idxs[i] << " ";
+    }
+    std::cout << std::endl;
 
     std::cout << "Result Array: ";
     for(auto i = 0; i < count; i++){
@@ -353,10 +369,8 @@ namespace cyclone::tests {
     }
     std::cout << std::endl;
 
-    cyclone::print_vec("a_pos_idxs", a_pos_idxs);
-
     std::vector<std::vector<size_t>> result;
-    for(auto g = 1; g < a_pos_idxs.size(); g++){
+    for(auto g = 1; g < a_pos_idxs_size; g++){
       std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
       result.push_back(output_group);
     }
