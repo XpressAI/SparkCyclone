@@ -146,6 +146,15 @@ struct NullableScalarVec {
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
+
+  // Create group index array on a subset of data.
+  // iter_order_arr may be null if the regular iteration order is to be used
+  // group_pos defines the subset(s) to work on. Every subset will be treated
+  // as its own group. It is given as a vector [start, mid-1, mid-2, ..., end].
+  // out_idx will contain a continuous array of indexes
+  // out_group_pos will be in the same format as group_pos and delineate the
+  // found groups
+  void group_indexes_on_subset(size_t* iter_order_arr, std::vector<size_t> group_pos, size_t* out_idx_arr, std::vector<size_t> &out_group_pos) const;
 };
 
 // Explicitly instantiate struct template for int32_t

@@ -388,39 +388,100 @@ const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &el
 }
 
 template <typename T>
+void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::vector<size_t> group_pos, size_t* out_idx_arr, std::vector<size_t> &out_group_pos) const {
+  // Shortcut for case when every element would end up in its own group anyway
+  if(group_pos.size() > count){
+    out_idx_arr = iter_order_arr;
+    out_group_pos = group_pos;
+
+    return;
+  }
+
+  auto front = group_pos.front();
+  auto back = group_pos.back();
+  auto total_el_count = back - front;
+
+  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * total_el_count));
+
+  std::vector<size_t> result({front});
+  for(auto g = 1; g < group_pos.size(); g++){
+    auto start = group_pos[g - 1];
+    auto end = group_pos[g];
+    auto group_size = end - start;
+    size_t cur_invalid_count = 0;
+    size_t cur_valid_count = 0;
+
+    if(iter_order_arr == nullptr){
+#pragma _NEC vector
+#pragma _NEC ivdep
+      for(auto i = start; i < end; i++){
+        if(get_validity(i)){
+          idx_arr[cur_valid_count++] = i;
+        }else{
+          idx_arr[group_size - (++cur_invalid_count)] = i;
+        }
+      }
+    }else{
+#pragma _NEC vector
+#pragma _NEC ivdep
+      for(auto i = start; i < end; i++){
+        auto j = iter_order_arr[i];
+        if(get_validity(j)){
+          idx_arr[cur_valid_count++] = j;
+        }else{
+          idx_arr[group_size - (++cur_invalid_count)] = j;
+        }
+      }
+    }
+
+    T* sorted_data = static_cast<T *>(malloc(sizeof(T) * cur_valid_count));
+
+    { // Setup valid inputs
+#pragma _NEC vector
+      for (auto i = 0; i < cur_valid_count; i++) {
+          sorted_data[i] = data[idx_arr[i]];
+      }
+    }
+
+    // Sort data for grouping
+    frovedis::radix_sort(sorted_data, &idx_arr[start], cur_valid_count);
+    std::vector<size_t> group_pos_idxs = frovedis::set_separate(sorted_data, cur_valid_count);
+
+    // Free sorted data, as we no longer need it
+    free(sorted_data);
+
+    auto new_group_count = group_pos_idxs.size();
+    auto new_group_arr = group_pos_idxs.data();
+#pragma _NEC vector
+    for(auto i = 1; i < new_group_count; i++){
+      // We are skipping the first entry here, because it will already be
+      // included in the result, either as the very first value, or because
+      // it was specified as the last value from a previous iteration.
+      auto offset_idx = new_group_arr[i] + start;
+      result.push_back(offset_idx);
+    }
+    // The last group index will be based on the last valid group
+    // to account for the invalid group, if it exists, we need to
+    // add the last possible index of this subset, too
+    if(cur_invalid_count > 0){
+      result.push_back(end);
+    }
+  }
+
+  out_idx_arr = idx_arr;
+  out_group_pos = result;
+}
+
+template <typename T>
 const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() const {
   // Short-circuit for simple cases
   if(count == 0) return {};
   if(count == 1) return {{0}};
 
-  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-  size_t invalid_count = 0;
-  size_t valid_count = 0;
-#pragma _NEC vector
-#pragma _NEC ivdep
-  for(auto i = 0; i < count; i++){
-    if(get_validity(i)){
-        idx_arr[valid_count++] = i;
-    }else{
-        idx_arr[count - (++invalid_count)] = i;
-    }
-  }
-
-  T* sorted_data = static_cast<T *>(malloc(sizeof(T) * valid_count));
-
-  { // Setup valid inputs
-#pragma _NEC vector
-    for (auto i = 0; i < valid_count; i++) {
-        sorted_data[i] = data[idx_arr[i]];
-    }
-  }
-
-  // Sort data for grouping
-  frovedis::radix_sort(sorted_data, idx_arr, valid_count);
-  std::vector<size_t> group_pos_idxs = frovedis::set_separate(sorted_data, valid_count);
-
-  // Free sorted data, as we no longer need it
-  free(sorted_data);
+  std::vector<size_t> all_group = {0, static_cast<size_t>(count)};
+  std::vector<size_t> group_pos_idxs;
+  size_t* idx_arr;
+  group_indexes_on_subset(nullptr, all_group, idx_arr, group_pos_idxs);
 
   std::vector<std::vector<size_t>> result;
 
@@ -430,11 +491,6 @@ const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() con
     result.push_back(output_group);
   }
 
-  // Invalid group comes last
-  if(invalid_count > 0){
-    std::vector <size_t> output_group(&idx_arr[count - invalid_count], &idx_arr[count]);
-    result.push_back(output_group);
-  }
   free(idx_arr);
 
   return result;
