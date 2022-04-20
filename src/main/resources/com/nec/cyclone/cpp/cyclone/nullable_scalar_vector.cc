@@ -388,22 +388,15 @@ const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &el
 }
 
 template <typename T>
-void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::vector<size_t> group_pos, size_t* out_idx_arr, std::vector<size_t> &out_group_pos) const {
+void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::vector<size_t> group_pos, size_t* idx_arr, std::vector<size_t> &out_group_pos) const {
   // Shortcut for case when every element would end up in its own group anyway
   if(group_pos.size() > count){
-    out_idx_arr = iter_order_arr;
+    idx_arr = iter_order_arr;
     out_group_pos = group_pos;
-
     return;
   }
 
-  auto front = group_pos.front();
-  auto back = group_pos.back();
-  auto total_el_count = back - front;
-
-  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * total_el_count));
-
-  std::vector<size_t> result({front});
+  out_group_pos.push_back({group_pos.front()});
   for(auto g = 1; g < group_pos.size(); g++){
     auto start = group_pos[g - 1];
     auto end = group_pos[g];
@@ -458,18 +451,15 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
       // included in the result, either as the very first value, or because
       // it was specified as the last value from a previous iteration.
       auto offset_idx = new_group_arr[i] + start;
-      result.push_back(offset_idx);
+      out_group_pos.push_back(offset_idx);
     }
     // The last group index will be based on the last valid group
     // to account for the invalid group, if it exists, we need to
     // add the last possible index of this subset, too
     if(cur_invalid_count > 0){
-      result.push_back(end);
+      out_group_pos.push_back(end);
     }
   }
-
-  out_idx_arr = idx_arr;
-  out_group_pos = result;
 }
 
 template <typename T>
@@ -480,7 +470,7 @@ const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() con
 
   std::vector<size_t> all_group = {0, static_cast<size_t>(count)};
   std::vector<size_t> group_pos_idxs;
-  size_t* idx_arr;
+  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
   group_indexes_on_subset(nullptr, all_group, idx_arr, group_pos_idxs);
 
   std::vector<std::vector<size_t>> result;
