@@ -11,7 +11,7 @@ final case class UnitColVector private[colvector] (
   name: String,
   veType: VeType,
   numItems: Int,
-  dataSize: Option[Int],
+  dataSize: Option[Int]
 ) extends ColVectorUtilsTrait {
   require(
     numItems >= 0,

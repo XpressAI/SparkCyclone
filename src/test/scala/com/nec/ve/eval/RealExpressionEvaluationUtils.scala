@@ -42,7 +42,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Output] = {
+  ): Seq[Output] = {
     val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
@@ -67,7 +67,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Output] = {
+  ): Seq[Output] = {
     val cFunction =
       renderInnerJoin(
         VeInnerJoin(
@@ -92,7 +92,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Output] = {
+  ): Seq[Output] = {
     val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(inputs = veAllocator.makeCVectors, groups = groups, outputs = expressions)
@@ -111,7 +111,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra
-  ): List[Output] = {
+  ): Seq[Output] = {
     val cFunction =
       OldUnifiedGroupByFunctionGeneration(
         VeGroupBy(
@@ -131,7 +131,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veRetriever: VeRetriever[Output],
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Output] = {
+  ): Seq[Output] = {
     val outputs = veRetriever.veTypes.zip(expressions.toList).zipWithIndex.collect {
       case ((veScalarType: VeScalarType, exp), idx) =>
         NamedTypedCExpression(s"output_${idx}", veScalarType, exp)
@@ -153,15 +153,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veKernelInfra: VeKernelInfra,
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
-  ): List[Output] = {
+  ): Seq[Output] = {
     WithTestAllocator { implicit allocator =>
       veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
         val libRef = veProcess.loadLibrary(path)
         val inputVectors = veAllocator.allocate(input: _*)
         try {
           val resultingVectors =
-            veProcess.execute(libRef, functionName, inputVectors.cols, outputs)
-          veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+            veProcess.execute(libRef, functionName, inputVectors.columns.toList, outputs)
+          veRetriever.retrieve(VeColBatch(resultingVectors))
         } finally inputVectors.free()
       }
     }
@@ -175,15 +175,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veKernelInfra: VeKernelInfra,
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
-  ): List[Output] = {
+  ): Seq[Output] = {
     WithTestAllocator { implicit allocator =>
       veKernelInfra.compiledWithHeaders(cFunction) { path =>
         val libRef = veProcess.loadLibrary(path)
         val inputVectors = veAllocator.allocate(input: _*)
         try {
           val resultingVectors =
-            veProcess.execute(libRef, cFunction.name, inputVectors.cols, outputs)
-          veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+            veProcess.execute(libRef, cFunction.name, inputVectors.columns.toList, outputs)
+          veRetriever.retrieve(VeColBatch(resultingVectors))
         } finally inputVectors.free()
       }
     }
@@ -195,7 +195,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Data] = {
+  ): Seq[Data] = {
     val filterFn = FilterFunction(
       name = "filter_f",
       filter = VeFilter(
@@ -219,7 +219,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
-  ): List[Data] = {
+  ): Seq[Data] = {
     import OriginalCallingContext.Automatic._
 
     val sortFn = SortFunction(

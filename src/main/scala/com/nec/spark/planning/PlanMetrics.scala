@@ -71,7 +71,7 @@ trait PlanMetrics {
     val totalBatchRowCount = longMetric(s"${metricPrefix}TotalBatchRowCount")
     val batchSize = longMetric(s"${metricPrefix}BatchSize")
 
-    batchColCount.set(batch.cols.length)
+    batchColCount.set(batch.columns.length)
     batchRowCount.set(batch.numRows)
     batchSize.set(batch.totalBufferSize)
 

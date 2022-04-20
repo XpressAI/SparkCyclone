@@ -42,14 +42,14 @@ case class VeFinalAggregate(
             collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
               import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-              collectBatchMetrics(OUTPUT, VeColBatch.fromList {
+              collectBatchMetrics(OUTPUT, VeColBatch({
                 import OriginalCallingContext.Automatic._
                 withInvocationMetrics(VE){
                   try ImplicitMetrics.processMetrics.measureRunningTime(
                     veProcess.execute(
                       libraryReference = libRef,
                       functionName = finalFunction.functionName,
-                      cols = veColBatch.cols,
+                      cols = veColBatch.columns.toList,
                       results = finalFunction.namedResults
                     )
                   )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
@@ -58,7 +58,7 @@ case class VeFinalAggregate(
                     child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)
                   }
                 }
-              })
+              }))
             }
           }
         }

@@ -21,7 +21,7 @@ object DataCleanup extends LazyLogging {
       processId: VeColVectorSource,
       originalCallingContext: OriginalCallingContext
     ): Unit = logger.trace(
-      s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
+      s"Not cleaning up data at ${processId} / ${veColBatch.columns
         .map(_.container)} - from ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
     )
   }
@@ -32,7 +32,7 @@ object DataCleanup extends LazyLogging {
       originalCallingContext: OriginalCallingContext
     ): Unit = {
       logger.trace(
-        s"Requesting to clean up data of ${veColBatch.underlying.cols
+        s"Requesting to clean up data of ${veColBatch.columns
           .map(_.container)} at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
       )
       cleanUpIfNotCached(veColBatch)

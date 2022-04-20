@@ -27,7 +27,7 @@ object ColumnarBatchToVeColBatch {
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
       metricsFn { () =>
-        VeColBatch.fromList(
+        VeColBatch(
           (0 until columnarBatch.numCols())
             .map(i =>
               columnarBatch.column(i).getOptionalArrowValueVector match {

@@ -79,7 +79,7 @@ final class DualModeVESpec
           else makeColumnarBatch2()
         )
       }
-      .mapPartitions(it => it.flatMap(_.toInternalColumnarBatch().rowIterator().asScala))
+      .mapPartitions(it => it.flatMap(_.toSparkColumnarBatch.rowIterator.asScala))
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
@@ -95,7 +95,7 @@ final class DualModeVESpec
       .mapPartitions { veColBatches =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         veColBatches
-          .map(_.toArrowColumnarBatch())
+          .map(_.toArrowColumnarBatch)
           .map(cb => cb.column(0).getArrowValueVector)
           .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
       }

@@ -4,25 +4,24 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeType
-import com.nec.util.DateTimeOps.ExtendedInstant
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-
 import java.io._
-import java.time.Instant
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.util.Try
 
-//noinspection AccessorLikeMethodIsEmptyParen
-final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
+final case class VeColBatch(columns: Seq[VeColVector]) {
   def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
-      case Nil => toArray[T](0)(ClassTag(tag.mirror.runtimeClass(tag.tpe)), process).toSeq
-      case args => args.zipWithIndex.map { case (t, idx) =>
+      case Nil =>
+        toArray[T](0)(ClassTag(tag.mirror.runtimeClass(tag.tpe)), process).toSeq
+
+      case args =>
+        args.zipWithIndex.map { case (t, idx) =>
           toArray(idx)(ClassTag(tag.mirror.runtimeClass(t)), process).toSeq
         }.transpose.map { r =>
           val size = r.size
@@ -58,89 +57,88 @@ final case class VeColBatch(underlying: GenericColBatch[VeColVector]) {
   }
 
   def toArray[T: ClassTag](idx: Int)(implicit process: VeProcess): Array[T] = {
-    underlying.cols(idx).toBytePointerColVector.toArray[T]
+    columns(idx).toBytePointerColVector.toArray[T]
   }
 
   def serializeToStreamSize: Int = {
-    List(4, 4) ++ cols.flatMap { col =>
+    List(4, 4) ++ columns.flatMap { col =>
       List(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
     }
   }.sum
 
-  def serializeToStream(
-    dataOutputStream: DataOutputStream
-  )(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Unit = {
-    import VeColBatch._
-    dataOutputStream.writeInt(ColLengthsId)
-    dataOutputStream.writeInt(cols.length)
-    cols.foreach { colVector =>
-      dataOutputStream.writeInt(DescLengthId)
-      dataOutputStream.writeInt(-1)
-      dataOutputStream.writeInt(DescDataId)
-      colVector.toUnitColVector.toStream(dataOutputStream)
-      dataOutputStream.writeInt(PayloadBytesLengthId)
+  def toStream(stream: DataOutputStream)(implicit process: VeProcess,
+                                         metrics: VeProcessMetrics): Unit = {
+    stream.writeInt(VeColBatch.ColLengthsId)
+    stream.writeInt(columns.size)
+    columns.foreach { vec =>
+      stream.writeInt(VeColBatch.DescLengthId)
+      stream.writeInt(-1)
+      stream.writeInt(VeColBatch.DescDataId)
+      vec.toUnitColVector.toStream(stream)
+      stream.writeInt(VeColBatch.PayloadBytesLengthId)
       // no bytes length as it's a stream here
-      dataOutputStream.writeInt(-1)
-      dataOutputStream.writeInt(PayloadBytesId)
-      colVector.toStream(dataOutputStream)
+      stream.writeInt(-1)
+      stream.writeInt(VeColBatch.PayloadBytesId)
+      vec.toStream(stream)
     }
-
   }
 
-  def serialize()(implicit veProcess: VeProcess, cycloneMetrics: VeProcessMetrics): Array[Byte] = {
-    val byteArrayOutputStream = new ByteArrayOutputStream()
-    val objectOutputStream = new ObjectOutputStream(byteArrayOutputStream)
-    objectOutputStream.writeObject(toUnit)
-    objectOutputStream.writeInt(cols.size)
-    underlying.cols.map(_.serialize).foreach(objectOutputStream.writeObject)
-    objectOutputStream.flush()
-    objectOutputStream.close()
-    byteArrayOutputStream.flush()
-    byteArrayOutputStream.toByteArray
+  def serialize(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
+    val stream = new ByteArrayOutputStream()
+    val writer = new ObjectOutputStream(stream)
+    writer.writeObject(toUnit)
+    writer.writeInt(columns.size)
+    columns.foreach { vec => writer.writeObject(vec.serialize) }
+    writer.flush
+    writer.close
+    stream.flush
+    stream.toByteArray
   }
 
-  def nonEmpty: Boolean = underlying.nonEmpty
+  def nonEmpty: Boolean = {
+    numRows > 0
+  }
 
-  def numRows: Int = underlying.numRows
-  def cols: List[VeColVector] = underlying.cols
+  def numRows: Int = {
+    columns.headOption.map(_.numItems).getOrElse(0)
+  }
 
   def toUnit: UnitColBatch = {
-    UnitColBatch(underlying.cols.map(_.toUnitColVector))
+    UnitColBatch(columns.map(_.toUnitColVector))
   }
 
-  def free()(implicit
-    veProcess: VeProcess,
-    veColVectorSource: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
-  ): Unit =
-    cols.foreach(_.free)
+  def free()(implicit source: VeColVectorSource,
+             process: VeProcess,
+             context: OriginalCallingContext): Unit = {
+    columns.foreach(_.free)
+  }
 
-  def toArrowColumnarBatch()(implicit
-    bufferAllocator: BufferAllocator,
-    veProcess: VeProcess
-  ): ColumnarBatch = {
-    val vecs = underlying.cols.map(_.toBytePointerColVector.toArrowVector)
+  def toArrowColumnarBatch(implicit allocator: BufferAllocator,
+                           process: VeProcess): ColumnarBatch = {
+    val vecs = columns.map(_.toBytePointerColVector.toArrowVector)
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
-    cb.setNumRows(underlying.numRows)
+    cb.setNumRows(numRows)
     cb
   }
 
-  def toInternalColumnarBatch(): ColumnarBatch = {
-    val vecs = underlying.cols.map(_.toSparkColumnVector)
+  def toSparkColumnarBatch: ColumnarBatch = {
+    val vecs = columns.map(_.toSparkColumnVector)
     val cb = new ColumnarBatch(vecs.toArray)
-    cb.setNumRows(underlying.numRows)
+    cb.setNumRows(numRows)
     cb
   }
 
-  def totalBufferSize: Int = underlying.cols.flatMap(_.bufferSizes).sum
+  def totalBufferSize: Int = {
+    columns.flatMap(_.bufferSizes).foldLeft(0)(_ + _)
+  }
 }
 
 object VeColBatch {
-  val ColLengthsId = 193
-  val DescLengthId = 198
-  val DescDataId = 197
-  val PayloadBytesLengthId = 196
-  val PayloadBytesId = 195
+  final val ColLengthsId = 193
+  final val DescLengthId = 198
+  final val DescDataId = 197
+  final val PayloadBytesLengthId = 196
+  final val PayloadBytesId = 195
 
   def ensureId(v: Int, e: Int): Unit = {
     require(v == e, s"Expected id ${e}, got ${v}")
@@ -154,7 +152,7 @@ object VeColBatch {
     ensureId(din.readInt(), ColLengthsId)
 
     val numCols = din.readInt()
-    val cols = (0 until numCols).map { i =>
+    val columns = (0 until numCols).map { i =>
       try {
         ensureId(din.readInt(), DescLengthId)
 
@@ -178,95 +176,40 @@ object VeColBatch {
       }
     }
 
-    VeColBatch.fromList(cols.toList)
+    VeColBatch(columns)
   }
 
-  def deserialize(data: Array[Byte])(implicit
-    veProcess: VeProcess,
-    originalCallingContext: OriginalCallingContext,
-    source: VeColVectorSource,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColBatch = {
-    val byteArrayInputStream = new ByteArrayInputStream(data)
-    val objectInputStream = new ObjectInputStream(byteArrayInputStream)
-    val unitObj = objectInputStream.readObject().asInstanceOf[UnitColBatch]
-    val numCols = objectInputStream.readInt()
-    val seqs = (0 until numCols).map { _ =>
-      objectInputStream.readObject().asInstanceOf[Array[Byte]]
-    }.toList
-    unitObj.withData(seqs)
+  def fromByteArray(data: Array[Byte])(implicit source: VeColVectorSource,
+                                       process: VeProcess,
+                                       context: OriginalCallingContext,
+                                       metrics: VeProcessMetrics): VeColBatch = {
+    val stream = new ByteArrayInputStream(data)
+    val reader = new ObjectInputStream(stream)
+    val batch = reader.readObject.asInstanceOf[UnitColBatch]
+    val numCols = reader.readInt
+    val arrays = (0 until numCols).map { _ =>
+      reader.readObject.asInstanceOf[Array[Byte]]
+    }
+    batch.withData(arrays)
   }
 
-  // type VeColVector = colvector.VeColVector
-  // val VeColVector = colvector.VeColVector
-
-  def apply(numRows: Int, cols: List[VeColVector]): VeColBatch = {
-    VeColBatch(GenericColBatch(numRows, cols))
+  def fromArrowColumnarBatch(batch: ColumnarBatch)(implicit source: VeColVectorSource,
+                                                   process: VeProcess,
+                                                   context: OriginalCallingContext,
+                                                   metrics: VeProcessMetrics): VeColBatch = {
+    VeColBatch(
+      (0 until batch.numCols).map { i =>
+        batch.column(i).getArrowValueVector.toBytePointerColVector.toVeColVector
+      }
+    )
   }
 
-
-  def fromList(lv: List[VeColVector]): VeColBatch = {
-    assert(lv.nonEmpty)
-    VeColBatch(GenericColBatch(numRows = lv.head.numItems, lv))
-  }
-
-  def from(vecs: VeColVector*): VeColBatch = {
-    assert(vecs.nonEmpty)
-    VeColBatch(GenericColBatch(numRows = vecs.head.numItems, vecs.toList))
+  def from(columns: VeColVector*): VeColBatch = {
+    assert(columns.nonEmpty)
+    VeColBatch(columns)
   }
 
   def empty: VeColBatch = {
-    VeColBatch(GenericColBatch(0, List.empty))
-  }
-  final case class ColumnGroup(veType: VeType, relatedColumns: List[VeColVector]) {}
-
-  final case class VeBatchOfBatches(cols: Int, rows: Int, batches: List[VeColBatch]) {
-    def isEmpty: Boolean = !nonEmpty
-    def nonEmpty: Boolean = rows > 0
-
-    /** Transpose to get the columns from each batch aligned, ie [[1st col of 1st batch, 1st col of 2nd batch, ...], [2nd col of 1st batch, ...] */
-    def groupedColumns: List[ColumnGroup] = {
-      if (batches.isEmpty) Nil
-      else {
-        batches.head.underlying.cols.zipWithIndex.map { case (vcv, idx) =>
-          ColumnGroup(
-            veType = vcv.veType,
-            relatedColumns = batches
-              .map(_.underlying.cols.apply(idx))
-              .ensuring(
-                cond = _.forall(_.veType == vcv.veType),
-                msg = "All types should match up"
-              )
-          )
-        }
-      }
-    }
-  }
-
-  object VeBatchOfBatches {
-    def fromVeColBatches(list: List[VeColBatch]): VeBatchOfBatches = {
-      VeBatchOfBatches(
-        cols = list.head.underlying.cols.size,
-        rows = list.map(_.underlying.numRows).sum,
-        batches = list
-      )
-    }
-  }
-
-  def fromArrowColumnarBatch(columnarBatch: ColumnarBatch)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
-    cycloneMetrics: VeProcessMetrics
-  ): VeColBatch = {
-    VeColBatch(
-      GenericColBatch(
-        numRows = columnarBatch.numRows(),
-        cols = (0 until columnarBatch.numCols()).map { colNo =>
-          val column = columnarBatch.column(colNo)
-          column.getArrowValueVector.toBytePointerColVector.toVeColVector
-        }.toList
-      )
-    )
+    VeColBatch(Seq.empty)
   }
 }

@@ -4,7 +4,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 final case class ByteArrayColBatch(columns: Seq[ByteArrayColVector]) {
   def numRows: Int = {
-    columns.head.numItems
+    columns.headOption.map(_.numItems).getOrElse(0)
   }
 
   def toSparkColumnarBatch: ColumnarBatch = {

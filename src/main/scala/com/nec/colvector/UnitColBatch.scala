@@ -8,10 +8,6 @@ final case class UnitColBatch(columns: Seq[UnitColVector]) {
                                          process: VeProcess,
                                          context: OriginalCallingContext,
                                          metrics: VeProcessMetrics): VeColBatch = {
-    val ncolumns = columns.zip(arrays).map { case (colvec, bytes) =>
-      colvec.withData(bytes)
-    }
-
-    VeColBatch(GenericColBatch(ncolumns.head.numItems, ncolumns.toList))
+    VeColBatch(columns.zip(arrays).map { case (colvec, bytes) => colvec.withData(bytes) })
   }
 }

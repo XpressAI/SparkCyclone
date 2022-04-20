@@ -60,7 +60,7 @@ object SequenceVeRDD {
 
       val part = Array[Long](iter.next)
       val colvec = part.toBytePointerColVector(s"seq-${part(0)}").toVeColVector
-      val batch = VeColBatch.fromList(List(colvec))
+      val batch = VeColBatch(List(colvec))
 
       Iterator(func.evalFunction(batch))
     })

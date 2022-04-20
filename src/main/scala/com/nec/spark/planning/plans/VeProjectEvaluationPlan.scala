@@ -83,7 +83,7 @@ final case class VeProjectEvaluationPlan(
                         veProcess.execute(
                           libraryReference = libRef,
                           functionName = veFunction.functionName,
-                          cols = veColBatch.cols,
+                          cols = veColBatch.columns.toList,
                           results = veFunction.namedResults
                         )
                       )(
@@ -140,7 +140,7 @@ object VeProjectEvaluationPlan {
             (
               calculatedIdx,
               copiedIdx + 1,
-              seq :+ originalBatch.cols(columnIndicesToPass(copiedIdx))
+              seq :+ originalBatch.columns(columnIndicesToPass(copiedIdx))
             )
 
           case ((calculatedIdx, copiedIdx, seq), ex) =>
@@ -154,15 +154,15 @@ object VeProjectEvaluationPlan {
         s"Expected all output columns to have size ${originalBatch.numRows}, but got: ${outputColumns}"
       )
 
-      VeColBatch.fromList(outputColumns)
+      VeColBatch(outputColumns)
     }
   }
 
   def getBatchForPartialCleanup(idsToPass: Seq[Int])(veColBatch: VeColBatch): VeColBatch = {
-    val colsToCleanUp = veColBatch.cols.zipWithIndex
+    val colsToCleanUp = veColBatch.columns.zipWithIndex
       .collect {
         case (col, idx) if !idsToPass.contains(idx) => col
       }
-    if (colsToCleanUp.nonEmpty) VeColBatch.fromList(colsToCleanUp) else VeColBatch.empty
+    if (colsToCleanUp.nonEmpty) VeColBatch(colsToCleanUp) else VeColBatch.empty
   }
 }

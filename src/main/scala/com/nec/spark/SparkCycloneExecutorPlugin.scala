@@ -106,7 +106,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch._1)
-      colBatch._2.cols.zipWithIndex.foreach { case (_, i) =>
+      colBatch._2.columns.zipWithIndex.foreach { case (_, i) =>
         freeCachedCol(s"${colBatch._1}-${i}")
       }
     }
@@ -127,7 +127,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   def registerCachedBatch(name: String, cb: VeColBatch): Unit = {
     cachedBatches(name) = cb
 
-    cb.cols.zipWithIndex.foreach { case (col, i) =>
+    cb.columns.zipWithIndex.foreach { case (col, i) =>
       cachedCols(s"$name-$i") = col
     }
   }
@@ -139,12 +139,12 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     if (cachedBatches.values.contains(veColBatch)) {
       logger.trace(
         s"Data at ${
-          veColBatch.cols
+          veColBatch.columns
             .map(_.container)
         } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
       )
     } else {
-      val (cached, notCached) = veColBatch.cols.partition(cachedCols.values.contains)
+      val (cached, notCached) = veColBatch.columns.partition(cachedCols.values.contains)
       logger.trace(s"Will clean up data for ${
         cached
           .map(_.buffers)

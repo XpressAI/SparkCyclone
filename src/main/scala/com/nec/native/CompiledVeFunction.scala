@@ -1,6 +1,6 @@
 package com.nec.native
 
-import com.nec.colvector.{VeColBatch, VeColVector}
+import com.nec.colvector.{VeColBatch, VeColVector, VeBatchOfBatches}
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
@@ -26,7 +26,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     import com.nec.spark.SparkCycloneExecutorPlugin.source
 
     val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    val res = VeColBatch.fromList(veProcess.execute(libRef, func.name, batch.cols, outputs))
+    val res = VeColBatch(veProcess.execute(libRef, func.name, batch.columns.toList, outputs))
     batch.free()
     res
   }
@@ -38,7 +38,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   }
 
   def evalGrouping[K: ClassTag](
-    batchOfBatches: VeColBatch.VeBatchOfBatches
+    batchOfBatches: VeBatchOfBatches
   )(implicit ctx: OriginalCallingContext): Seq[(K, List[VeColVector])] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
@@ -51,7 +51,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   }
 
   def evalMultiInFunction(
-    batchOfBatches: VeColBatch.VeBatchOfBatches
+    batchOfBatches: VeBatchOfBatches
   )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
@@ -64,8 +64,8 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   }
 
   def evalJoinFunction(
-    leftBatchOfBatches: VeColBatch.VeBatchOfBatches,
-    rightBatchOfBatches: VeColBatch.VeBatchOfBatches
+    leftBatchOfBatches: VeBatchOfBatches,
+    rightBatchOfBatches: VeBatchOfBatches
   )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source

@@ -50,7 +50,7 @@ case class VePartialAggregate(
                     veProcess.executeMulti(
                       libraryReference = libRef,
                       functionName = partialFunction.functionName,
-                      cols = veColBatch.cols,
+                      cols = veColBatch.columns.toList,
                       results = partialFunction.namedResults
                     )
                   )(
@@ -62,7 +62,7 @@ case class VePartialAggregate(
 
                 result.flatMap {
                   case (n, l) if l.head.nonEmpty =>
-                    Option(n -> VeColBatch.fromList(l))
+                    Option(n -> VeColBatch(l))
                   case (_, l) =>
                     l.foreach(_.free())
                     None

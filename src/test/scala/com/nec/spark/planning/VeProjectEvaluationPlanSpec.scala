@@ -100,7 +100,7 @@ final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       ProjectionContext(outputExpressions = SampleInputList, inputs = SampleInputList)
         .createOutputBatch(
           calculatedColumns = List(computeSomeColVector, computeOtherColVector, computeAnotherCol),
-          originalBatch = VeColBatch.fromList(
+          originalBatch = VeColBatch(
             List(
               ignoreFirst,
               ignoreSecond,
@@ -113,7 +113,7 @@ final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
         )
 
     assert(
-      outputBatch.cols == List(
+      outputBatch.columns.toList == List(
         computeSomeColVector,
         passFourthColVector,
         computeOtherColVector,
@@ -125,7 +125,7 @@ final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "correctly cleanup data if all columns are copied" in {
-    val veInputBatch = VeColBatch.fromList(
+    val veInputBatch = VeColBatch(
       List(
         VeColVector(TheSource, "firstCol", VeNullableInt, 1000, Seq(1024L, 2048L), None, 0L),
         VeColVector(TheSource, "secondCol", VeNullableInt, 1000, Seq(1024L, 2048L), None, 1L),
@@ -138,11 +138,11 @@ final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
 
     val cleanedBatch = VeProjectEvaluationPlan.getBatchForPartialCleanup(reusedIds)(veInputBatch)
 
-    assert(cleanedBatch == VeColBatch(0, List.empty))
+    assert(cleanedBatch == VeColBatch.empty)
   }
 
   it should "correctly cleanup batch if no columns are copied" in {
-    val veInputBatch = VeColBatch.fromList(
+    val veInputBatch = VeColBatch(
       List(
         VeColVector(TheSource, "firstCol", VeNullableInt, 1000, Seq(1024L, 2048L), None, 0L),
         VeColVector(TheSource, "secondCol", VeNullableInt, 1000, Seq(1024L, 2048L), None, 1L),
@@ -168,11 +168,11 @@ final class VeProjectEvaluationPlanSpec extends AnyFlatSpec with Matchers {
       VeColVector(TheSource, "fifth", VeNullableInt, 1000, Seq(1024L, 2048L), None, 3L),
     )
 
-    val veInputBatch = VeColBatch.fromList(copiedVectors ++ notCopiedVectors)
+    val veInputBatch = VeColBatch(copiedVectors ++ notCopiedVectors)
 
     val outBatch =
       VeProjectEvaluationPlan.getBatchForPartialCleanup(List(0, 1, 2))(veInputBatch)
 
-    assert(outBatch == VeColBatch.fromList(notCopiedVectors))
+    assert(outBatch == VeColBatch(notCopiedVectors))
   }
 }

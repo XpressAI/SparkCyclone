@@ -3,7 +3,7 @@ package com.nec.ve
 import com.nec.native.{CompiledVeFunction, FunctionTyping}
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.colvector.{VeColVector, VeColBatch}
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeBatchOfBatches
 import org.apache.spark.rdd.RDD
 
 import scala.language.experimental.macros
@@ -20,9 +20,9 @@ class VeConcatRDD[U: TypeTag, T: TypeTag](
       if (batchesList.isEmpty) {
         Iterator()
       } else {
-        val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batchesList)
+        val batchOfBatches = VeBatchOfBatches(batchesList)
         val res = func.evalMultiInFunction(batchOfBatches)
-        Iterator(VeColBatch.fromList(res))
+        Iterator(VeColBatch(res))
       }
     }
   }

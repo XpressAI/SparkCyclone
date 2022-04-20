@@ -9,7 +9,7 @@ object CachedVeBatch {
     DualColumnarBatchContainer(cachedColumnVectors)
   )
   def apply(veColBatch: VeColBatch): CachedVeBatch = CachedVeBatch(
-    DualColumnarBatchContainer(veColBatch.cols.map(vcv => Left(vcv)))
+    DualColumnarBatchContainer(veColBatch.columns.map(vcv => Left(vcv)).toList)
   )
 }
 final case class CachedVeBatch(dualVeBatch: DualColumnarBatchContainer) extends CachedBatch {

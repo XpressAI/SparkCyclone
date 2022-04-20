@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.agile.merge.MergeFunction
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeBatchOfBatches
 import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.{Partition, TaskContext}
@@ -44,9 +44,9 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
       val batches = batchIter.toList
       if (batches.nonEmpty) {
         batches.groupBy(_._1).map { case (key, grouped) =>
-          val batchOfBatches = VeBatchOfBatches.fromVeColBatches(grouped.map(_._2))
+          val batchOfBatches = VeBatchOfBatches(grouped.map(_._2))
           val merged: List[VeColVector] = func.evalMultiInFunction(batchOfBatches)
-          (key, VeColBatch.fromList(merged))
+          (key, VeColBatch(merged))
         }.toIterator
       } else {
         Iterator()

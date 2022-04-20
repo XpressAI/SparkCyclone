@@ -267,7 +267,7 @@ class BasicVeRDD[T](
 )(implicit val typeTag: TypeTag[T])  extends RDD[T](rdd.sparkContext, List(new OneToOneDependency(rdd)))(ClassTag(typeTag.mirror.runtimeClass(typeTag.tpe))) with VeRDD[T] {
   val inputs: RDD[VeColBatch] = rdd.mapPartitionsWithIndex { case (index, valsIter) =>
     val batch = typeTag.tpe.asInstanceOf[TypeRef].args match {
-      case Nil => VeColBatch.fromList(List(convertToVeVector(valsIter, index, 0, typeTag.tpe)))
+      case Nil => VeColBatch(List(convertToVeVector(valsIter, index, 0, typeTag.tpe)))
       case args =>
         val inputList = valsIter.toList
         val columns = args.zipWithIndex.map { case (tpe, idx) =>
@@ -275,7 +275,7 @@ class BasicVeRDD[T](
           convertToVeVector(column.iterator, index, idx, tpe)
         }
 
-        VeColBatch.fromList(columns)
+        VeColBatch(columns)
     }
     Iterator(batch)
   }

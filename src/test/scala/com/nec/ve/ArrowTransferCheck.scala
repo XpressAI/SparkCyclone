@@ -8,7 +8,7 @@ import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.colvector.VeColBatch
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
 
 import scala.util.Random
@@ -169,17 +169,17 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
       val svec1 = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("3").toVeColVector
       val svec2 = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("4").toVeColVector
 
-      val colbatch1 = VeColBatch(colvec1.numItems, List(colvec1, svec1))
-      val colbatch2 = VeColBatch(colvec2.numItems, List(colvec2, svec2))
-      val batches = VeBatchOfBatches.fromVeColBatches(List(colbatch1, colbatch2))
+      val colbatch1 = VeColBatch(Seq(colvec1, svec1))
+      val colbatch2 = VeColBatch(Seq(colvec2, svec2))
+      val batches = VeBatchOfBatches(List(colbatch1, colbatch2))
 
       val outputs = veProcess.executeMultiIn(
         libraryReference = lib,
         functionName = mergeFn.name,
         batches = batches,
-        results = colbatch1.cols.zipWithIndex.map { case (vcv, idx) =>
+        results = colbatch1.columns.zipWithIndex.map { case (vcv, idx) =>
           vcv.veType.makeCVector(s"o_${idx}")
-        }
+        }.toList
       )
 
       outputs.size should be (2)

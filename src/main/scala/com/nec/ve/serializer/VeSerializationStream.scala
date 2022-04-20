@@ -45,7 +45,7 @@ class VeSerializationStream(out: OutputStream)(implicit
         this
       case v: VeColBatch =>
         dataOutputStream.writeInt(CbTag)
-        v.serializeToStream(dataOutputStream)
+        v.toStream(dataOutputStream)
         this
       case v: BytesOnly =>
         dataOutputStream.writeInt(MixedCbTagColBatch)
@@ -61,7 +61,7 @@ class VeSerializationStream(out: OutputStream)(implicit
         cycloneMetrics.measureRunningTime {
           dataOutputStream.writeInt(v.veColBatch.serializeToStreamSize)
           val startSize = dataOutputStream.size()
-          v.veColBatch.serializeToStream(dataOutputStream)
+          v.veColBatch.toStream(dataOutputStream)
           dataOutputStream.flush()
           val endSize = dataOutputStream.size()
           val diff = endSize - startSize

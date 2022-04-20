@@ -44,7 +44,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
         collectBatchMetrics(INPUT, cb)
 
         withInvocationMetrics(BATCH){
-          val res = VeColBatch.fromList(unwrapBatch(cb).map {
+          val res = VeColBatch(unwrapBatch(cb).map {
             case Left(veColVector)         => veColVector
             case Right(baColVector) =>
               import ImplicitMetrics._

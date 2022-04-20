@@ -93,7 +93,7 @@ object StringOpsStringHoleEvaluationSpec {
     veKernelInfra: VeKernelInfra,
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
-  ): List[Int] = {
+  ): Seq[Int] = {
 
     val cFunction = CFunction(
       inputs = List(CVector.varChar("strings")),
@@ -118,8 +118,8 @@ object StringOpsStringHoleEvaluationSpec {
           val inputVectors = veAllocator.allocate(input: _*)
           try {
             val resultingVectors =
-              veProcess.execute(libRef, "test", inputVectors.cols, veRetriever.makeCVectors)
-            veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+              veProcess.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
+            veRetriever.retrieve(VeColBatch(resultingVectors))
           } finally inputVectors.free()
         }
       }

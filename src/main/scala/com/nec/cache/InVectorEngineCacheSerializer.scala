@@ -45,7 +45,7 @@ object InVectorEngineCacheSerializer {
         import SparkCycloneExecutorPlugin._
         val veColBatch = VeColBatch.fromArrowColumnarBatch(columnarBatch)
         //SparkCycloneExecutorPlugin.registerCachedBatch(veColBatch)
-        try CachedVeBatch(DualColumnarBatchContainer(vecs = veColBatch.cols.map(cv => Left(cv))))
+        try CachedVeBatch(DualColumnarBatchContainer(vecs = veColBatch.columns.map(cv => Left(cv)).toList))
         finally columnarBatch.close()
       }
   }

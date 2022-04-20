@@ -1,7 +1,7 @@
 package com.nec.cache
 
 import com.nec.colvector.ArrowVectorConversions._
-import com.nec.colvector.{ByteArrayColBatch, ByteArrayColVector, GenericColBatch, VeColVector}
+import com.nec.colvector.{ByteArrayColBatch, ByteArrayColVector, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
@@ -16,7 +16,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
 
   def toEither: Either[VeColBatch, ByteArrayColBatch] = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
-      case Some(vecs) => Left(VeColBatch.fromList(vecs))
+      case Some(vecs) => Left(VeColBatch(vecs))
       case None =>
         val cols = vecs.flatMap(_.right.toSeq)
         Right(ByteArrayColBatch(cols))
@@ -28,7 +28,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
     veProcess: VeProcess
   ): ColumnarBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
-      case Some(vecs) => VeColBatch.fromList(vecs).toArrowColumnarBatch()
+      case Some(vecs) => VeColBatch(vecs).toArrowColumnarBatch
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
 
@@ -47,16 +47,16 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
     cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
-      case Some(vecs) => VeColBatch.fromList(vecs)
+      case Some(vecs) => VeColBatch(vecs)
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
-        VeColBatch.fromList(byteArrayColVectors.map(_.toVeColVector))
+        VeColBatch(byteArrayColVectors.map(_.toVeColVector))
     }
   }
 
   def toInternalColumnarBatch(): ColumnarBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
-      case Some(vec) => VeColBatch.fromList(vec).toInternalColumnarBatch()
+      case Some(vec) => VeColBatch(vec).toSparkColumnarBatch
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
         val veColColumnarVectors = byteArrayColVectors.map(bar =>
