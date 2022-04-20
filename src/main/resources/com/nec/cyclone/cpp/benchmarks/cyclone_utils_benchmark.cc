@@ -86,32 +86,21 @@ namespace cyclone::benchmarks {
     return groups.size();
   }
 
-    size_t vector_multi_group(NullableScalarVec<int64_t> *input1, NullableScalarVec<int64_t> *input2, NullableScalarVec<int64_t> *input3){
-      size_t count = static_cast<size_t>(input1->count);
-      std::vector<size_t> all_group = {0, count};
-      size_t* idx1_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-      size_t* idx2_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+  size_t vector_multi_group(NullableScalarVec<int64_t> *input1, NullableScalarVec<int64_t> *input2, NullableScalarVec<int64_t> *input3){
+    size_t count = static_cast<size_t>(input1->count);
+    std::vector<size_t> all_group = {0, count};
+    size_t* idx1_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+    size_t* idx2_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
 
-      std::vector<size_t> group1_pos_idxs;
-      std::vector<size_t> group2_pos_idxs;
+    std::vector<size_t> group1_pos_idxs;
+    std::vector<size_t> group2_pos_idxs;
 
-      input1->group_indexes_on_subset(nullptr, all_group, idx1_arr, group1_pos_idxs);
-      input2->group_indexes_on_subset(idx1_arr, group1_pos_idxs, idx2_arr, group2_pos_idxs);
-      input3->group_indexes_on_subset(idx2_arr, group2_pos_idxs, idx1_arr, group1_pos_idxs);
+    input1->group_indexes_on_subset(nullptr, all_group, idx1_arr, group1_pos_idxs);
+    input2->group_indexes_on_subset(idx1_arr, group1_pos_idxs, idx2_arr, group2_pos_idxs);
+    input3->group_indexes_on_subset(idx2_arr, group2_pos_idxs, idx1_arr, group1_pos_idxs);
 
-      std::vector<std::vector<size_t>> result;
-
-      #pragma _NEC vector
-      for(auto g = 1; g < group1_pos_idxs.size(); g++){
-        std::vector<size_t> output_group(&idx1_arr[group1_pos_idxs[g - 1]], &idx1_arr[group1_pos_idxs[g]]);
-        result.push_back(output_group);
-      }
-
-      free(idx1_arr);
-      free(idx2_arr);
-
-      return result.size();
-    }
+    return group1_pos_idxs.size();
+  }
 
   TEST_CASE("Benchmarking group by implementations") {
     NullableScalarVec<int64_t>* input = create_input(3500000, 150);
