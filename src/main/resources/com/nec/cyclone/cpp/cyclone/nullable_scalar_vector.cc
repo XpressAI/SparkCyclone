@@ -396,6 +396,16 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
     return;
   }
 
+  // Allocate memory for the largest possible group
+  // We will reuse that memory for every group, so we don't have to allocate/free often
+  size_t largest_group_size = 0;
+#pragma _NEC vector
+  for(auto g = 1; g < group_pos.size(); g++){
+    auto total_el_count = group_pos[g] - group_pos[g - 1];
+    if(largest_group_size < total_el_count) largest_group_size = total_el_count;
+  }
+  T* sorted_data = static_cast<T *>(malloc(sizeof(T) * largest_group_size));
+
   out_group_pos.clear();
   out_group_pos.push_back({group_pos.front()});
   for(auto g = 1; g < group_pos.size(); g++){
@@ -410,70 +420,65 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
       }else{
         idx_arr[start] = iter_order_arr[start];
       }
-      out_group_pos.push_back(start);
-
-      continue;
-    }
-
-    size_t cur_invalid_count = 0;
-    size_t cur_valid_count = 0;
-
-    if(iter_order_arr == nullptr){
-#pragma _NEC vector
-#pragma _NEC ivdep
-      for(auto i = start; i < end; i++){
-        if(get_validity(i)){
-          idx_arr[start + cur_valid_count++] = i;
-        }else{
-          idx_arr[end - (++cur_invalid_count)] = i;
-        }
-      }
-    }else{
-#pragma _NEC vector
-#pragma _NEC ivdep
-      for(auto i = start; i < end; i++){
-        auto j = iter_order_arr[i];
-        if(get_validity(j)){
-          idx_arr[start + cur_valid_count++] = j;
-        }else{
-          idx_arr[end - (++cur_invalid_count)] = j;
-        }
-      }
-    }
-
-    T* sorted_data = static_cast<T *>(malloc(sizeof(T) * cur_valid_count));
-
-    { // Setup valid inputs
-#pragma _NEC vector
-      for (auto i = 0; i < cur_valid_count; i++) {
-          sorted_data[i] = data[idx_arr[start + i]];
-      }
-    }
-
-    // Sort data for grouping
-    frovedis::radix_sort(sorted_data, &idx_arr[start], cur_valid_count);
-    std::vector<size_t> group_pos_idxs = frovedis::set_separate(sorted_data, cur_valid_count);
-
-    // Free sorted data, as we no longer need it
-    free(sorted_data);
-
-    auto new_group_count = group_pos_idxs.size();
-    auto new_group_arr = group_pos_idxs.data();
-#pragma _NEC vector
-    for(auto i = 1; i < new_group_count; i++){
-      // We are skipping the first entry here, because it will already be
-      // included in the result, either as the very first value, or because
-      // it was specified as the last value from a previous iteration.
-      auto offset_idx = new_group_arr[i] + start;
-      out_group_pos.push_back(offset_idx);
-    }
-    // The last group index will be based on the last valid group
-    // to account for the invalid group, if it exists, we need to
-    // add the last possible index of this subset, too
-    if(cur_invalid_count > 0){
       out_group_pos.push_back(end);
+    }else{
+      size_t cur_invalid_count = 0;
+      size_t cur_valid_count = 0;
+
+      if(iter_order_arr == nullptr){
+#pragma _NEC vector
+#pragma _NEC ivdep
+        for(auto i = start; i < end; i++){
+          if(get_validity(i)){
+            idx_arr[start + cur_valid_count++] = i;
+          }else{
+            idx_arr[end - (++cur_invalid_count)] = i;
+          }
+        }
+      }else{
+#pragma _NEC vector
+#pragma _NEC ivdep
+        for(auto i = start; i < end; i++){
+          auto j = iter_order_arr[i];
+          if(get_validity(j)){
+            idx_arr[start + cur_valid_count++] = j;
+          }else{
+            idx_arr[end - (++cur_invalid_count)] = j;
+          }
+        }
+      }
+
+      { // Setup valid inputs
+#pragma _NEC vector
+        for (auto i = 0; i < cur_valid_count; i++) {
+            sorted_data[i] = data[idx_arr[start + i]];
+        }
+      }
+
+      // Sort data for grouping
+      frovedis::radix_sort(sorted_data, &idx_arr[start], cur_valid_count);
+      std::vector<size_t> group_pos_idxs = frovedis::set_separate(sorted_data, cur_valid_count);
+
+      auto new_group_count = group_pos_idxs.size();
+      auto new_group_arr = group_pos_idxs.data();
+#pragma _NEC vector
+      for(auto i = 1; i < new_group_count; i++){
+        // We are skipping the first entry here, because it will already be
+        // included in the result, either as the very first value, or because
+        // it was specified as the last value from a previous iteration.
+        auto offset_idx = new_group_arr[i] + start;
+        out_group_pos.push_back(offset_idx);
+      }
+      // The last group index will be based on the last valid group
+      // to account for the invalid group, if it exists, we need to
+      // add the last possible index of this subset, too
+      if(cur_invalid_count > 0){
+        out_group_pos.push_back(end);
+      }
     }
   }
+
+  free(sorted_data);
 }
 
 template <typename T>
