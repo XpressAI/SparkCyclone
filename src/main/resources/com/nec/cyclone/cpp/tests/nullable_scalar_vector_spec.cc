@@ -305,13 +305,20 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("group_indexes_on_subset works (with different types)"){
-    std::vector<long> grouping_1 = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+    std::vector<long> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
     auto *input1 = new NullableScalarVec(grouping_1);
+
+    //    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14
+    // { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 }
+    // { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
+    //  10,  10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11
+    //   3,   5,  7,  7, 10, 10, 10, 10, 11,  5, 11,  3, 11, 11,  7
+    //
 
     std::vector<double> grouping_2 = { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
     auto *input2 = new NullableScalarVec(grouping_2);
 
-    std::vector<int> grouping_3 = {  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1 };
+    std::vector<int> grouping_3 =    {  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1 };
     auto *input3 = new NullableScalarVec(grouping_3);
 
     std::vector<std::vector<size_t>> expected = {{11}, {4}, {1, 3}, {0, 6, 12}, {5}, {9}, {7}, {14}, {2, 8, 10}, {13}};

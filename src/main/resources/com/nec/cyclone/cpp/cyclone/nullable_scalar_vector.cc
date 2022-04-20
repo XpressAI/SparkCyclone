@@ -401,7 +401,6 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
   for(auto g = 1; g < group_pos.size(); g++){
     auto start = group_pos[g - 1];
     auto end = group_pos[g];
-    auto group_size = end - start;
     size_t cur_invalid_count = 0;
     size_t cur_valid_count = 0;
 
@@ -410,9 +409,9 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
 #pragma _NEC ivdep
       for(auto i = start; i < end; i++){
         if(get_validity(i)){
-          idx_arr[cur_valid_count++] = i;
+          idx_arr[start + cur_valid_count++] = i;
         }else{
-          idx_arr[group_size - (++cur_invalid_count)] = i;
+          idx_arr[end - (++cur_invalid_count)] = i;
         }
       }
     }else{
@@ -421,9 +420,9 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
       for(auto i = start; i < end; i++){
         auto j = iter_order_arr[i];
         if(get_validity(j)){
-          idx_arr[cur_valid_count++] = j;
+          idx_arr[start + cur_valid_count++] = j;
         }else{
-          idx_arr[group_size - (++cur_invalid_count)] = j;
+          idx_arr[end - (++cur_invalid_count)] = j;
         }
       }
     }
@@ -433,7 +432,7 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, std::
     { // Setup valid inputs
 #pragma _NEC vector
       for (auto i = 0; i < cur_valid_count; i++) {
-          sorted_data[i] = data[idx_arr[i]];
+          sorted_data[i] = data[idx_arr[start + i]];
       }
     }
 
