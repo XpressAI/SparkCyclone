@@ -324,14 +324,36 @@ namespace cyclone::tests {
     std::vector<size_t> b_pos_idxs;
 
     input1->group_indexes_on_subset(nullptr, {0, count}, a_arr, a_pos_idxs);
+    cyclone::print_vec("first grouping", a_pos_idxs);
+    std::cout << "Result Array: ";
+    for(auto i = 0; i < count; i++){
+      std::cout << a_arr[i] << " ";
+    }
+    std::cout << std::endl;
     input2->group_indexes_on_subset(a_arr, a_pos_idxs, b_arr, b_pos_idxs);
+    cyclone::print_vec("second grouping", b_pos_idxs);
+    std::cout << "Result Array: ";
+    for(auto i = 0; i < count; i++){
+      std::cout << b_arr[i] << " ";
+    }
+    std::cout << std::endl;
     input3->group_indexes_on_subset(b_arr, b_pos_idxs, a_arr, a_pos_idxs);
+    cyclone::print_vec("third grouping", a_pos_idxs);
 
     std::cout << "Result Array: ";
     for(auto i = 0; i < count; i++){
-      std::cout << a_arr[i];
+      std::cout << a_arr[i] << " ";
     }
+    std::cout << std::endl;
+
     cyclone::print_vec("a_pos_idxs", a_pos_idxs);
+
+    std::vector<std::vector<size_t>> result;
+    for(auto g = 1; g < a_pos_idxs.size(); g++){
+      std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
+      result.push_back(output_group);
+    }
+    cyclone::print_vec("result", result);
 
     free(a_arr);
     free(b_arr);
