@@ -55,14 +55,14 @@ final case class ProjectionFunction(name: String,
         CodeLines.scoped(s"Project onto ${outname}") {
           CodeLines.from(
             s"${outname}->resize(${inputs.head.name}->count);",
-            s"auto *{outname}_arr = ${outname}->data();",
             "#pragma _NEC vector",
             CodeLines.forLoop("i", s"${inputs.head.name}->count") {
               List(
-                s"${outname}_arr[i] = ${cexpr.cCode};",
+                s"${outname}->data[i] = ${cexpr.cCode};",
               )
             },
             "#pragma _NEC vector",
+            "#pragma _NEC ivdep",
             CodeLines.forLoop("i", s"${inputs.head.name}->count") {
               List(
                 s"$outname->set_validity(i, ${cexpr.isNotNullCode.getOrElse("1")});"
