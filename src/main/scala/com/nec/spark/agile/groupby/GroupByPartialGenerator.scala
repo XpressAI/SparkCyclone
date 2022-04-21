@@ -78,7 +78,8 @@ final case class GroupByPartialGenerator(
         },
         computedAggregates.map { case (a, ag) =>
           computeAggregatePartialsPerGroup(a, ag)
-        }
+        },
+        freeGroupingAllocations
       ),
       hasSets = true
     )
@@ -110,8 +111,10 @@ final case class GroupByPartialGenerator(
       ),
       "",
       s"std::vector<size_t> matching_ids(${groupingCodeGenerator.groupsCountOutName});",
+      s"size_t* matching_ids_arr = matching_ids.data();",
+      "#pragma _NEC vector",
       CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
-        s"matching_ids[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
+        s"matching_ids_arr[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
       },
       ""
     )
@@ -244,6 +247,13 @@ final case class GroupByPartialGenerator(
           })
       ),
       ""
+    )
+  }
+
+  def freeGroupingAllocations: CodeLines = {
+    CodeLines.from(
+      "free(sorted_idx);",
+      "free(groups_indices);"
     )
   }
 }
