@@ -83,7 +83,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     }
   }
 
-  def serialize(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
+  def toBytes(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
     val stream = new ByteArrayOutputStream()
     val writer = new ObjectOutputStream(stream)
     writer.writeObject(toUnit)
@@ -179,10 +179,10 @@ object VeColBatch {
     VeColBatch(columns)
   }
 
-  def fromByteArray(data: Array[Byte])(implicit source: VeColVectorSource,
-                                       process: VeProcess,
-                                       context: OriginalCallingContext,
-                                       metrics: VeProcessMetrics): VeColBatch = {
+  def fromBytes(data: Array[Byte])(implicit source: VeColVectorSource,
+                                   process: VeProcess,
+                                   context: OriginalCallingContext,
+                                   metrics: VeProcessMetrics): VeColBatch = {
     val stream = new ByteArrayInputStream(data)
     val reader = new ObjectInputStream(stream)
     val batch = reader.readObject.asInstanceOf[UnitColBatch]

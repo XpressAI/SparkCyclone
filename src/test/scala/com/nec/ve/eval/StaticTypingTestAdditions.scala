@@ -19,8 +19,6 @@
  */
 package com.nec.ve.eval
 
-import com.nec.colvector.ArrowVectorBuilders.{withArrowFloat8VectorI, withArrowStringVector, withNullableDoubleVector}
-import com.nec.colvector.WithTestAllocator
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core._
@@ -57,99 +55,61 @@ object StaticTypingTestAdditions {
 
   object VeAllocator {
     implicit object DoubleAllocator extends VeAllocator[Double] {
-      override def allocate(data: Double*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit a =>
-          withArrowFloat8VectorI(data) { f8v =>
-            VeColBatch(List(f8v.toVeColVector))
-          }
-        }
+      override def allocate(data: Double*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(data.map(Some(_)).toBytePointerColVector("_").toVeColVector)
+      }
 
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
 
     implicit object StringAllocator extends VeAllocator[String] {
-      override def allocate(data: String*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit a =>
-          withArrowStringVector(data) { vcv =>
-            VeColBatch(List(vcv.toVeColVector))
-          }
-        }
+      override def allocate(data: String*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(data.map(Some(_)).toBytePointerColVector("_").toVeColVector)
+      }
+
       override def veTypes: List[VeType] = List(VeString)
     }
 
     implicit object StringDoubleAllocator extends VeAllocator[(String, Double)] {
-      override def allocate(data: (String, Double)*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit a =>
-          withArrowStringVector(data.map(_._1)) { vcv =>
-            withArrowFloat8VectorI(data.map(_._2)) { f8v =>
-              VeColBatch(
-                List(
-                  vcv.toVeColVector,
-                  f8v.toVeColVector
-                )
-              )
-            }
-          }
-        }
+      override def allocate(data: (String, Double)*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(
+          data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._2)).toBytePointerColVector("_").toVeColVector
+        )
+      }
 
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
 
     implicit object DoubleDoubleAllocator extends VeAllocator[(Double, Double)] {
-      override def allocate(data: (Double, Double)*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit a =>
-          withArrowFloat8VectorI(data.map(_._1)) { vcv =>
-            withArrowFloat8VectorI(data.map(_._2)) { f8v =>
-              VeColBatch(
-                List(
-                  vcv.toVeColVector,
-                  f8v.toVeColVector
-                )
-              )
-            }
-          }
-        }
+      override def allocate(data: (Double, Double)*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(
+          data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._2)).toBytePointerColVector("_").toVeColVector
+        )
+      }
 
       override def veTypes: List[VeType] = List(VeNullableDouble, VeNullableDouble)
     }
 
     implicit object DoubleDoubleDoubleAllocator extends VeAllocator[(Double, Double, Double)] {
-      override def allocate(data: (Double, Double, Double)*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit all =>
-          withArrowFloat8VectorI(data.map(_._1)) { a =>
-            withArrowFloat8VectorI(data.map(_._2)) { b =>
-              withArrowFloat8VectorI(data.map(_._3)) { c =>
-                VeColBatch(
-                  List(
-                    a.toVeColVector,
-                    b.toVeColVector,
-                    c.toVeColVector
-                  )
-                )
-              }
-            }
-          }
-        }
+      override def allocate(data: (Double, Double, Double)*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(
+          data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._2)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._3)).toBytePointerColVector("_").toVeColVector
+        )
+      }
 
       override def veTypes: List[VeType] =
         List(VeNullableDouble, VeNullableDouble, VeNullableDouble)
@@ -157,71 +117,42 @@ object StaticTypingTestAdditions {
 
     implicit object DoubleDoubleDoubleDoubleAllocator
       extends VeAllocator[(Double, Double, Double, Double)] {
-      override def allocate(data: (Double, Double, Double, Double)*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit all =>
-          withArrowFloat8VectorI(data.map(_._1)) { a =>
-            withArrowFloat8VectorI(data.map(_._2)) { b =>
-              withArrowFloat8VectorI(data.map(_._2)) { c =>
-                withArrowFloat8VectorI(data.map(_._3)) { d =>
-                  VeColBatch(
-                    List(
-                      a.toVeColVector,
-                      b.toVeColVector,
-                      c.toVeColVector,
-                      d.toVeColVector
-                    )
-                  )
-                }
-              }
-            }
-          }
-        }
+      override def allocate(data: (Double, Double, Double, Double)*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(
+          data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._2)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._3)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._4)).toBytePointerColVector("_").toVeColVector
+        )
+      }
 
       override def veTypes: List[VeType] =
         List(VeNullableDouble, VeNullableDouble, VeNullableDouble, VeNullableDouble)
     }
 
     implicit object OptionDoubleAllocator extends VeAllocator[Option[Double]] {
-      override def allocate(data: Option[Double]*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit a =>
-          withNullableDoubleVector(data) { f8v =>
-            VeColBatch(List(f8v.toVeColVector))
-          }
-        }
+      override def allocate(data: Option[Double]*)(implicit process: VeProcess,
+                                                   context: OriginalCallingContext,
+                                                   source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(data.toBytePointerColVector("_").toVeColVector)
+      }
 
       override def veTypes: List[VeType] = List(VeNullableDouble)
     }
 
     implicit object OptionDoubleDoubleDoubleAllocator
       extends VeAllocator[(Option[Double], Double, Double)] {
-      override def allocate(data: (Option[Double], Double, Double)*)(implicit
-        veProcess: VeProcess,
-        originalCallingContext: OriginalCallingContext,
-        veColVectorSource: VeColVectorSource
-      ): VeColBatch =
-        WithTestAllocator { implicit allocator =>
-          withNullableDoubleVector(data.map(_._1)) { a =>
-            withArrowFloat8VectorI(data.map(_._2)) { b =>
-              withArrowFloat8VectorI(data.map(_._2)) { c =>
-                VeColBatch(
-                  List(
-                    a.toVeColVector,
-                    b.toVeColVector,
-                    c.toVeColVector
-                  )
-                )
-              }
-            }
-          }
-        }
+      override def allocate(data: (Option[Double], Double, Double)*)(implicit process: VeProcess,
+                                           context: OriginalCallingContext,
+                                           source: VeColVectorSource): VeColBatch = {
+        VeColBatch.from(
+          data.map(x => x._1).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._2)).toBytePointerColVector("_").toVeColVector,
+          data.map(x => Some(x._3)).toBytePointerColVector("_").toVeColVector,
+        )
+      }
 
       override def veTypes: List[VeType] =
         List(VeNullableDouble, VeNullableDouble, VeNullableDouble)

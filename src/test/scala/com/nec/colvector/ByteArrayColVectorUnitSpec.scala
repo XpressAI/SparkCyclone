@@ -1,6 +1,5 @@
 package com.nec.colvector
 
-import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -10,7 +9,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import com.nec.spark.agile.core.VeNullableInt
 import com.nec.spark.agile.core.VeString
 
-class ByteArrayColVectorUnitSpec extends AnyWordSpec {
+final class ByteArrayColVectorUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Seq[Option[T]]): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"

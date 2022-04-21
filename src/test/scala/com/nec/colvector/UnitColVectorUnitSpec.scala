@@ -1,17 +1,14 @@
 package com.nec.colvector
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.colvector.UnitColVector
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
-import com.nec.colvector.VeColVectorSource
-
 import scala.util.Random
 import java.io._
 import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-final class UnitColVectorSpec extends AnyWordSpec {
+final class UnitColVectorUnitSpec extends AnyWordSpec {
   "UnitColVector" should {
     "correctly enforce input requirements on construction" in {
       val source = VeColVectorSource(s"${UUID.randomUUID}")

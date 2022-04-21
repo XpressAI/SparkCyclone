@@ -1,6 +1,5 @@
 package com.nec.colvector
 
-import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
 import com.nec.util.FixedBitSet
@@ -10,7 +9,7 @@ import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class SeqOptTConversionsUnitSpec extends AnyWordSpec {
+final class SeqOptTConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Seq[Option[T]]): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"

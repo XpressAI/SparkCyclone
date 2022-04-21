@@ -1,7 +1,6 @@
 package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.colvector.WithTestAllocator
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.CFunction
@@ -13,6 +12,7 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
 import com.nec.ve.{VeKernelInfra, VeProcess, WithVeProcess}
+import org.apache.arrow.memory.RootAllocator
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -94,6 +94,7 @@ object StringOpsStringHoleEvaluationSpec {
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Int] = {
+    implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
 
     val cFunction = CFunction(
       inputs = List(CVector.varChar("strings")),
@@ -111,19 +112,14 @@ object StringOpsStringHoleEvaluationSpec {
       )
     )
 
-    WithTestAllocator { implicit allocator =>
-      WithTestAllocator { implicit allocator =>
-        veKernelInfra.compiledWithHeaders(cFunction, "test") { path =>
-          val libRef = veProcess.loadLibrary(path)
-          val inputVectors = veAllocator.allocate(input: _*)
-          try {
-            val resultingVectors =
-              veProcess.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
-            veRetriever.retrieve(VeColBatch(resultingVectors))
-          } finally inputVectors.free()
-        }
-      }
+    veKernelInfra.compiledWithHeaders(cFunction, "test") { path =>
+      val libRef = veProcess.loadLibrary(path)
+      val inputVectors = veAllocator.allocate(input: _*)
+      try {
+        val resultingVectors =
+          veProcess.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
+        veRetriever.retrieve(VeColBatch(resultingVectors))
+      } finally inputVectors.free()
     }
   }
-
 }

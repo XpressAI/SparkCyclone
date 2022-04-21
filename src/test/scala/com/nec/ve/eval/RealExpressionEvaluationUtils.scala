@@ -19,7 +19,6 @@
  */
 package com.nec.ve.eval
 
-import com.nec.colvector.WithTestAllocator
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.filter.FilterFunction
@@ -30,6 +29,7 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions._
+import org.apache.arrow.memory.RootAllocator
 import com.typesafe.scalalogging.LazyLogging
 
 object RealExpressionEvaluationUtils extends LazyLogging {
@@ -154,16 +154,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
-    WithTestAllocator { implicit allocator =>
-      veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
-        val libRef = veProcess.loadLibrary(path)
-        val inputVectors = veAllocator.allocate(input: _*)
-        try {
-          val resultingVectors =
-            veProcess.execute(libRef, functionName, inputVectors.columns.toList, outputs)
-          veRetriever.retrieve(VeColBatch(resultingVectors))
-        } finally inputVectors.free()
-      }
+    implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
+    veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
+      val libRef = veProcess.loadLibrary(path)
+      val inputVectors = veAllocator.allocate(input: _*)
+      try {
+        val resultingVectors =
+          veProcess.execute(libRef, functionName, inputVectors.columns.toList, outputs)
+        veRetriever.retrieve(VeColBatch(resultingVectors))
+      } finally inputVectors.free()
     }
   }
   def evalFunction[Input, Output](
@@ -176,16 +175,15 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
-    WithTestAllocator { implicit allocator =>
-      veKernelInfra.compiledWithHeaders(cFunction) { path =>
-        val libRef = veProcess.loadLibrary(path)
-        val inputVectors = veAllocator.allocate(input: _*)
-        try {
-          val resultingVectors =
-            veProcess.execute(libRef, cFunction.name, inputVectors.columns.toList, outputs)
-          veRetriever.retrieve(VeColBatch(resultingVectors))
-        } finally inputVectors.free()
-      }
+    implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
+    veKernelInfra.compiledWithHeaders(cFunction) { path =>
+      val libRef = veProcess.loadLibrary(path)
+      val inputVectors = veAllocator.allocate(input: _*)
+      try {
+        val resultingVectors =
+          veProcess.execute(libRef, cFunction.name, inputVectors.columns.toList, outputs)
+        veRetriever.retrieve(VeColBatch(resultingVectors))
+      } finally inputVectors.free()
     }
   }
 

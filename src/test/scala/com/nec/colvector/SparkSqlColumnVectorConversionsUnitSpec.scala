@@ -4,7 +4,6 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.colvector.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
@@ -15,7 +14,7 @@ import org.apache.spark.sql.vectorized.ColumnVector
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
+final class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T : ClassTag](input: Seq[Option[T]], column: ColumnVector): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"

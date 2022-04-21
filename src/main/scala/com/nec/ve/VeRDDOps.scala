@@ -23,7 +23,7 @@ object VeRDDOps extends LazyLogging {
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         logger.debug(s"Preparing to serialize batch ${veColBatch}")
-        val r = (idx, veColBatch.serialize)
+        val r = (idx, veColBatch.toBytes)
         if (cleanUpInput) veColBatch.columns.foreach(_.free())
         logger.debug(s"Completed serializing batch ${veColBatch} (${r._2.length} bytes)")
         r
@@ -33,7 +33,7 @@ object VeRDDOps extends LazyLogging {
         logger.debug(s"Preparing to deserialize batch of size ${ba.length}...")
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        val res = VeColBatch.fromByteArray(ba)
+        val res = VeColBatch.fromBytes(ba)
         logger.debug(s"Completed deserializing batch ${ba.length} ==> ${res}")
         res
       }

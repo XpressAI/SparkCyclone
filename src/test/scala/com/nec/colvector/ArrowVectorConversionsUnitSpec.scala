@@ -2,7 +2,6 @@ package com.nec.colvector
 
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.colvector.VeColVectorSource
 import scala.util.Random
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator
@@ -10,7 +9,7 @@ import org.apache.arrow.vector._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
+final class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
   val allocator = new RootAllocator(Int.MaxValue)
 
   def runConversionTest[T <: ValueVector, U <: ValueVector](input: T, expectedO: Option[U] = None): Unit = {
