@@ -61,12 +61,21 @@ final case class ProjectionFunction(name: String,
                 s"${outname}->data[i] = ${cexpr.cCode};",
               )
             },
-            "#pragma _NEC vector",
-            "#pragma _NEC ivdep",
-            CodeLines.forLoop("i", s"${inputs.head.name}->count") {
-              List(
-                s"$outname->set_validity(i, ${cexpr.isNotNullCode.getOrElse("1")});"
+            if (cexpr.isNotNullCode.isEmpty) {
+              CodeLines.from(
+                s"size_t vcount = ceil(${inputs.head.name}->count / 64.0);",
+                CodeLines.forLoop("i", s"vcount") {
+                  List(
+                    s"${outname}->validityBuffer[i] = 0xffffffff;"
+                  )
+                }
               )
+            } else {
+              CodeLines.forLoop("i", s"${inputs.head.name}->count") {
+                List(
+                  s"$outname->set_validity(i, ${cexpr.isNotNullCode.getOrElse("1")});"
+                )
+              }
             }
           )
         }
