@@ -61,22 +61,12 @@ namespace cyclone::benchmarks {
     return matching_ids.size();
   }
 
-  size_t vector_group_by_with_validity(NullableScalarVec<int64_t> *input){
-    std::vector<std::vector<size_t>> input_keys(2);
-    input_keys[0] = input->size_t_data_vec();
-    input_keys[1] = input->size_t_validity_vec();
+
+  size_t separate_to_groups_no_validity(NullableScalarVec<int64_t> *input){
+    std::vector<size_t> input_keys = input->size_t_data_vec();
 
     std::vector<size_t> keys;
-    std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups_multi(input_keys, keys);
-    return groups.size();
-  }
-
-  size_t vector_group_by_no_validity(NullableScalarVec<int64_t> *input){
-    std::vector<std::vector<size_t>> input_keys(1);
-    input_keys[0] = input->size_t_data_vec();
-
-    std::vector<size_t> keys;
-    std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups_multi(input_keys, keys);
+    std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(input_keys, keys);
     return groups.size();
   }
 
@@ -117,13 +107,12 @@ namespace cyclone::benchmarks {
     ankerl::nanobench::Bench().run("tuple_group_by", [&]() {
       ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input));
     });
-
-    ankerl::nanobench::Bench().run("vector_group_by(with_validity)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group_by_with_validity(input));
+    ankerl::nanobench::Bench().run("tuple_group_by (some invalid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input_with_invalids));
     });
 
-    ankerl::nanobench::Bench().run("vector_group_by(no validity)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group_by_no_validity(input));
+    ankerl::nanobench::Bench().run("separate_to_groups(no validity)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(separate_to_groups_no_validity(input));
     });
 
     ankerl::nanobench::Bench().run("vector_group(with validity, all valid input)", [&]() {
@@ -132,14 +121,6 @@ namespace cyclone::benchmarks {
 
     ankerl::nanobench::Bench().run("vector_group(with validity, some invalid input)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_group(input_with_invalids));
-    });
-
-    ankerl::nanobench::Bench().run("tuple_group_by (some invalid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input_with_invalids));
-    });
-
-    ankerl::nanobench::Bench().run("vector_group_by(with_validity, some invalid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group_by_with_validity(input_with_invalids));
     });
 
     free(input);
