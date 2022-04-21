@@ -1,7 +1,8 @@
 package com.nec.ve
 
 import com.nec.native.CompiledVeFunction
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -29,10 +30,10 @@ class VeGroupByRDD[G, T](
       if (batchesList.isEmpty) {
         Nil.toIterator
       } else {
-        val batchOfBatches = VeBatchOfBatches.fromVeColBatches(batchesList)
+        val batchOfBatches = VeBatchOfBatches(batchesList)
 
         func.evalGrouping[G](batchOfBatches).map { case (key, colVectors) =>
-          (key, VeColBatch.fromList(colVectors))
+          (key, VeColBatch(colVectors))
         }.iterator
       }
     }

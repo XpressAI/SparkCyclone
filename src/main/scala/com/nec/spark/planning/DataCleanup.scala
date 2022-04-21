@@ -1,9 +1,10 @@
 package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
-import com.nec.ve.{VeColBatch, VeProcess}
+import com.nec.colvector.VeColBatch
+import com.nec.ve.VeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
 
 trait DataCleanup {
@@ -20,7 +21,7 @@ object DataCleanup extends LazyLogging {
       processId: VeColVectorSource,
       originalCallingContext: OriginalCallingContext
     ): Unit = logger.trace(
-      s"Not cleaning up data at ${processId} / ${veColBatch.underlying.cols
+      s"Not cleaning up data at ${processId} / ${veColBatch.columns
         .map(_.container)} - from ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
     )
   }
@@ -31,7 +32,7 @@ object DataCleanup extends LazyLogging {
       originalCallingContext: OriginalCallingContext
     ): Unit = {
       logger.trace(
-        s"Requesting to clean up data of ${veColBatch.underlying.cols
+        s"Requesting to clean up data of ${veColBatch.columns
           .map(_.container)} at ${processId} by ${originalCallingContext.fullName.value}#${originalCallingContext.line.value}, directed by ${parent.getCanonicalName}"
       )
       cleanUpIfNotCached(veColBatch)

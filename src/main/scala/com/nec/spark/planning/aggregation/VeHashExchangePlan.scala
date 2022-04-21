@@ -2,7 +2,7 @@ package com.nec.spark.planning.aggregation
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
 import com.nec.spark.planning._
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
@@ -43,7 +43,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                     veProcess.executeMulti(
                       libraryReference = libRefExchange,
                       functionName = exchangeFunction.functionName,
-                      cols = veColBatch.cols,
+                      cols = veColBatch.columns.toList,
                       results = exchangeFunction.namedResults
                     )
                   )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
@@ -52,7 +52,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
                 multiBatches.flatMap {
                   case (n, l) if l.head.nonEmpty =>
-                    Option(n -> VeColBatch.fromList(l))
+                    Option(n -> VeColBatch(l))
                   case (_, l) =>
                     l.foreach(_.free())
                     None
@@ -93,7 +93,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                     veProcess.executeMulti(
                       libraryReference = libRefExchange,
                       functionName = exchangeFunction.functionName,
-                      cols = veColBatch.cols,
+                      cols = veColBatch.columns.toList,
                       results = exchangeFunction.namedResults
                     )
                   }
@@ -101,7 +101,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
 
                   multiBatches.flatMap {
                     case (n, l) if l.head.nonEmpty =>
-                      Option(n -> VeColBatch.fromList(l))
+                      Option(n -> VeColBatch(l))
                     case (_, l) =>
                       l.foreach(_.free())
                       None

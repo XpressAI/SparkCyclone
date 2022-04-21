@@ -1,9 +1,11 @@
 package com.nec.ve.serializer
 
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
 

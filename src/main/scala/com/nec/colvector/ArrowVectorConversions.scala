@@ -1,11 +1,8 @@
 package com.nec.colvector
 
-import TypeLink.{ArrowToVe, VeToArrow}
 import com.nec.spark.agile.core._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import com.nec.colvector.VeColBatch.VeColVectorSource
-
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
@@ -14,6 +11,33 @@ import org.bytedeco.javacpp._
 import sun.misc.Unsafe
 
 object ArrowVectorConversions {
+  lazy val ArrowToVeScalarTypeMap: Map[Class[_ <: BaseFixedWidthVector], VeScalarType] = Map(
+    classOf[Float4Vector]   -> VeNullableFloat,
+    classOf[Float8Vector]   -> VeNullableDouble,
+    classOf[BigIntVector]   -> VeNullableLong,
+    classOf[IntVector]      -> VeNullableInt,
+    classOf[DateDayVector]  -> VeNullableInt
+  )
+
+  trait ArrowFixedAllocator {
+    def allocate(name: String)(implicit allocator: BufferAllocator): BaseFixedWidthVector
+  }
+
+  lazy val VeScalarToArrowAllocators: Map[VeScalarType, ArrowFixedAllocator] = Map(
+    VeNullableInt -> new ArrowFixedAllocator {
+      def allocate(n: String)(implicit a: BufferAllocator): BaseFixedWidthVector = new IntVector(n, a)
+    },
+    VeNullableLong -> new ArrowFixedAllocator {
+      def allocate(n: String)(implicit a: BufferAllocator): BaseFixedWidthVector = new BigIntVector(n, a)
+    },
+    VeNullableFloat -> new ArrowFixedAllocator {
+      def allocate(n: String)(implicit a: BufferAllocator): BaseFixedWidthVector = new Float4Vector(n, a)
+    },
+    VeNullableDouble -> new ArrowFixedAllocator {
+      def allocate(n: String)(implicit a: BufferAllocator): BaseFixedWidthVector = new Float8Vector(n, a)
+    }
+  )
+
   implicit class ValueVectorEqualityChecks(vector: ValueVector) {
     def === (other: ValueVector): Boolean = {
       VectorEqualsVisitor.vectorEquals(vector, other)
@@ -26,7 +50,8 @@ object ArrowVectorConversions {
     private[colvector] lazy val bufferAdresses = buffers.map(_.address())
 
     private[colvector] def toScalarArrow(typ: VeScalarType)(implicit allocator: BufferAllocator): FieldVector = {
-      val vec = VeToArrow(typ).makeArrow(input.name)(allocator)
+      val vec = VeScalarToArrowAllocators(typ).allocate(input.name)
+
       if (input.numItems > 0) {
         val dataSize = numItems * typ.cSize
         vec.setValueCount(numItems)
@@ -39,11 +64,13 @@ object ArrowVectorConversions {
 
         implicitly[Unsafe].copyMemory(bufferAdresses(0), vec.getDataBufferAddress, dataSize)
       }
+
       vec
     }
 
     private[colvector] def toShortArrow(implicit allocator: BufferAllocator): SmallIntVector = {
       val vec = new SmallIntVector(input.name, allocator)
+
       if (numItems > 0) {
         vec.setValueCount(numItems)
 
@@ -59,6 +86,7 @@ object ArrowVectorConversions {
           Math.ceil(numItems / 64.0).toInt * 8
         )
       }
+
       vec
     }
 
@@ -108,7 +136,7 @@ object ArrowVectorConversions {
           // Specialize this case because Int values in VeNullableShort need to be cast to Short
           toShortArrow
 
-        case typ: VeScalarType if VeToArrow.contains(typ) =>
+        case typ: VeScalarType if VeScalarToArrowAllocators.contains(typ) =>
           toScalarArrow(typ)
 
         case VeString =>
@@ -127,7 +155,7 @@ object ArrowVectorConversions {
           // Specialize this case because values need to be cast to Int first
           vec.toBytePointerColVector
 
-        case vec: BaseFixedWidthVector if ArrowToVe.contains(vec.getClass) =>
+        case vec: BaseFixedWidthVector if ArrowToVeScalarTypeMap.contains(vec.getClass) =>
           vec.toBytePointerColVector
 
         case vec: VarCharVector =>
@@ -141,8 +169,8 @@ object ArrowVectorConversions {
 
   implicit class BaseFixedWidthVectorToBPCV(vector: BaseFixedWidthVector) {
     def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
-      val veType = ArrowToVe.get(vector.getClass) match {
-        case Some(link) => link.veScalarType
+      val veType = ArrowToVeScalarTypeMap.get(vector.getClass) match {
+        case Some(stype) => stype
         case None => throw new IllegalArgumentException(s"No corresponding VeType found for Arrow type '${vector.getClass.getName}'")
       }
 

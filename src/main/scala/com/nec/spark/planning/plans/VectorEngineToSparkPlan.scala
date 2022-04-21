@@ -47,7 +47,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
           withInvocationMetrics(BATCH){
             try {
               logger.debug(s"Mapping veColBatch ${veColBatch} to arrow...")
-              val res = veColBatch.toArrowColumnarBatch()
+              val res = veColBatch.toArrowColumnarBatch
               logger.debug(s"Finished mapping ${veColBatch}")
               collectBatchMetrics(OUTPUT, res)
             } finally child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)

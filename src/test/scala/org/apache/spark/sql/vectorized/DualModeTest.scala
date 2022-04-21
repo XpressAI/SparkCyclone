@@ -2,8 +2,8 @@ package org.apache.spark.sql.vectorized
 
 import com.nec.cache.{DualMode, VeColColumnarVector}
 import com.nec.spark.agile.core.VeNullableInt
-import com.nec.ve.VeColBatch
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.VeColBatch
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType
@@ -43,7 +43,7 @@ final class DualModeTest extends AnyFreeSpec {
       None,
       -1,
     )
-    val expectedCb = VeColBatch(numRows = vcv.numItems, cols = List(vcv))
+    val expectedCb = VeColBatch(Seq(vcv))
     val cv = new VeColColumnarVector(Left(vcv), IntegerType)
     val cb = new ColumnarBatch(Array(cv))
     cb.setNumRows(2)
@@ -52,7 +52,7 @@ final class DualModeTest extends AnyFreeSpec {
       DualMode
         .unwrapInternalRows(cb.rowIterator().asScala)
         .left
-        .map(_.map(lcv => VeColBatch.fromList(lcv.flatMap(_.left.toSeq))))
+        .map(_.map(lcv => VeColBatch(lcv.flatMap(_.left.toSeq))))
     assert(either.isLeft, s"Expecting left-biased result (ve col batches), got ${either}")
     val listBatches = either.left.get.toList
     assert(listBatches == List(expectedCb))

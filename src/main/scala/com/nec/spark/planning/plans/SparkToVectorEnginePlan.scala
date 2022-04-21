@@ -4,7 +4,7 @@ import com.nec.cache.{ArrowEncodingSettings, ColumnarBatchToVeColBatch, CycloneC
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToColumnar
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator

@@ -2,8 +2,9 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
 import com.nec.spark.planning._
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
-import com.nec.ve.{VeColBatch, VeRDDOps}
+import com.nec.colvector.VeBatchOfBatches
+import com.nec.colvector.VeColBatch
+import com.nec.ve.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
@@ -50,8 +51,8 @@ case class VectorEngineJoinPlan(
             case (Nil, _) => Iterator.empty
             case (_, Nil) => Iterator.empty
             case _ =>
-              val leftBatchesBatch = VeBatchOfBatches.fromVeColBatches(leftBatches)
-              val rightBatchesBatch = VeBatchOfBatches.fromVeColBatches(rightBatches)
+              val leftBatchesBatch = VeBatchOfBatches(leftBatches)
+              val rightBatchesBatch = VeBatchOfBatches(rightBatches)
 
               withVeLibrary { libRefJoin =>
                 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
@@ -72,7 +73,7 @@ case class VectorEngineJoinPlan(
                   rightBatches.foreach(dataCleanup.cleanup(_))
                 }
 
-                Iterator.single(VeColBatch.fromList(outputBatch))
+                Iterator.single(VeColBatch(outputBatch))
               }
           }
         }

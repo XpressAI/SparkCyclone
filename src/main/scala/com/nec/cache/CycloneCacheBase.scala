@@ -47,7 +47,7 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
     selectedAttributes: Seq[Attribute],
     conf: SQLConf
   ): RDD[ColumnarBatch] = input.map { cachedBatch =>
-    cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toInternalColumnarBatch()
+    cachedBatch.asInstanceOf[CachedVeBatch].dualVeBatch.toInternalColumnarBatch
   }
 
   override def buildFilter(

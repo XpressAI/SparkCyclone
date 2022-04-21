@@ -2,7 +2,8 @@ package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
-import com.nec.ve.VeColBatch.{VeBatchOfBatches, VeColVector, VeColVectorSource}
+import com.nec.colvector.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
@@ -27,7 +28,7 @@ trait VeProcess {
     bp
   }
 
-  def validateVectors(list: List[VeColVector]): Unit
+  def validateVectors(list: Seq[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
   def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
@@ -101,7 +102,7 @@ object VeProcess {
 
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
-    override def validateVectors(list: List[VeColVector]): Unit = f().validateVectors(list)
+    override def validateVectors(list: Seq[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
     override def allocate(size: Long)(implicit context: OriginalCallingContext): Long =
@@ -218,7 +219,7 @@ object VeProcess {
       veo.veo_free_mem(veo_proc_handle, memoryLocation)
     }
 
-    def validateVectors(list: List[VeColVector]): Unit = {
+    def validateVectors(list: Seq[VeColVector]): Unit = {
       list.foreach(vector =>
         require(
           vector.source == source,
@@ -443,19 +444,19 @@ object VeProcess {
       results: List[CVector]
     )(implicit context: OriginalCallingContext): List[VeColVector] = {
 
-      batches.batches.foreach(batch => validateVectors(batch.cols))
+      batches.batches.foreach(batch => validateVectors(batch.columns))
       val our_args = veo.veo_args_alloc()
 
       /** Total batches count for input pointers */
       veo.veo_args_set_i32(our_args, 0, batches.batches.size)
 
       /** Output count of rows - better to know this in advance */
-      veo.veo_args_set_i32(our_args, 1, batches.rows)
+      veo.veo_args_set_i32(our_args, 1, batches.numRows)
 
       batches.groupedColumns.zipWithIndex.foreach { case (colGroup, index) =>
         val byteSize = 8 * batches.batches.size
         val lp = new LongPointer(batches.batches.size)
-        colGroup.relatedColumns.zipWithIndex.foreach { case (col, idx) =>
+        colGroup.columns.zipWithIndex.foreach { case (col, idx) =>
           lp.put(idx, col.container)
         }
         veo.veo_args_set_stack(our_args, 0, 2 + index, new BytePointer(lp), byteSize)
@@ -466,7 +467,7 @@ object VeProcess {
         lp
       }
       results.zipWithIndex.foreach { case (vet, reIdx) =>
-        val index = 2 + batches.cols + reIdx
+        val index = 2 + batches.numColumns + reIdx
         veo.veo_args_set_stack(our_args, 1, index, new BytePointer(outPointers(reIdx)), 8)
       }
       val fnCallResult = new LongPointer(1)
@@ -538,15 +539,15 @@ object VeProcess {
        right: VeBatchOfBatches,
        results: List[CVector]
      )(implicit context: OriginalCallingContext): List[VeColVector] = {
-      left.batches.foreach(batch => validateVectors(batch.cols))
-      right.batches.foreach(batch => validateVectors(batch.cols))
+      left.batches.foreach(batch => validateVectors(batch.columns))
+      right.batches.foreach(batch => validateVectors(batch.columns))
 
       val our_args = veo.veo_args_alloc()
 
       val leftBatchSize = left.batches.size
-      val leftColCount = left.cols
+      val leftColCount = left.numColumns
       val rightBatchSize = right.batches.size
-      val rightColCount = right.cols
+      val rightColCount = right.numColumns
 
       val metaParamCount = 4
 
@@ -555,28 +556,28 @@ object VeProcess {
       veo.veo_args_set_u64(our_args, 1, rightBatchSize)
 
       /** Input count of rows - better to know this in advance */
-      veo.veo_args_set_u64(our_args, 2, left.rows)
-      veo.veo_args_set_u64(our_args, 3, right.rows)
+      veo.veo_args_set_u64(our_args, 2, left.numRows)
+      veo.veo_args_set_u64(our_args, 3, right.numRows)
 
       // Setup input pointers, such that each input pointer points to a batch of columns
-      left.batches.head.cols.indices.foreach { cIdx =>
+      left.batches.head.columns.indices.foreach { cIdx =>
         val byteSize = 8 * leftBatchSize
         val lp = new LongPointer(leftBatchSize)
 
         left.batches.zipWithIndex.foreach{ case (b, bIdx) =>
-          val col = b.cols(cIdx)
+          val col = b.columns(cIdx)
           lp.put(bIdx, col.container)
         }
 
         veo.veo_args_set_stack(our_args, 0, metaParamCount + cIdx, new BytePointer(lp), byteSize)
       }
 
-      right.batches.head.cols.indices.foreach { cIdx =>
+      right.batches.head.columns.indices.foreach { cIdx =>
         val byteSize = 8 * rightBatchSize
         val lp = new LongPointer(rightBatchSize)
 
         right.batches.zipWithIndex.foreach{ case (b, bIdx) =>
-          val col = b.cols(cIdx)
+          val col = b.columns(cIdx)
           lp.put(bIdx, col.container)
         }
 
@@ -661,12 +662,12 @@ object VeProcess {
       inputs: VeBatchOfBatches,
       results: List[CVector]
     )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])] = {
-      inputs.batches.foreach(batch => validateVectors(batch.cols))
+      inputs.batches.foreach(batch => validateVectors(batch.columns))
 
       val our_args = veo.veo_args_alloc()
 
       val inputsBatchSize = inputs.batches.size
-      val inputsColCount = inputs.cols
+      val inputsColCount = inputs.numColumns
 
       val metaParamCount = 2
 
@@ -676,12 +677,12 @@ object VeProcess {
       veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, 1, new BytePointer(groupsOutPointer), groupsOutPointer.sizeof())
 
       // Setup input pointers, such that each input pointer points to a batch of columns
-      inputs.batches.head.cols.indices.foreach { cIdx =>
+      inputs.batches.head.columns.indices.foreach { cIdx =>
         val byteSize = 8 * inputsBatchSize
         val lp = new LongPointer(inputsBatchSize)
 
         inputs.batches.zipWithIndex.foreach{ case (b, bIdx) =>
-          val col = b.cols(cIdx)
+          val col = b.columns(cIdx)
           lp.put(bIdx, col.container)
         }
 
@@ -728,9 +729,9 @@ object VeProcess {
 
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      val groups = VeColBatch.fromList(List(readVeColVector(groupsOutPointer.get(), results.head)))
+      val groups = VeColBatch(List(readVeColVector(groupsOutPointer.get(), results.head)))
       val numGroups = groups.numRows
-      val groupKeys = groups.toArray[K](0)
+      val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
 
       val scope = new PointerScope()
 

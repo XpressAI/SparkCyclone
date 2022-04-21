@@ -2,7 +2,6 @@ package com.nec.colvector
 
 import ArrayTConversions._
 import com.nec.spark.agile.core._
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.collection.mutable.{Seq => MSeq}
 import com.nec.util.FixedBitSet

@@ -1,6 +1,6 @@
 package com.nec.colvector
 
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random

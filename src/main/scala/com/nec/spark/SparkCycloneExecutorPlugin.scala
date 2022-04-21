@@ -20,9 +20,11 @@
 package com.nec.spark
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, launched, params, pluginContext}
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
@@ -104,7 +106,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch._1)
-      colBatch._2.cols.zipWithIndex.foreach { case (_, i) =>
+      colBatch._2.columns.zipWithIndex.foreach { case (_, i) =>
         freeCachedCol(s"${colBatch._1}-${i}")
       }
     }
@@ -125,7 +127,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   def registerCachedBatch(name: String, cb: VeColBatch): Unit = {
     cachedBatches(name) = cb
 
-    cb.cols.zipWithIndex.foreach { case (col, i) =>
+    cb.columns.zipWithIndex.foreach { case (col, i) =>
       cachedCols(s"$name-$i") = col
     }
   }
@@ -137,12 +139,12 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     if (cachedBatches.values.contains(veColBatch)) {
       logger.trace(
         s"Data at ${
-          veColBatch.cols
+          veColBatch.columns
             .map(_.container)
         } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
       )
     } else {
-      val (cached, notCached) = veColBatch.cols.partition(cachedCols.values.contains)
+      val (cached, notCached) = veColBatch.columns.partition(cachedCols.values.contains)
       logger.trace(s"Will clean up data for ${
         cached
           .map(_.buffers)

@@ -1,6 +1,7 @@
 package com.nec.ve
 
 import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
+import com.nec.colvector.VeColBatch
 
 package object serializer {
   val CbTag: Int = 91

@@ -10,9 +10,9 @@ import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
-import com.nec.ve.{VeColBatch, VeKernelInfra, VeProcess, WithVeProcess}
+import com.nec.ve.{VeKernelInfra, VeProcess, WithVeProcess}
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -93,7 +93,7 @@ object StringOpsStringHoleEvaluationSpec {
     veKernelInfra: VeKernelInfra,
     originalCallingContext: OriginalCallingContext,
     veColVectorSource: VeColVectorSource
-  ): List[Int] = {
+  ): Seq[Int] = {
 
     val cFunction = CFunction(
       inputs = List(CVector.varChar("strings")),
@@ -118,8 +118,8 @@ object StringOpsStringHoleEvaluationSpec {
           val inputVectors = veAllocator.allocate(input: _*)
           try {
             val resultingVectors =
-              veProcess.execute(libRef, "test", inputVectors.cols, veRetriever.makeCVectors)
-            veRetriever.retrieve(VeColBatch.fromList(resultingVectors))
+              veProcess.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
+            veRetriever.retrieve(VeColBatch(resultingVectors))
           } finally inputVectors.free()
         }
       }

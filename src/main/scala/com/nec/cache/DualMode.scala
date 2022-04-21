@@ -3,8 +3,10 @@ package com.nec.cache
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.util.ReflectionOps._
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColBatch.VeColVectorSource
-import com.nec.ve.{VeColBatch, VeProcess, VeProcessMetrics}
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
+import com.nec.colvector.VeColBatch
+import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow
@@ -78,9 +80,9 @@ object DualMode {
           .map(_.asInstanceOf[CachedVeBatch].dualVeBatch.toEither)
           .flatMap {
             case Left(veColBatch) =>
-              veColBatch.toInternalColumnarBatch().rowIterator().asScala
-            case Right(byteArrayColBatch) =>
-              byteArrayColBatch.toInternalColumnarBatch().rowIterator().asScala
+              veColBatch.toSparkColumnarBatch.rowIterator.asScala
+            case Right(baColBatch) =>
+              baColBatch.toSparkColumnarBatch.rowIterator.asScala
           }
       }
       .take(1)

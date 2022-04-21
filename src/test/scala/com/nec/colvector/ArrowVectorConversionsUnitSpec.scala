@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import scala.util.Random
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator

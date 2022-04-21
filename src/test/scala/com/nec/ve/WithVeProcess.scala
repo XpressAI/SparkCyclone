@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.ve.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import org.bytedeco.veoffload.global.veo
 import org.scalatest.{BeforeAndAfterAll, Suite}
 

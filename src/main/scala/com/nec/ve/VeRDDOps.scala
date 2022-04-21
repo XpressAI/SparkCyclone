@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
-import com.nec.ve.VeColBatch.VeColVector
+import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.serializer.{DualBatchOrBytes, VeSerializer}
@@ -23,8 +23,8 @@ object VeRDDOps extends LazyLogging {
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
         logger.debug(s"Preparing to serialize batch ${veColBatch}")
-        val r = (idx, veColBatch.serialize())
-        if (cleanUpInput) veColBatch.cols.foreach(_.free())
+        val r = (idx, veColBatch.serialize)
+        if (cleanUpInput) veColBatch.columns.foreach(_.free())
         logger.debug(s"Completed serializing batch ${veColBatch} (${r._2.length} bytes)")
         r
       }
@@ -33,7 +33,7 @@ object VeRDDOps extends LazyLogging {
         logger.debug(s"Preparing to deserialize batch of size ${ba.length}...")
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-        val res = VeColBatch.deserialize(ba)
+        val res = VeColBatch.fromByteArray(ba)
         logger.debug(s"Completed deserializing batch ${ba.length} ==> ${res}")
         res
       }
@@ -112,9 +112,9 @@ object VeRDDOps extends LazyLogging {
       originalCallingContext: OriginalCallingContext
     ): RDD[VeColVector] =
       rdd
-        .map { case (i, vcv) => i -> VeColBatch.fromList(List(vcv)) }
+        .map { case (i, vcv) => i -> VeColBatch(List(vcv)) }
         .exchangeBetweenVEs(cleanUpInput)
-        .flatMap(_.cols)
+        .flatMap(_.columns)
   }
 
   private implicit class IntKeyedRDD[V: ClassTag](rdd: RDD[(Int, V)]) {

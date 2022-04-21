@@ -21,7 +21,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -72,7 +72,7 @@ final case class VeOneStageEvaluationPlan(
                     veProcess.execute(
                       libraryReference = libRef,
                       functionName = veFunction.functionName,
-                      cols = inputBatch.cols,
+                      cols = inputBatch.columns.toList,
                       results = veFunction.namedResults
                     )
                   )(
@@ -83,7 +83,7 @@ final case class VeOneStageEvaluationPlan(
 
                 logger.debug(s"Completed mapping ${inputBatch}, got ${cols}")
 
-                val outBatch = VeColBatch.fromList(cols)
+                val outBatch = VeColBatch(cols)
                 if (inputBatch.numRows < outBatch.numRows)
                   logger.error(s"Input rows = ${inputBatch.numRows}, output = ${outBatch}")
                 outBatch

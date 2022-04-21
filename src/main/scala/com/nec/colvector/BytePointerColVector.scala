@@ -1,7 +1,6 @@
 package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.bytedeco.javacpp.BytePointer

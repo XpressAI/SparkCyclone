@@ -3,6 +3,7 @@ package com.nec.ve
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.colvector.BytePointerColVector
 import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
@@ -40,7 +41,7 @@ final class VERDDSpec
       .map { input =>
         val colvec = input.toVeColVector
         val outputs = veProcess.execute(ref, "f", List(colvec), DoublingFunction.outputs)
-        outputs.head.toBytePointerVector.toSeqOpt[Double].flatten
+        outputs.head.toBytePointerColVector.toSeqOpt[Double].flatten
       }
       .collect
       .toSeq
@@ -88,7 +89,7 @@ object VERDDSpec {
     .mapPartitions { iter =>
       Iterator.continually {
         iter.flatMap { colvec =>
-          val output = colvec.toBytePointerVector.toSeqOpt[Double].flatten
+          val output = colvec.toBytePointerColVector.toSeqOpt[Double].flatten
           if (output.isEmpty) None else Some(output.max)
         }.max
       }
@@ -97,7 +98,7 @@ object VERDDSpec {
   }
 
   def doubleBatches(rdd: RDD[Double]): RDD[BytePointerColVector] = {
-    implicit val source = VeColBatch.VeColVectorSource("source")
+    implicit val source = VeColVectorSource("source")
     rdd.mapPartitions { iter =>
       Iterator.continually {
         iter.toSeq.map(Some(_)).toBytePointerColVector("input")

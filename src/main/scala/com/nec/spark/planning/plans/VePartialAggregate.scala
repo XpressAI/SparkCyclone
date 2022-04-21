@@ -2,7 +2,7 @@ package com.nec.spark.planning.plans
 
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
@@ -50,7 +50,7 @@ case class VePartialAggregate(
                     veProcess.executeMulti(
                       libraryReference = libRef,
                       functionName = partialFunction.functionName,
-                      cols = veColBatch.cols,
+                      cols = veColBatch.columns.toList,
                       results = partialFunction.namedResults
                     )
                   )(
@@ -62,7 +62,7 @@ case class VePartialAggregate(
 
                 result.flatMap {
                   case (n, l) if l.head.nonEmpty =>
-                    Option(n -> VeColBatch.fromList(l))
+                    Option(n -> VeColBatch(l))
                   case (_, l) =>
                     l.foreach(_.free())
                     None

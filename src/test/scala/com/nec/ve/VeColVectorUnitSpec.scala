@@ -2,7 +2,7 @@ package com.nec.ve
 
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.colvector.SeqOptTConversions._
-import com.nec.colvector.VeColBatch.VeColVectorSource
+import com.nec.colvector.VeColVectorSource
 import com.nec.ve.VeProcess.OriginalCallingContext
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -27,7 +27,7 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
     colvec.buffers.size should be (2)
 
     // Check conversion
-    colvec.toBytePointerVector.toSeqOpt[T] should be (input)
+    colvec.toBytePointerColVector.toSeqOpt[T] should be (input)
   }
 
   "VeColVector" should {
@@ -67,7 +67,7 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
 
 
       // Check conversion
-      colvec.toBytePointerVector.toSeqOpt[String] should be (input)
+      colvec.toBytePointerColVector.toSeqOpt[String] should be (input)
     }
   }
 }

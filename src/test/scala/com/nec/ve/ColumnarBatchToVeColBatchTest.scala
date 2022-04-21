@@ -57,7 +57,7 @@ final class ColumnarBatchToVeColBatchTest
           arrowSchema = schema,
           completeInSpark = false
         )
-        .flatMap(_.cols.map(_.toBytePointerVector.toArrowVector.toString))
+        .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
         .toList
 
       assert(expectedCols == List("[1, 34, 9]", "[2, 3]"))
@@ -72,7 +72,7 @@ final class ColumnarBatchToVeColBatchTest
           arrowSchema = schema,
           completeInSpark = false
         )
-        .flatMap(_.cols.map(_.toBytePointerVector.toArrowVector.toString))
+        .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
         .toList
       assert(gotCols == List("[1, 34, 9, 2, 3]"))
     }

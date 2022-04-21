@@ -3,7 +3,6 @@ package com.nec.colvector
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeString, VeType}
 import com.nec.ve.{VeProcess, VeProcessMetrics}
-import com.nec.colvector.VeColBatch.VeColVectorSource
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 

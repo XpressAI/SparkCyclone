@@ -1,7 +1,7 @@
 package com.nec.cache
 
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import org.apache.spark.sql.columnar.CachedBatch
 
 object CachedVeBatch {
@@ -9,7 +9,7 @@ object CachedVeBatch {
     DualColumnarBatchContainer(cachedColumnVectors)
   )
   def apply(veColBatch: VeColBatch): CachedVeBatch = CachedVeBatch(
-    DualColumnarBatchContainer(veColBatch.cols.map(vcv => Left(vcv)))
+    DualColumnarBatchContainer(veColBatch.columns.map(vcv => Left(vcv)).toList)
   )
 }
 final case class CachedVeBatch(dualVeBatch: DualColumnarBatchContainer) extends CachedBatch {

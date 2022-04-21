@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow

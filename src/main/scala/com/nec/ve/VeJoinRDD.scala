@@ -2,7 +2,8 @@ package com.nec.ve
 
 import com.nec.native.CompiledVeFunction
 import com.nec.spark.agile.join.SimpleEquiJoinFunction
-import com.nec.colvector.VeColBatch.VeBatchOfBatches
+import com.nec.colvector.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -35,7 +36,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
 
     val batches = joinedInputs.iterator(split, context)
     batches.flatMap { veColBatch =>
-      val res = veColBatch.toCPUSeq[T]()
+      val res = veColBatch.toCPUSeq[T]
       veColBatch.free()
       res
     }
@@ -69,11 +70,11 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
         case (Nil, _) => Iterator.empty
         case (_, Nil) => Iterator.empty
         case _ =>
-          val leftBatchesBatch = VeBatchOfBatches.fromVeColBatches(leftBatches)
-          val rightBatchesBatch = VeBatchOfBatches.fromVeColBatches(rightBatches)
+          val leftBatchesBatch = VeBatchOfBatches(leftBatches)
+          val rightBatchesBatch = VeBatchOfBatches(rightBatches)
 
           val outputBatch = func.evalJoinFunction(leftBatchesBatch, rightBatchesBatch)
-          Iterator.single(VeColBatch.fromList(outputBatch))
+          Iterator.single(VeColBatch(outputBatch))
       }
     }
   }
@@ -84,7 +85,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
       import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
 
       batches.flatMap { veColBatch =>
-        val res = veColBatch.toCPUSeq[T]()
+        val res = veColBatch.toCPUSeq[T]
         veColBatch.free()
         res
       }

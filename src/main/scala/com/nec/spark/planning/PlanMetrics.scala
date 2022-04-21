@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.ve.VeColBatch
+import com.nec.colvector.VeColBatch
 import org.apache.spark.SparkContext
 
 import scala.language.implicitConversions
@@ -71,7 +71,7 @@ trait PlanMetrics {
     val totalBatchRowCount = longMetric(s"${metricPrefix}TotalBatchRowCount")
     val batchSize = longMetric(s"${metricPrefix}BatchSize")
 
-    batchColCount.set(batch.cols.length)
+    batchColCount.set(batch.columns.length)
     batchRowCount.set(batch.numRows)
     batchSize.set(batch.totalBufferSize)
 

@@ -5,7 +5,7 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
-import com.nec.ve.VeColBatch.{VeColVector, VeColVectorSource}
+import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
@@ -25,18 +25,18 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       .joinExchange(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
           import OriginalCallingContext.Automatic._
-          i -> VeColBatch.fromList(List(l.toArray.toBytePointerColVector("left").toVeColVector))
+          i -> VeColBatch(List(l.toArray.toBytePointerColVector("left").toVeColVector))
         },
         sparkSession.sparkContext.makeRDD(partsR).map { case (i, l) =>
           import OriginalCallingContext.Automatic._
-          i -> VeColBatch.fromList(List(l.toArray.toBytePointerColVector("right").toVeColVector))
+          i -> VeColBatch(List(l.toArray.toBytePointerColVector("right").toVeColVector))
         },
         cleanUpInput = true
       )
       .map { case (la, lb) =>
         ???
         // TODO: fix up test cases
-        //(la.cols.flatMap(_.toSeq), lb.cols.flatMap(_.toSeq))
+        //(la.columns.flatMap(_.toSeq), lb.columns.flatMap(_.toSeq))
       }
       .collect()
       .toSeq
