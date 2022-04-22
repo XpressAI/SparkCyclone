@@ -326,5 +326,42 @@ namespace cyclone::tests {
       const auto *output = nullable_varchar_vector::from_binary_choice(input.size(), condition, "foobar", "baz");
       CHECK(output->equivalent_to(expected));
     }
+    
+    TEST_CASE("group_indexes_on_subset works"){
+      auto *input1 = new nullable_varchar_vector(std::vector<std::string> {"A", "A", "B", "A", "A", "A", "A", "B", "B", "B", "B", "A", "A", "B", "B" });
+      auto *input2 = new nullable_varchar_vector(std::vector<std::string> {"A", "C", "B", "C", "D", "A", "A", "D", "B", "E", "B", "E", "A", "B", "C" });
+      auto *input3 = new nullable_varchar_vector(std::vector<std::string> {"G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G" });
+    
+      std::vector<std::vector<size_t>> expected = {{0, 6, 12}, {5}, {1, 3}, {4}, {11}, {2, 8, 10}, {13}, {14}, {7}, {9}};
+    
+      size_t count = static_cast<size_t>(input1->count);
+      size_t start_group_pos[2] = {0, count};
+      size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+      size_t* b_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+    
+      size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+      size_t* b_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+    
+      size_t a_pos_idxs_size;
+      size_t b_pos_idxs_size;
+    
+      input1->group_indexes_on_subset(nullptr, start_group_pos, 2, a_arr, a_pos_idxs, a_pos_idxs_size);
+      input2->group_indexes_on_subset(a_arr, a_pos_idxs, a_pos_idxs_size, b_arr, b_pos_idxs, b_pos_idxs_size);
+      input3->group_indexes_on_subset(b_arr, b_pos_idxs, b_pos_idxs_size, a_arr, a_pos_idxs, a_pos_idxs_size);
+    
+      std::vector<std::vector<size_t>> result;
+      for(auto g = 1; g < a_pos_idxs_size; g++){
+        std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
+        result.push_back(output_group);
+      }
+      cyclone::print_vec("result", result);
+    
+      free(a_arr);
+      free(b_arr);
+      free(a_pos_idxs);
+      free(b_pos_idxs);
+    
+      CHECK(result == expected);
+    }
   }
 }
