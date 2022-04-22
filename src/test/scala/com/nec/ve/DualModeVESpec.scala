@@ -1,11 +1,11 @@
 package com.nec.ve
 
-import com.nec.colvector.SparkSqlColumnVectorConversions._
-import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase}
 import com.nec.cache.DualMode.unwrapPossiblyDualToVeColBatches
+import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase}
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
@@ -39,7 +39,7 @@ final class DualModeVESpec
 
     implicit val veProc: VeProcess =
       DeferredVeProcess(() =>
-        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, source, VeProcessMetrics.noOp)
+        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, SparkCycloneExecutorPlugin._veo_thr_ctxt, source, VeProcessMetrics.noOp)
       )
 
     def makeColumnarBatch1() = {

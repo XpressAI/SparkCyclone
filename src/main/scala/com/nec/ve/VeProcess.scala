@@ -1,15 +1,14 @@
 package com.nec.ve
 
+import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
-import com.nec.colvector.VeBatchOfBatches
-import com.nec.colvector.{VeColVector, VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp._
 import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_proc_handle
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
 import java.io.{InputStream, OutputStream}
 import java.nio.channels.Channels
@@ -34,6 +33,41 @@ trait VeProcess {
   def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
   def get(from: Long, to: BytePointer, size: Long): Unit
   def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
+
+  /**
+   * Asynchronously write a pointer to the given target location
+   * @param source input
+   * @param to target
+   * @param context original calling context
+   * @return Handle for checking the operation status or veo.VEO_REQUEST_ID_INVALID if the request failed
+   */
+  def putAsync(source: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long
+
+  /**
+   * Asynchronously read from a pointer into the given destination
+   * @param destination target (must have at least "size" capacity)
+   * @param source source pointer on the VE
+   * @param size count of bytes to read
+   * @return Handle for checking the operation status or veo.VEO_REQUEST_ID_INVALID if the request failed
+   */
+  def getAsync(destination: BytePointer, source: Long, size: Long): Long
+
+  /**
+   * Check the result of an async operation without waiting for it to finish
+   * @param handle handle for checking operation status
+   * @param context original calling context
+   * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
+   */
+  def peekResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+
+  /**
+   * Wait for the result of an async operation
+   * @param handle handle for checking operation status
+   * @param context original calling context
+   * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
+   */
+  def waitResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+
 
   /** Return a single dataset */
   def execute(
@@ -166,10 +200,20 @@ object VeProcess {
     override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
       context: OriginalCallingContext
     ): Long = f().loadFromStream(inputStream, bytes)
+
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = f().putAsync(bytePointer, to)
+
+    override def getAsync(destination: BytePointer, source: Long, size: Long): Long = f().getAsync(destination, source, size)
+
+    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().peekResult(handle)
+
+    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().waitResult(handle)
+
   }
 
   final case class WrappingVeo(
     veo_proc_handle: veo_proc_handle,
+    veo_thr_ctxt: veo_thr_ctxt,
     source: VeColVectorSource,
     veProcessMetrics: VeProcessMetrics
   ) extends VeProcess
@@ -815,6 +859,31 @@ object VeProcess {
       }
     }
 
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = {
+      veo.veo_async_write_mem(veo_thr_ctxt, to, bytePointer, bytePointer.limit())
+    }
+
+    override def getAsync(destination: BytePointer, source: Long, size: Long): Long = {
+      veo.veo_async_read_mem(veo_thr_ctxt, destination, source, size)
+    }
+
+    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+      val retp = new LongPointer(0)
+      val res = veo.veo_call_peek_result(veo_thr_ctxt, handle, retp)
+      val retVal = retp.get()
+      requireOk(retVal.toInt)
+      retp.close()
+      (res, retVal)
+    }
+
+    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+      val retp = new LongPointer(0)
+      val res = veo.veo_call_wait_result(veo_thr_ctxt, handle, retp)
+      val retVal = retp.get()
+      requireOk(retVal.toInt)
+      retp.close()
+      (res, retVal)
+    }
   }
 
   object Requires {

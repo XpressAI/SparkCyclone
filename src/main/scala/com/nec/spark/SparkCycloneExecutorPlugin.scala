@@ -19,11 +19,9 @@
  */
 package com.nec.spark
 
-import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, launched, params, pluginContext}
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
+import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, _veo_thr_ctxt, launched, params, pluginContext}
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
-import com.nec.colvector.VeColVectorSource
-import com.nec.colvector.VeColBatch
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
@@ -32,7 +30,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_proc_handle
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
 import java.util
 import scala.collection.JavaConverters.mapAsScalaMapConverter
@@ -50,6 +48,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   /** For assumption testing purposes only for now */
   private[spark] var launched: Boolean = false
   var _veo_proc: veo_proc_handle = _
+  var _veo_thr_ctxt: veo_thr_ctxt = _
   @transient val libsPerProcess: scala.collection.mutable.Map[
     veo_proc_handle,
     scala.collection.mutable.Map[String, LibraryReference]
@@ -58,7 +57,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   implicit def veProcess: VeProcess =
     VeProcess.DeferredVeProcess(() =>
-      VeProcess.WrappingVeo(_veo_proc, source, ImplicitMetrics.processMetrics)
+      VeProcess.WrappingVeo(_veo_proc, _veo_thr_ctxt, source, ImplicitMetrics.processMetrics)
     )
 
   implicit def source: VeColVectorSource = VeColVectorSource(
@@ -80,6 +79,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   def closeProcAndCtx(): Unit = {
     if (_veo_proc != null) {
+      veo.veo_context_close(_veo_thr_ctxt)
       veo.veo_proc_destroy(_veo_proc)
     }
   }
@@ -191,10 +191,15 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
         logWarning(s"Proc could not be allocated for node ${currentVeNodeId}, trying next.")
         currentVeNodeId += 1
       }
+      _veo_thr_ctxt = veo.veo_context_open(_veo_proc)
     }
     require(
       _veo_proc != null,
       s"Proc could not be allocated for node ${selectedVeNodeId}, got null"
+    )
+    require(
+      _veo_thr_ctxt != null,
+      s"Async Context could not be allocated for node ${selectedVeNodeId}, got null"
     )
     require(_veo_proc.address() > 0, s"Address for proc was ${_veo_proc.address()}")
     logger.info(s"Opened process: ${_veo_proc} Address: ${_veo_proc.address()}")

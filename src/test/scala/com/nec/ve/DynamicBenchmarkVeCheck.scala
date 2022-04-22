@@ -20,15 +20,12 @@
 package com.nec.ve
 
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.spark.BenchTestingPossibilities
-import org.scalatest.freespec.AnyFreeSpec
-import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.ConfigMap
-import org.apache.log4j.Level
-import org.apache.log4j.Logger
+import com.nec.spark.{BenchTestingPossibilities, SparkCycloneExecutorPlugin}
+import org.apache.log4j.{Level, Logger}
 import org.bytedeco.veoffload.global.veo
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.freespec.AnyFreeSpec
 
 @VectorEngineTest
 final class DynamicBenchmarkVeCheck
@@ -40,6 +37,7 @@ final class DynamicBenchmarkVeCheck
     val rootLogger = Logger.getRootLogger
     rootLogger.setLevel(Level.INFO)
     SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    SparkCycloneExecutorPlugin._veo_thr_ctxt = veo.veo_context_open(SparkCycloneExecutorPlugin._veo_proc)
     super.beforeAll()
   }
 

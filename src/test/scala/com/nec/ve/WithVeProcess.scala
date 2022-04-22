@@ -7,7 +7,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
   implicit def metrics = VeProcessMetrics.noOp
   implicit def source = VeColVectorSource(getClass.getName)
-  implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc, source, VeProcessMetrics.noOp)
+  implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc, thr_ctxt, source, VeProcessMetrics.noOp)
 
   private var initialized = false
 
@@ -16,9 +16,14 @@ trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
     veo.veo_proc_create(0)
   }
 
+  private lazy val thr_ctxt = {
+    veo.veo_context_open(proc)
+  }
+
   override protected def afterAll(): Unit = {
     super.afterAll()
     if (initialized) {
+      veo.veo_context_close(thr_ctxt);
       veo.veo_proc_destroy(proc)
     }
   }

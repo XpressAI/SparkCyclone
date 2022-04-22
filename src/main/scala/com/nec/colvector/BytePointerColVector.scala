@@ -4,6 +4,7 @@ import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.veoffload.global.veo
 
 final case class BytePointerColVector private[colvector] (
   source: VeColVectorSource,
@@ -46,25 +47,57 @@ final case class BytePointerColVector private[colvector] (
                     process: VeProcess,
                     context: OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
-    val nbuffers = metrics.measureRunningTime {
-      buffers.map(process.putPointer)
-    }(metrics.registerTransferTime)
+    val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate)
 
-    val container = VeColVector.buildContainer(
-      veType,
-      numItems,
-      nbuffers,
-      dataSize
-    )
+    val structPtr = veType match {
+      case stype: VeScalarType =>
+        require(buffers.size == 2, s"Exactly 2 VE buffer pointers are required to construct container for ${stype}")
+        // Declare the struct in host memory
+        // The layout of `nullable_T_vector` is the same for all T = primitive
+        val ptr = new BytePointer(stype.containerSize.toLong)
+
+        // Assign the data, validity, and count values
+        ptr.putLong(0, veMemoryPositions(1))
+        ptr.putLong(8, veMemoryPositions(2))
+        ptr.putInt(16, numItems.abs)
+
+        ptr
+      case VeString =>
+        require(buffers.size == 4, s"Exactly 4 VE buffer pointers are required to construct container for ${VeString}")
+        require(dataSize.nonEmpty, s"dataSize is required to construct container for ${VeString}")
+        val Some(actualDataSize) = dataSize
+        // Declare the struct in host memory
+        val ptr = new BytePointer(VeString.containerSize.toLong)
+
+        // Assign the data, validity, and count values
+        ptr.putLong(0,  veMemoryPositions(1))
+        ptr.putLong(8,  veMemoryPositions(2))
+        ptr.putLong(16, veMemoryPositions(3))
+        ptr.putLong(24, veMemoryPositions(4))
+        ptr.putInt(32,  actualDataSize.abs)
+        ptr.putInt(36,  numItems.abs)
+
+        ptr
+    }
+
+    val inFlight = (Seq(structPtr) ++ buffers).zipWithIndex.map{case (ptr, idx) =>
+      process.putAsync(ptr, veMemoryPositions(idx))
+    }
+
+    inFlight.foreach{ handle =>
+      require(process.waitResult(handle)._1 == veo.VEO_COMMAND_OK)
+    }
+
+    structPtr.close()
 
     VeColVector(
       source,
       name,
       veType,
       numItems,
-      nbuffers,
+      veMemoryPositions.tail,
       dataSize,
-      container
+      veMemoryPositions.head
     )
   }
 
