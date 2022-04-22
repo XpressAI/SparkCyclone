@@ -64,14 +64,14 @@ final case class ProjectionFunction(name: String,
             if (cexpr.isNotNullCode.isEmpty) {
               CodeLines.from(
                 s"size_t vcount = ceil(${inputs.head.name}->count / 64.0);",
-                CodeLines.forLoop("i", s"vcount") {
+                CodeLines.forLoop("i", s"vcount", vector = true) {
                   List(
                     s"${outname}->validityBuffer[i] = 0xffffffff;"
                   )
                 }
               )
             } else {
-              CodeLines.forLoop("i", s"${inputs.head.name}->count") {
+              CodeLines.forLoop("i", s"${inputs.head.name}->count", vector = true) {
                 List(
                   s"$outname->set_validity(i, ${cexpr.isNotNullCode.getOrElse("1")});"
                 )

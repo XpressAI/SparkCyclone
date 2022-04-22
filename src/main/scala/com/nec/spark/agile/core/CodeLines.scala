@@ -30,9 +30,9 @@ object CodeLines {
     CodeLines.from(s"if ($condition) { ", sub1.indented, "} else {", sub2.indented, "}")
   }
 
-  def forLoop(counter: String, until: String)(sub: => CodeLines): CodeLines = {
+  def forLoop(counter: String, until: String, vector: Boolean = false)(sub: => CodeLines): CodeLines = {
     CodeLines.from(
-      "#pragma _NEC vector",
+      if (vector) "#pragma _NEC vector" else "",
       s"for (auto $counter = 0; $counter < $until; $counter++) {",
       sub.indented,
       "}"
