@@ -1,8 +1,9 @@
 package com.nec.ve
 
-import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
+import com.nec.colvector.VeBatchOfBatches
+import com.nec.colvector.{VeColVector, VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
@@ -200,26 +201,15 @@ object VeProcess {
     override def putPointer(
       bytePointer: BytePointer
     )(implicit context: OriginalCallingContext): Long = {
-      val start = System.nanoTime()
       val memoryLocation = allocate(bytePointer.limit())
       requireOk(
         veo.veo_write_mem(veo_proc_handle, memoryLocation, bytePointer, bytePointer.limit())
       )
-      val stop = System.nanoTime()
-      val duration = (stop - start).asInstanceOf[Double] / 1000000
-      val throughput = (bytePointer.limit() / 1024) / (duration / 1000)
-      println(s"Putting pointer ${bytePointer.address()}; size ${bytePointer.limit()}; duration $duration ms; speed $throughput kb/s (Start: $start; Stop: $stop)")
       memoryLocation
     }
 
-    override def get(from: Long, to: BytePointer, size: Long): Unit = {
-      val start = System.nanoTime()
+    override def get(from: Long, to: BytePointer, size: Long): Unit =
       veo.veo_read_mem(veo_proc_handle, to, from, size)
-      val stop = System.nanoTime()
-      val duration = (stop - start).asInstanceOf[Double] / 1000000
-      val throughput = (size.asInstanceOf[Double] / 1024) / (duration / 1000)
-      println(s"Reading pointer ${from}; size ${size}; duration $duration ms; speed $throughput kb/s (Start: $start; Stop: $stop)")
-    }
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
