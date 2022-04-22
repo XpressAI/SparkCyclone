@@ -59,7 +59,8 @@ object ArrowVectorConversions {
         implicitly[Unsafe].copyMemory(
           bufferAdresses(1),
           vec.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
+          // Arrow requires 8-byte alignment
+          (numItems / 64.0).ceil.toInt * 8
         )
 
         implicitly[Unsafe].copyMemory(bufferAdresses(0), vec.getDataBufferAddress, dataSize)
@@ -83,7 +84,8 @@ object ArrowVectorConversions {
         implicitly[Unsafe].copyMemory(
           bufferAdresses(1),
           vec.getValidityBufferAddress,
-          Math.ceil(numItems / 64.0).toInt * 8
+          // Arrow requires 8-byte alignment
+          (numItems / 64.0).ceil.toInt * 8
         )
       }
 

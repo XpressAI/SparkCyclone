@@ -16,6 +16,12 @@ trait ColVectorUtilsTrait {
   }
 
   final def bufferSizes: Seq[Int] = {
+    /*
+      NOTE: Arrow relies on the validity buffer to be aligned on 8-byte boundaries
+      to work correctly:
+
+      https://wesm.github.io/arrow-site-test/format/Layout.html#alignment-and-padding
+    */
     val validitySize = Math.ceil(numItems / 64.0).toInt * 8
 
     veType match {

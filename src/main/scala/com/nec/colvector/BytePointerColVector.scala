@@ -32,6 +32,16 @@ final case class BytePointerColVector private[colvector] (
     }
   }
 
+  def toUnitColVector: UnitColVector = {
+    UnitColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      dataSize
+    )
+  }
+
   def toVeColVector(implicit source: VeColVectorSource,
                     process: VeProcess,
                     context: OriginalCallingContext,

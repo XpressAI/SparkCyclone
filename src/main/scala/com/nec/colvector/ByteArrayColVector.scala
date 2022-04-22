@@ -34,6 +34,14 @@ final case class ByteArrayColVector private[colvector] (
     s"[${getClass.getName}] Should not contain empty Array[Byte]'s"
   )
 
+  def === (other: ByteArrayColVector): Boolean = {
+    source == other.source &&
+      name == other.name &&
+      veType == other.veType &&
+      numItems == other.numItems &&
+      buffers.map(_.toSeq) == other.buffers.map(_.toSeq)
+  }
+
   def toSparkColumnVector: ColumnVector = {
     new VeColColumnarVector(Right(this), veType.toSparkType)
   }

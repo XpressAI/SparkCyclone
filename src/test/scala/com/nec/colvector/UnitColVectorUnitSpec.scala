@@ -1,14 +1,19 @@
 package com.nec.colvector
 
-import com.eed3si9n.expecty.Expecty.expect
+import com.nec.colvector.SeqOptTConversions._
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
+import com.nec.ve.WithVeProcess
 import scala.util.Random
 import java.io._
 import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-final class UnitColVectorUnitSpec extends AnyWordSpec {
+@VectorEngineTest
+final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
+  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+
   "UnitColVector" should {
     "correctly enforce input requirements on construction" in {
       val source = VeColVectorSource(s"${UUID.randomUUID}")
@@ -28,6 +33,22 @@ final class UnitColVectorUnitSpec extends AnyWordSpec {
         UnitColVector(source, name, VeNullableInt, Random.nextInt(100), None)
         UnitColVector(source, name, VeString, Random.nextInt(100), Some(Random.nextInt(100)))
       }
+    }
+
+    s"correctly construct ${classOf[VeColVector].getSimpleName} from Array[Byte] (Int)" in {
+      val input = InputSamples.seqOpt[Int]
+      val colvec1 = input.toBytePointerColVector("_").toVeColVector
+      val colvec2 = colvec1.toUnitColVector.withData(colvec1.serialize)
+
+      colvec2.toBytePointerColVector.toSeqOpt[Int] should be (input)
+    }
+
+    s"correctly construct ${classOf[VeColVector].getSimpleName} from Array[Byte] (String)" in {
+      val input = InputSamples.seqOpt[String]
+      val colvec1 = input.toBytePointerColVector("_").toVeColVector
+      val colvec2 = colvec1.toUnitColVector.withData(colvec1.serialize)
+
+      colvec2.toBytePointerColVector.toSeqOpt[String] should be (input)
     }
 
     "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream" in {

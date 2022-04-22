@@ -2,13 +2,13 @@ package com.nec.colvector
 
 import com.nec.colvector.ArrayTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.{VeKernelInfra, WithVeProcess}
+import com.nec.ve.WithVeProcess
 import java.io._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
+final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
   import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
 
   "VeColBatch" should {

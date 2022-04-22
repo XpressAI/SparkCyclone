@@ -10,7 +10,6 @@ import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.colvector.VeColBatch
 import com.nec.colvector.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
-
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.freespec.AnyFreeSpec
@@ -102,50 +101,6 @@ final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKer
 
       results.map(_._2.size).toSet == Set(1, 2)
       results.flatMap(_._2).toSet should be (Set[(Double, String, Double)]((1, "a", 9), (2, "b", 8), (3, lastString, 7)))
-    }
-  }
-
-  "We can serialize/deserialize VeColVector" - {
-    def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
-      val colvec1 = input.toVeColVector
-      val serialized = colvec1.serialize
-      val colvec2 = colvec1.toUnitColVector.withData(serialized)
-
-      colvec1.container should not be (colvec2.container)
-      colvec1.buffers should not be (colvec2.buffers)
-      colvec2.serialize.toSeq should be (serialized.toSeq)
-
-      colvec2.toBytePointerColVector
-    }
-
-    "for Int" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Int] should be (input)
-    }
-
-    "for Short" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000).toShort) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Short] should be (input)
-    }
-
-    "for Long" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Long] should be (input)
-    }
-
-    "for Float" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextFloat * 1000) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Float] should be (input)
-    }
-
-    "for Double" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextDouble * 1000) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Double] should be (input)
-    }
-
-    "for String" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextString(Random.nextInt(30))) else None)
-      runSerializationTest(input.toBytePointerColVector("input")).toSeqOpt[String] should be (input)
     }
   }
 

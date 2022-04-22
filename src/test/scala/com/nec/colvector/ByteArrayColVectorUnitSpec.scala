@@ -23,33 +23,36 @@ final class ByteArrayColVectorUnitSpec extends AnyWordSpec {
     colvec.buffers.size should be (2)
     colvec.toBytePointerColVector.dataSize shouldBe empty
 
+    // Check equality
+    (colvec === input.toBytePointerColVector(name).toByteArrayColVector) should be (true)
+
     // Check conversion
     colvec.toBytePointerColVector.toSeqOpt[T] should be (input)
   }
 
   "ByteArrayColVector" should {
     "correctly convert from and to BytePointerColVector (Int)" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None))
+      runConversionTest(InputSamples.seqOpt[Int])
     }
 
     "correctly convert from and to BytePointerColVector (Short)" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000).toShort) else None))
+      runConversionTest(InputSamples.seqOpt[Short])
     }
 
     "correctly convert from and to BytePointerColVector (Long)" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None))
+      runConversionTest(InputSamples.seqOpt[Long])
     }
 
     "correctly convert from and to BytePointerColVector (Float)" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextFloat * 1000) else None))
+      runConversionTest(InputSamples.seqOpt[Float])
     }
 
     "correctly convert from and to BytePointerColVector (Double)" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextDouble * 1000) else None))
+      runConversionTest(InputSamples.seqOpt[Double])
     }
 
     "correctly convert from and to BytePointerColVector (String)" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextString(Random.nextInt(30))) else None)
+      val input = InputSamples.seqOpt[String]
 
       val source = VeColVectorSource(s"${UUID.randomUUID}")
       val name = s"${UUID.randomUUID}"
