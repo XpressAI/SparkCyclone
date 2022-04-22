@@ -20,9 +20,9 @@
 package com.nec.spark.agile.groupby
 
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.core.{CodeLines, CVector}
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
+import com.nec.spark.agile.core.{CVector, CodeLines}
 import com.nec.spark.agile.groupby.GroupByOutline._
 
 final case class GroupByPartialGenerator(
@@ -66,7 +66,7 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
-        allocateOutputPatchPointers,
+        allocateOutputBatchPointers,
         performGrouping(count = s"${inputs.head.name}->count"),
         computeBatchPlacementsPerGroup,
         countBatchSizes,
@@ -78,7 +78,8 @@ final case class GroupByPartialGenerator(
         },
         computedAggregates.map { case (a, ag) =>
           computeAggregatePartialsPerGroup(a, ag)
-        }
+        },
+        freeGroupingAllocations
       ),
       hasSets = true
     )
@@ -86,7 +87,7 @@ final case class GroupByPartialGenerator(
   /**
    * Allocate output as batches and set output batch count
    */
-  private def allocateOutputPatchPointers: CodeLines = {
+  private def allocateOutputBatchPointers: CodeLines = {
     CodeLines.from(
       partialOutputs.map( v =>
         s"*${v.name} = static_cast<${v.veType.cVectorType} *>(malloc(sizeof(nullptr) * ${nBuckets}));"
@@ -110,8 +111,10 @@ final case class GroupByPartialGenerator(
       ),
       "",
       s"std::vector<size_t> matching_ids(${groupingCodeGenerator.groupsCountOutName});",
+      s"size_t* matching_ids_arr = matching_ids.data();",
+      "#pragma _NEC vector",
       CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
-        s"matching_ids[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
+        s"matching_ids_arr[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
       },
       ""
     )
@@ -244,6 +247,13 @@ final case class GroupByPartialGenerator(
           })
       ),
       ""
+    )
+  }
+
+  def freeGroupingAllocations: CodeLines = {
+    CodeLines.from(
+      "free(sorted_idx);",
+      "free(groups_indices);"
     )
   }
 }

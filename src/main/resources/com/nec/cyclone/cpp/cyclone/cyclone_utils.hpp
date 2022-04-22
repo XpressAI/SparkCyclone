@@ -28,38 +28,60 @@
 #include "frovedis/dataframe/join.hpp"
 
 namespace cyclone {
+  template<typename T>
+  void print_vec(char *name, std::vector<T> a) {
+        std::cout << name << " = [";
+        std::string comma = "";
+        for (int i = 0; i < a.size(); i++) {
+            std::cout << comma << a[i];
+            comma = ",";
+        }
+        std::cout << "]" << std::endl;
+  }
+
   inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
     std::vector<size_t> groups = ids;
     frovedis::radix_sort(groups);
     std::vector<size_t> unique_groups = frovedis::set_unique(groups);
     std::vector<size_t> group_counts(unique_groups.size());
 
+    auto ids_count = ids.size();
+    auto ids_arr = ids.data();
+    auto groups_arr = groups.data();
+    auto groups_size = groups.size();
+    auto groups_count_arr = group_counts.data();
+    auto unique_groups_arr = unique_groups.data();
+    auto unique_groups_size = unique_groups.size();
+
     // Count the number of groups
-    for (size_t g = 0; g < unique_groups.size(); g++) {
+    for (size_t g = 0; g < unique_groups_size; g++) {
       size_t current_count = 0;
-      size_t the_group = unique_groups[g];
+      size_t the_group = unique_groups_arr[g];
 
       #pragma _NEC vector
-      for (size_t i = 0; i < groups.size(); i++) {
-        if (groups[i] == the_group) {
+      for (size_t i = 0; i < groups_size; i++) {
+        if (groups_arr[i] == the_group) {
           current_count++;
         }
       }
-      group_counts[g] = current_count;
+      groups_count_arr[g] = current_count;
     }
 
-    std::vector<std::vector<size_t>> ret(unique_groups.size());
-    for (size_t i = 0; i < ret.size(); i++) {
-      ret[i].resize(group_counts[i]);
+    std::vector<std::vector<size_t>> ret(unique_groups_size);
+    for (size_t i = 0; i < unique_groups_size; i++) {
+      ret[i].resize(groups_count_arr[i]);
     }
 
-    for (size_t g = 0; g < unique_groups.size(); g++) {
+    auto ret_arr = ret.data();
+
+    for (size_t g = 0; g < unique_groups_size; g++) {
       size_t group_pos = 0;
-      size_t group = unique_groups[g];
+      size_t group = unique_groups_arr[g];
+      auto ret_g_arr = ret_arr[g].data();
       #pragma _NEC vector
-      for (size_t i = 0; i < ids.size(); i++) {
-        if (ids[i] == group) {
-          ret[g][group_pos++] = i;
+      for (size_t i = 0; i < ids_count; i++) {
+        if (ids_arr[i] == group) {
+          ret_g_arr[group_pos++] = i;
         }
       }
     }
@@ -136,17 +158,6 @@ namespace cyclone {
     tmp.seekp(-2, tmp.cur);
     tmp << " ]";
     return stream << tmp.str();
-  }
-  
-  template<typename T>
-  void print_vec(char *name, std::vector<T> a) {
-    std::cout << name << " = [";
-    std::string comma = "";
-    for (int i = 0; i < a.size(); i++) {
-      std::cout << comma << a[i];
-      comma = ",";
-    }
-    std::cout << "]" << std::endl;
   }
 }
 

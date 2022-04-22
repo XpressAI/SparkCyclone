@@ -17,48 +17,78 @@ final case class GroupingCodeGenerator(
                       thingsToGroup: List[Either[String, CExpression]]
                     ): CodeLines = {
     val stringVecHashes: List[String] = thingsToGroup.flatMap(_.left.toSeq)
-
-    val elems = thingsToGroup.flatMap {
-      case Right(g) =>
-        List(g.cCode, g.isNotNullCode.getOrElse("1"))
-      case Left(stringName) =>
-        List(s"${stringName}_string_hashes[i]")
+    if(stringVecHashes.nonEmpty){
+      throw new IllegalArgumentException("Grouping on strings currently not supported!")
     }
 
-    // Sort in ASC order for all tuple elements
-    val sortOrder = elems.map(_ => 1).mkString(s"std::array<int, ${elems.size}> {{ ", ", ", " }}")
+    val elems = thingsToGroup.map {
+      case Right(g) =>
+        g.cCode.replace("->data[i]", "")
+    }
 
     CodeLines.from(
-      // Declare the elements and sorted_indices vectors
-      s"std::vector<${tupleType}> ${groupingVecName}(${count});",
-      s"std::vector<size_t> ${sortedIdxName}(${count});",
-      "",
-      // For all string columns, get the hash vector
-      stringVecHashes.map { name => s"const auto ${name}_string_hashes = ${name}->hash_vec();" },
-      "",
-      // Construct the elements vector
-      CodeLines.forLoop("i", count) {
-        List(
-          s"${sortedIdxName}[i] = i;",
-          s"${groupingVecName}[i] = ${tupleType}(${elems.mkString(", ")});"
+      elems match {
+        case Nil => CodeLines.from(
+          s"size_t count = static_cast<size_t>(${count});",
+          "size_t groups_count = 1;",
+          "size_t* groups_indices = static_cast<size_t *>(malloc(sizeof(size_t) * 2));",
+          "groups_indices[0] = 0;",
+          "groups_indices[1] = count;",
+          "size_t* sorted_idx = static_cast<size_t *>(malloc(sizeof(size_t) * count));",
+          "#pragma _NEC vector",
+          "for(auto i = 0; i < count; i++) sorted_idx[i] = i;"
         )
-      },
-      "",
-      // Perform the tuple sort
-      s"${sortedIdxName} = cyclone::sort_tuples(${groupingVecName}, ${sortOrder});",
-      "",
-      // Reconstruct the elements vector using the sorted_indices
-      CodeLines.forLoop("j", count) {
-        List(
-          s"auto i = ${sortedIdxName}[j];",
-          s"${groupingVecName}[j] = ${tupleType}(${elems.mkString(", ")});"
+        case head :: Nil => CodeLines.from(
+          s"size_t count = static_cast<size_t>(${count});",
+          "size_t start_group[2] = {0, count};",
+          "size_t* sorted_idx = static_cast<size_t *>(malloc(sizeof(size_t) * count));",
+          "size_t* groups_indices = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));",
+          "size_t groups_count;",
+          s"${head}->group_indexes_on_subset(nullptr, start_group, 2, sorted_idx, groups_indices, groups_count);",
+          "groups_count--;"
         )
-      },
-      "",
-      // Identify the indices where elements first change
-      s"std::vector<size_t> ${groupsIndicesName} = frovedis::set_separate(${groupingVecName});",
-      s"auto ${groupsCountOutName} = ${groupsIndicesName}.size() - 1;",
-      ""
+        case _ => CodeLines.from(
+          s"size_t count = static_cast<size_t>(${count});",
+          "size_t start_group[2] = {0, count};",
+          "size_t* a_idx_out = static_cast<size_t *>(malloc(sizeof(size_t) * count));",
+          "size_t* a_group_out = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));",
+          "size_t a_group_size_out;",
+          "size_t* b_idx_out = static_cast<size_t *>(malloc(sizeof(size_t) * count));",
+          "size_t* b_group_out = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));",
+          "size_t b_group_size_out;",
+          elems.zipWithIndex.map{ case (key, idx) =>
+            val (iterArrIn, groupIn, groupSizeIn, iterArrOut, groupOut, groupSizeOut) = idx match {
+              case 0 =>
+                ("nullptr", "start_group", "2", "a_idx_out", "a_group_out", "a_group_size_out")
+              case n if n % 2 == 1 =>
+                ("a_idx_out", "a_group_out", "a_group_size_out", "b_idx_out", "b_group_out", "b_group_size_out")
+              case _ =>
+                ("b_idx_out", "b_group_out", "b_group_size_out", "a_idx_out", "a_group_out", "a_group_size_out")
+            }
+
+            CodeLines.from(
+            s"${key}->group_indexes_on_subset($iterArrIn, $groupIn, $groupSizeIn, $iterArrOut, $groupOut, $groupSizeOut);",
+          )},
+          if(elems.size % 2 == 1){
+            CodeLines.from(
+              "free(b_idx_out);",
+              "free(b_group_out);",
+              "size_t* sorted_idx = a_idx_out;",
+              "size_t* groups_indices = a_group_out;",
+              "size_t groups_count = a_group_size_out;"
+            )
+          }else{
+            CodeLines.from(
+              "free(a_idx_out);",
+              "free(a_group_out);",
+              "size_t* sorted_idx = b_idx_out;",
+              "size_t* groups_indices = b_group_out;",
+              "size_t groups_count = b_group_size_out;"
+            )
+          },
+          "groups_count--;"
+        )
+      }
     )
   }
 

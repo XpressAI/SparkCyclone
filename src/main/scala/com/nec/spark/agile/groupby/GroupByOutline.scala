@@ -19,8 +19,8 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
 
 /**
@@ -101,8 +101,10 @@ final case class GroupByOutline(
       ),
       "",
       s"std::vector<size_t> matching_ids(${groupingCodeGenerator.groupsCountOutName});",
+      s"size_t* matching_ids_arr = matching_ids.data();",
+      "#pragma _NEC vector",
       CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
-        s"matching_ids[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
+        s"matching_ids_arr[g] = ${groupingCodeGenerator.sortedIdxName}[${groupingCodeGenerator.groupsIndicesName}[g]];"
       },
       ""
     )
