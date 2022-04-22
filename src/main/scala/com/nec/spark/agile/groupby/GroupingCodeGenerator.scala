@@ -16,12 +16,9 @@ final case class GroupingCodeGenerator(
                       count: String,
                       thingsToGroup: List[Either[String, CExpression]]
                     ): CodeLines = {
-    val stringVecHashes: List[String] = thingsToGroup.flatMap(_.left.toSeq)
-    if(stringVecHashes.nonEmpty){
-      throw new IllegalArgumentException("Grouping on strings currently not supported!")
-    }
-
     val elems = thingsToGroup.map {
+      case Left(g) =>
+        g
       case Right(g) =>
         g.cCode.replace("->data[i]", "")
     }
