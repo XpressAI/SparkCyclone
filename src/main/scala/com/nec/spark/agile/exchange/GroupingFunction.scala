@@ -1,9 +1,7 @@
 package com.nec.spark.agile.exchange
 
-import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
-import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
-import com.nec.spark.agile.core.{CVector, VeType}
+import com.nec.spark.agile.core._
 
 object GroupingFunction {
   final val GroupAssignmentsId = "bucket_assignments"
@@ -83,7 +81,9 @@ case class GroupingFunction(name: String,
               s"size_t count = 0;",
               // Count the assignments that equal g
               CodeLines.forLoop("i", s"${GroupingFunction.GroupAssignmentsId}.size()") {
-                s"count += (${GroupingFunction.GroupAssignmentsId}[i] == g);"
+                CodeLines.ifStatement(s"${GroupingFunction.GroupAssignmentsId}[i] == g") {
+                  "count++;"
+                }
               },
               // Assign to the counts table
               s"${GroupingFunction.GroupCountsId}[g] = count;"
