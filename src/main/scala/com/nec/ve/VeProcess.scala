@@ -437,46 +437,49 @@ object VeProcess {
       )
 
       (0 until gotCounts).toList.map { set =>
-        set -> outPointers.zip(results).map {
-          case (outPointer, CVarChar(name)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
+        set -> outPointers.zip(results).map { case (outPointer, cvec) =>
+          val outContainerLocation = outPointer.get(set)
+          require(
+            outContainerLocation > 0,
+            s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
+          )
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(36),
-              name = name,
-              veType = VeString,
-              container = outContainerLocation,
-              buffers = Seq(
-                bytePointer.getLong(0),
-                bytePointer.getLong(8),
-                bytePointer.getLong(16),
-                bytePointer.getLong(24)
-              ),
-              dataSize = Some(bytePointer.getInt(32))
-            ).register()
-          case (outPointer, CScalarVector(name, r)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, r.containerSize)
+          val dest = new BytePointer(cvec.veType.containerSize)
+          val handle = getAsync(dest, outContainerLocation, cvec.veType.containerSize)
+          (outContainerLocation, dest, handle, cvec)
+        }
+      }.map { case (set, asyncReads) =>
+        set -> asyncReads.map{ case (outContainerLocation, bytePointer, handle, cvec) =>
+          val (asyncResult, _) = waitResult(handle)
+          require(asyncResult == veo.VEO_COMMAND_OK)
 
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(16),
-              name = name,
-              veType = r,
-              container = outContainerLocation,
-              buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-              dataSize = None
-            ).register()
+          cvec match {
+            case CVarChar(name) =>
+              VeColVector(
+                source = source,
+                numItems = bytePointer.getInt(36),
+                name = name,
+                veType = VeString,
+                container = outContainerLocation,
+                buffers = Seq(
+                  bytePointer.getLong(0),
+                  bytePointer.getLong(8),
+                  bytePointer.getLong(16),
+                  bytePointer.getLong(24)
+                ),
+                dataSize = Some(bytePointer.getInt(32))
+              ).register()
+            case CScalarVector(name, r) =>
+              VeColVector(
+                source = source,
+                numItems = bytePointer.getInt(16),
+                name = name,
+                veType = r,
+                container = outContainerLocation,
+                buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+                dataSize = None
+              ).register()
+          }
         }
       }
     }
