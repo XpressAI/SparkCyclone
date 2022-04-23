@@ -6,7 +6,9 @@ import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.veoffload.global.veo
 import org.slf4j.LoggerFactory
+
 import java.io.OutputStream
 
 final case class VeColVector private[colvector] (
@@ -53,7 +55,10 @@ final case class VeColVector private[colvector] (
   def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
       val ptr = new BytePointer(size)
-      process.get(location, ptr, size)
+      val handle = process.getAsync(ptr, location, size)
+      (ptr, handle)
+    }.map{ case (ptr, handle) =>
+      require(process.waitResult(handle)(null)._1 == veo.VEO_COMMAND_OK)
       ptr
     }
 

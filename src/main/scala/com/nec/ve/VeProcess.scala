@@ -21,17 +21,10 @@ trait VeProcess {
   ): Long
   def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
 
-  final def readAsPointer(containerLocation: Long, containerSize: Int): BytePointer = {
-    val bp = new BytePointer(containerSize)
-    get(containerLocation, bp, containerSize)
-    bp
-  }
-
   def validateVectors(list: Seq[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
   def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
-  def get(from: Long, to: BytePointer, size: Long): Unit
   def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
 
   /**
@@ -147,8 +140,6 @@ object VeProcess {
     ): Long =
       f().putPointer(bytePointer)
 
-    override def get(from: Long, to: BytePointer, size: Long): Unit = f().get(from, to, size)
-
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit =
       f().free(memoryLocation)
 
@@ -251,9 +242,6 @@ object VeProcess {
       )
       memoryLocation
     }
-
-    override def get(from: Long, to: BytePointer, size: Long): Unit =
-      veo.veo_read_mem(veo_proc_handle, to, from, size)
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
@@ -645,7 +633,15 @@ object VeProcess {
 
       val scope = new PointerScope()
 
-      val actualOutPointers = outPointers.map(p => new LongPointer(readAsPointer(p.get(), 8 * numGroups)))
+      val actualOutPointers = outPointers.map(_.get()).map { containerLocation =>
+          val size = 8 * numGroups;
+          val dst = new BytePointer(size)
+          val handle = getAsync(dst, containerLocation, size)
+          (dst, handle)
+        }.map { case (dst, handle) =>
+          require(waitResult(handle)._1 == veo.VEO_COMMAND_OK)
+          new LongPointer(dst)
+      }
 
       val o = (0 until numGroups).map { (i) =>
         val k: K = groupKeys(i)
