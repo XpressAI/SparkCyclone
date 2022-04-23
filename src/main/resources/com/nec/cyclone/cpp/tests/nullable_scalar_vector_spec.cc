@@ -378,9 +378,8 @@ namespace cyclone::tests {
 
     free(a_arr);
     free(b_arr);
-    free(input1);
-    free(input2);
-    free(input3);
+    free(a_pos_idxs);
+    free(b_pos_idxs);
 
     CHECK(result == expected);
   }
