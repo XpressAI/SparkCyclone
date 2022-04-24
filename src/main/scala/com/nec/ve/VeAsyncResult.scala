@@ -37,6 +37,10 @@ class VeAsyncResult[T](
 }
 
 object VeAsyncResult {
+  def apply[T](handle: Long)(fn: () => T)(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[T] = {
+    new VeAsyncResult[T](process, Seq(handle), fn)
+  }
+
   def apply[T](handles: Seq[Long])(fn: () => T)(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[T] = {
     new VeAsyncResult[T](process, handles, fn)
   }

@@ -2,6 +2,7 @@ package com.nec.ve
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
@@ -309,7 +310,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      readAsyncAsVeColVector(readAllAsPointerAsync(outPointers.map(_.get()).zip(results)))
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
@@ -393,9 +394,9 @@ object VeProcess {
       )
 
       (0 until gotCounts).toList.map { set =>
-        set -> readAllAsPointerAsync(outPointers.map(_.get(set)).zip(results))
-      }.map { case (set, asyncReads) =>
-        set -> readAsyncAsVeColVector(asyncReads)
+        set -> readAllVeColVectorsAsync(outPointers.map(_.get(set)).zip(results))
+      }.map{ case (set, asyncResult) =>
+        set -> asyncResult.map(_.get())
       }
     }
 
@@ -459,7 +460,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      readAsyncAsVeColVector(readAllAsPointerAsync(outPointers.map(_.get()).zip(results)))
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def executeJoin(
@@ -551,7 +552,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      readAsyncAsVeColVector(readAllAsPointerAsync(outPointers.map(_.get()).zip(results)))
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def executeGrouping[K: ClassTag](
@@ -627,7 +628,7 @@ object VeProcess {
 
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      val groups = VeColBatch(readAsyncAsVeColVector(readAllAsPointerAsync(List((groupsOutPointer.get(), results.head)))))
+      val groups = VeColBatch(readAllVeColVectors(List((groupsOutPointer.get(), results.head))))
       val numGroups = groups.numRows
       val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
 
@@ -645,9 +646,9 @@ object VeProcess {
 
       val o = (0 until numGroups).map { (i) =>
         val k: K = groupKeys(i)
-        k -> readAllAsPointerAsync(actualOutPointers.map(_.get(i)).zip(results))
-      }.map{ case (k, asyncReads) =>
-        k -> readAsyncAsVeColVector(asyncReads)
+        k -> readAllVeColVectorsAsync(actualOutPointers.map(_.get(i)).zip(results))
+      }.map{case (k, asyncResult) =>
+        k -> asyncResult.map(_.get())
       }.toList
 
       outPointers.foreach(p => veo.veo_free_mem(veo_proc_handle, p.get()))
@@ -684,7 +685,15 @@ object VeProcess {
       memoryLocation
     }
 
-    private def readAllAsPointerAsync(pointerVecs: List[(Long, CVector)]): List[(Long, BytePointer, Long, CVector)] = {
+    private def readAllVeColVectors(pointerVecs: List[(Long, CVector)])(implicit
+                                                                             context: OriginalCallingContext
+    ): List[VeColVector] = {
+      readAllVeColVectorsAsync(pointerVecs).map(_.get())
+    }
+
+    private def readAllVeColVectorsAsync(pointerVecs: List[(Long, CVector)])(implicit
+                                                                          context: OriginalCallingContext
+    ): List[VeAsyncResult[VeColVector]] = {
       pointerVecs.map {
         case (outContainerLocation, cvec) =>
           require(
@@ -692,48 +701,39 @@ object VeProcess {
             s"Expected container location to be > 0, got ${outContainerLocation}"
           )
 
-          val dest = new BytePointer(cvec.veType.containerSize)
-          val handle = getAsync(dest, outContainerLocation, cvec.veType.containerSize)
-          (outContainerLocation, dest, handle, cvec)
-      }
-    }
-
-    private def readAsyncAsVeColVector(handles: List[(Long, BytePointer, Long, CVector)])(implicit
-    context: OriginalCallingContext
-    ): List[VeColVector] = {
-      handles.map { case (outContainerLocation, bytePointer, handle, cvec) =>
-        val (asyncResult, _) = waitResult(handle)
-        require(asyncResult == veo.VEO_COMMAND_OK)
-
-        val veColVector = cvec match {
-          case CVarChar(name) =>
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(36),
-              name = name,
-              veType = VeString,
-              container = outContainerLocation,
-              buffers = Seq(
-                bytePointer.getLong(0),
-                bytePointer.getLong(8),
-                bytePointer.getLong(16),
-                bytePointer.getLong(24)
-              ),
-              dataSize = Some(bytePointer.getInt(32))
-            ).register()
-          case CScalarVector(name, r) =>
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(16),
-              name = name,
-              veType = r,
-              container = outContainerLocation,
-              buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-              dataSize = None
-            ).register()
-        }
-        bytePointer.close()
-        veColVector
+          val bytePointer = new BytePointer(cvec.veType.containerSize)
+          val handle = getAsync(bytePointer, outContainerLocation, cvec.veType.containerSize)
+          VeAsyncResult(handle){ () =>
+            val veColVector = cvec match {
+              case CVarChar(name) =>
+                VeColVector(
+                  source = source,
+                  numItems = bytePointer.getInt(36),
+                  name = name,
+                  veType = VeString,
+                  container = outContainerLocation,
+                  buffers = Seq(
+                    bytePointer.getLong(0),
+                    bytePointer.getLong(8),
+                    bytePointer.getLong(16),
+                    bytePointer.getLong(24)
+                  ),
+                  dataSize = Some(bytePointer.getInt(32))
+                ).register()
+              case CScalarVector(name, r) =>
+                VeColVector(
+                  source = source,
+                  numItems = bytePointer.getInt(16),
+                  name = name,
+                  veType = r,
+                  container = outContainerLocation,
+                  buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+                  dataSize = None
+                ).register()
+            }
+            bytePointer.close()
+            veColVector
+          }
       }
     }
 
