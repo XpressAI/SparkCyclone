@@ -35,9 +35,9 @@ object ColumnarBatchToVeColBatch {
                   .toBytePointerColVector(field.getName, columnarBatch.numRows)
                   .asyncToVeColVector
             }
-          ).map(_.apply())
+          )
     }.map{ it =>
-      VeColBatch(it.map(_.get()).toList)
+      VeColBatch(it.map(_.apply()).map(_.get()).toList)
     }.toList.iterator
   }
 
