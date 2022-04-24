@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeString, VeType}
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
@@ -68,5 +68,23 @@ final case class ByteArrayColVector private[colvector] (
                     context: VeProcess.OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
     toBytePointerColVector.toVeColVector
+  }
+
+  def asyncToVeColVector(implicit veProcess: VeProcess,
+                    source: VeColVectorSource,
+                    context: VeProcess.OriginalCallingContext,
+                    metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
+    toBytePointerColVector.asyncToVeColVector
+  }
+
+  def serialize: Array[Byte] = {
+    val lens = buffers.map(_.size)
+    val offsets = lens.scanLeft(0)(_ + _)
+    val output = Array.ofDim[Byte](lens.foldLeft(0)(_ + _))
+
+    buffers.zip(offsets).foreach { case (buffer, offset) =>
+      System.arraycopy(buffer, 0, output, offset, buffer.length)
+    }
+    output
   }
 }

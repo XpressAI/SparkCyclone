@@ -1,11 +1,9 @@
 package com.nec.cache
 
-import com.nec.colvector.BytePointerColVector
-import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.ArrowVectorConversions._
+import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.colvector.VeColVectorSource
-import com.nec.colvector.VeColBatch
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
@@ -26,23 +24,21 @@ object ColumnarBatchToVeColBatch {
     cycloneMetrics: VeProcessMetrics,
   ): Iterator[VeColBatch] = {
     columnarBatches.map { columnarBatch =>
-      metricsFn { () =>
-        VeColBatch(
-          (0 until columnarBatch.numCols())
-            .map(i =>
-              columnarBatch.column(i).getOptionalArrowValueVector match {
-                case Some(acv) =>
-                  acv.toBytePointerColVector.toVeColVector
-                case None =>
-                  val field = arrowSchema.getFields.get(i)
-                  columnarBatch.column(i)
-                    .toBytePointerColVector(field.getName, columnarBatch.numRows)
-                    .toVeColVector
-              }
-            ).toList
-        )
-      }
-    }
+        (0 until columnarBatch.numCols())
+          .map(i =>
+            columnarBatch.column(i).getOptionalArrowValueVector match {
+              case Some(acv) =>
+                acv.toBytePointerColVector.asyncToVeColVector
+              case None =>
+                val field = arrowSchema.getFields.get(i)
+                columnarBatch.column(i)
+                  .toBytePointerColVector(field.getName, columnarBatch.numRows)
+                  .asyncToVeColVector
+            }
+          ).map(_.apply())
+    }.map{ it =>
+      VeColBatch(it.map(_.get()).toList)
+    }.toList.iterator
   }
 
   def toVeColBatchesViaRows(

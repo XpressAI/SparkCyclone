@@ -1,13 +1,13 @@
 package com.nec.colvector
 
-import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
-import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+
 import java.io._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -199,8 +199,11 @@ object VeColBatch {
                                                    metrics: VeProcessMetrics): VeColBatch = {
     VeColBatch(
       (0 until batch.numCols).map { i =>
-        batch.column(i).getArrowValueVector.toBytePointerColVector.toVeColVector
-      }
+        batch.column(i)
+          .getArrowValueVector
+          .toBytePointerColVector
+          .asyncToVeColVector
+      }.map(_.apply()).map(_.get())
     )
   }
 
