@@ -59,15 +59,15 @@ class VeSerializationStream(out: OutputStream)(implicit
         /** for reading out as byte array */
 
         cycloneMetrics.measureRunningTime {
-          dataOutputStream.writeInt(v.veColBatch.serializeToStreamSize)
+          dataOutputStream.writeInt(v.veColBatch.streamedSize)
           val startSize = dataOutputStream.size()
           v.veColBatch.toStream(dataOutputStream)
           dataOutputStream.flush()
           val endSize = dataOutputStream.size()
           val diff = endSize - startSize
           require(
-            diff == v.veColBatch.serializeToStreamSize,
-            s"Written ${diff} bytes, expected ${v.veColBatch.serializeToStreamSize}"
+            diff == v.veColBatch.streamedSize,
+            s"Written ${diff} bytes, expected ${v.veColBatch.streamedSize}"
           )
         }(cycloneMetrics.registerSerializationTime)
         this

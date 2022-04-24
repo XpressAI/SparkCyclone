@@ -25,19 +25,19 @@ final case class VeColVector private[colvector] (
     Seq(container) ++ buffers
   }
 
-  // TODO: remove toByteArrayColVector
-  def serialize(implicit process: VeProcess,
+  def toBytes(implicit process: VeProcess,
                 metrics: VeProcessMetrics): Array[Byte] = {
-    val array = metrics.measureRunningTime {
-      toBytePointerColVector.toByteArrayColVector.serialize
+    val bytes = metrics.measureRunningTime {
+      // toBytePointerColVector.toByteArrayColVector.serialize
+      toBytePointerColVector.toBytes
     }(metrics.registerSerializationTime)
 
     assert(
-      array.length == bufferSizes.sum,
-      "Resulting array should be same size as sum of all buffer sizes"
+      bytes.length == bufferSizes.sum,
+      "Resulting Array[Byte] should be same size as sum of all buffer sizes"
     )
 
-    array
+    bytes
   }
 
   def toStream(stream: OutputStream)(implicit process: VeProcess): Unit = {

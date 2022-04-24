@@ -23,7 +23,7 @@ final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
       output should be (Seq(array1, array2).map(_.toSeq))
     }
 
-    "correctly serialize and deserialize a batch of 2 columns through DataStream" in {
+    "correctly serialize and deserialize a batch of 2 columns through java.io.OutputStream and java.io.InputStream" in {
       val array1 = Array[Double](1, 2, 3)
       val array2 = Array[Double](-1, -2, -3)
       val batch1 = VeColBatch(Seq(array1, array2).map(_.toBytePointerColVector("_").toVeColVector))

@@ -3,6 +3,7 @@ package com.nec.colvector
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.ve.{VeKernelInfra, WithVeProcess}
+import scala.util.Random
 import java.io._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
@@ -13,45 +14,106 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
 
   def runByteArraySerializationTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec1 = input.toVeColVector
-    val serialized = colvec1.serialize
-    val colvec2 = colvec1.toUnitColVector.withData(serialized)
+    val bytes = colvec1.toBytes
+    val colvec2 = colvec1.toUnitColVector.withData(bytes)
 
     colvec1.container should not be (colvec2.container)
     colvec1.buffers should not be (colvec2.buffers)
-    colvec2.serialize.toSeq should be (serialized.toSeq)
+    colvec2.toBytes.toSeq should be (bytes.toSeq)
+
+    colvec2.toBytePointerColVector
+  }
+
+  def runDataStreamSerializationTest(input: BytePointerColVector): BytePointerColVector = {
+    val colvec1 = input.toVeColVector
+
+    val bostream = new ByteArrayOutputStream
+    val ostream = new DataOutputStream(bostream)
+    colvec1.toStream(ostream)
+
+    val bistream = new ByteArrayInputStream(bostream.toByteArray)
+    val istream = new DataInputStream(bistream)
+    val colvec2 = colvec1.toUnitColVector.withData(istream)
+
+    colvec1.container should not be (colvec2.container)
+    colvec1.buffers should not be (colvec2.buffers)
+    colvec2.toBytes.toSeq should be (colvec1.toBytes.toSeq)
 
     colvec2.toBytePointerColVector
   }
 
   "VeColVector" should {
-    "serialize to and deserialize from Array[Byte] (Int)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Int)" in {
       val input = InputSamples.seqOpt[Int]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Int] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
     }
 
-    "serialize to and deserialize from Array[Byte] (Short)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Short)" in {
       val input = InputSamples.seqOpt[Short]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Short] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
     }
 
-    "serialize to and deserialize from Array[Byte] (Long)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Long)" in {
       val input = InputSamples.seqOpt[Long]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Long] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
     }
 
-    "serialize to and deserialize from Array[Byte] (Float)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Float)" in {
       val input = InputSamples.seqOpt[Float]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Float] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
     }
 
-    "serialize to and deserialize from Array[Byte] (Double)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Double)" in {
       val input = InputSamples.seqOpt[Double]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[Double] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
     }
 
-    "serialize to and deserialize from Array[Byte] (String)" in {
+    "correctly serialize to and deserialize from Array[Byte] (String)" in {
       val input = InputSamples.seqOpt[String]
-      runByteArraySerializationTest(input.toBytePointerColVector("input")).toSeqOpt[String] should be (input)
+      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Int)" in {
+      val input = InputSamples.seqOpt[Int]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Short)" in {
+      val input = InputSamples.seqOpt[Short]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Long)" in {
+      val input = InputSamples.seqOpt[Long]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Float)" in {
+      val input = InputSamples.seqOpt[Float]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Double)" in {
+      val input = InputSamples.seqOpt[Double]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
+    }
+
+    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (String)" in {
+      val input = InputSamples.seqOpt[String]
+      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
+    }
+
+    "NOT crash if a double-free were called" in {
+      val colvec1 = InputSamples.seqOpt[Int].toBytePointerColVector("_").toVeColVector
+      val colvec2 = InputSamples.seqOpt[Double].toBytePointerColVector("_").toVeColVector
+      val colvec3 = InputSamples.seqOpt[String].toBytePointerColVector("_").toVeColVector
+
+      noException should be thrownBy {
+        // Should call at least twice
+        0.to(Random.nextInt(3) + 1).foreach(_ => colvec1.free)
+        0.to(Random.nextInt(3) + 1).foreach(_ => colvec2.free)
+        0.to(Random.nextInt(3) + 1).foreach(_ => colvec3.free)
+      }
     }
   }
 }

@@ -24,7 +24,7 @@ final class UnitColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
         input3.toBytePointerColVector("_"),
       )
 
-      val arrays = columns.map(_.toByteArrayColVector.serialize)
+      val arrays = columns.map(_.toBytes)
       val output = UnitColBatch(columns.map(_.toUnitColVector))
         .withData(arrays)
         .columns.map(_.toBytePointerColVector)

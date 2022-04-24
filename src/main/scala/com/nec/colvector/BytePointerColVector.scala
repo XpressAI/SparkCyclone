@@ -89,4 +89,15 @@ final case class BytePointerColVector private[colvector] (
       nbuffers
     )
   }
+
+  def toBytes: Array[Byte] = {
+    val bufferSizes = buffers.map(_.limit().toInt)
+    val bytes = Array.ofDim[Byte](bufferSizes.foldLeft(0)(_ + _))
+
+    (buffers, bufferSizes.scanLeft(0)(_ + _), bufferSizes).zipped.foreach {
+      case (buffer, start, size) => buffer.get(bytes, start, size)
+    }
+
+    bytes
+  }
 }

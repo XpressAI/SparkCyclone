@@ -102,28 +102,27 @@ final class ByteArrayColVectorUnitSpec extends AnyWordSpec {
       }
     }
 
-    "be constructable from empty column vectors" in {
+    "correctly perform value equality" in {
       implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
-      val name = s"${UUID.randomUUID}"
 
-      noException should be thrownBy { Seq.empty[Option[Int]].toBytePointerColVector(name).toByteArrayColVector }
-      noException should be thrownBy { Seq.empty[Option[Short]].toBytePointerColVector(name).toByteArrayColVector }
-      noException should be thrownBy { Seq.empty[Option[Long]].toBytePointerColVector(name).toByteArrayColVector }
-      noException should be thrownBy { Seq.empty[Option[Float]].toBytePointerColVector(name).toByteArrayColVector }
-      noException should be thrownBy { Seq.empty[Option[Double]].toBytePointerColVector(name).toByteArrayColVector }
-      noException should be thrownBy { Seq.empty[Option[String]].toBytePointerColVector(name).toByteArrayColVector }
+      val input1 = InputSamples.seqOpt[Int]
+      val input2 = InputSamples.seqOpt[Double]
+      val input3 = InputSamples.seqOpt[String]
+
+      input1.toBytePointerColVector("_").toByteArrayColVector === input1.toBytePointerColVector("_").toByteArrayColVector should be (true)
+      input2.toBytePointerColVector("_").toByteArrayColVector === input2.toBytePointerColVector("_").toByteArrayColVector should be (true)
+      input3.toBytePointerColVector("_").toByteArrayColVector === input3.toBytePointerColVector("_").toByteArrayColVector should be (true)
     }
 
-    "correctly serialize to Array[Byte]" in {
-      val buffers = Seq(
-        Random.nextString(Random.nextInt(100) + 10).getBytes,
-        Random.nextString(Random.nextInt(100) + 10).getBytes,
-        Random.nextString(Random.nextInt(100) + 10).getBytes,
-        Random.nextString(Random.nextInt(100) + 10).getBytes
-      )
-      val colvec = ByteArrayColVector(VeColVectorSource(s"${UUID.randomUUID}"), s"${UUID.randomUUID}", VeString, Random.nextInt(100), buffers)
+    "be constructable from empty column vectors" in {
+      implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
 
-      colvec.serialize.toSeq should be (buffers.foldLeft(Array.empty[Byte])(_ ++ _).toSeq)
+      noException should be thrownBy { Seq.empty[Option[Int]].toBytePointerColVector("_").toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Short]].toBytePointerColVector("_").toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Long]].toBytePointerColVector("_").toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Float]].toBytePointerColVector("_").toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[Double]].toBytePointerColVector("_").toByteArrayColVector }
+      noException should be thrownBy { Seq.empty[Option[String]].toBytePointerColVector("_").toByteArrayColVector }
     }
   }
 }
