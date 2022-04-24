@@ -1,10 +1,12 @@
 package com.nec.colvector
 
-import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.spark.agile.core.{VeString, VeType}
 import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import org.bytedeco.javacpp.BytePointer
 
 import java.io.{DataInputStream, DataOutputStream, InputStream}
+import java.nio.channels.Channels
 
 final case class UnitColVector private[colvector] (
   source: VeColVectorSource,
@@ -25,27 +27,23 @@ final case class UnitColVector private[colvector] (
 
   def withData(stream: InputStream)(implicit source: VeColVectorSource,
                                     process: VeProcess,
-                                    context: OriginalCallingContext): VeColVector = {
+                                    context: OriginalCallingContext): () => VeAsyncResult[VeColVector] = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
+
+    val channel = Channels.newChannel(stream)
     val buffers = bufferSizes.map { size =>
-      process.loadFromStream(stream, size)
+      val bp = new BytePointer(size.toLong)
+      val buf = bp.asBuffer()
+      var bytesRead = 0
+      while (bytesRead < size) {
+        bytesRead += channel.read(buf)
+      }
+      bp
     }
 
-    val container = VeColVector.buildContainer(
-      veType,
-      numItems,
-      buffers,
-      dataSize
-    )
-
-    VeColVector(
-      source,
-      name,
-      veType,
-      numItems,
-      buffers,
-      dataSize,
-      container
-    )
+    BytePointerColVector(
+      source, name, veType, numItems, buffers,
+    ).asyncToVeColVector
   }
 
   def withData(array: Array[Byte])(implicit source: VeColVectorSource,

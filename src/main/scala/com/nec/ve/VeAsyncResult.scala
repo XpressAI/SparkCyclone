@@ -44,4 +44,6 @@ object VeAsyncResult {
   def apply[T](handles: Seq[Long])(fn: () => T)(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[T] = {
     new VeAsyncResult[T](process, handles, fn)
   }
+
+  def empty()(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[Unit] = VeAsyncResult(Nil){ () =>}
 }

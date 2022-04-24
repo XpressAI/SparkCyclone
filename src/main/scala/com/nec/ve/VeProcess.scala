@@ -11,17 +11,10 @@ import org.bytedeco.javacpp._
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
-import java.io.{InputStream, OutputStream}
-import java.nio.channels.Channels
 import java.nio.file.Path
 import scala.reflect.ClassTag
 
 trait VeProcess {
-  def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-    context: OriginalCallingContext
-  ): Long
-  def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
-
   def validateVectors(list: Seq[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
@@ -186,12 +179,6 @@ object VeProcess {
     )(implicit context: OriginalCallingContext):  List[(K, List[VeColVector])] =
       f().executeGrouping(libraryReference, functionName, inputs, results)
 
-    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
-      f().writeToStream(outStream, bufPos, bufLen)
-
-    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-      context: OriginalCallingContext
-    ): Long = f().loadFromStream(inputStream, bytes)
 
     override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = f().putAsync(bytePointer, to)
 
@@ -655,34 +642,6 @@ object VeProcess {
 
       scope.close()
       o
-    }
-
-    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
-      if (bufLen > 1) {
-        val buf = new BytePointer(bufLen)
-        veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
-        val numWritten = Channels.newChannel(outStream).write(buf.asBuffer())
-        require(numWritten == bufLen, s"Written ${numWritten}, expected ${bufLen}")
-      }
-    }
-
-    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-      context: OriginalCallingContext
-    ): Long = {
-      val memoryLocation = allocate(bytes.toLong)
-      val bp = new BytePointer(bytes.toLong)
-      val buf = bp.asBuffer()
-
-      val channel = Channels.newChannel(inputStream)
-      var bytesRead = 0
-      while (bytesRead < bytes) {
-        bytesRead += channel.read(buf)
-      }
-      requireOk(
-        veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong),
-        s"Trying to write to memory location ${memoryLocation}; ${veProcessMetrics.checkTotalUsage()}"
-      )
-      memoryLocation
     }
 
     private def readAllVeColVectors(pointerVecs: List[(Long, CVector)])(implicit
