@@ -2,7 +2,6 @@ package com.nec.ve
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
@@ -692,7 +691,7 @@ object VeProcess {
             }
             bytePointer.close()
             veColVector
-          }
+          }(this, context)
       }
     }
 
