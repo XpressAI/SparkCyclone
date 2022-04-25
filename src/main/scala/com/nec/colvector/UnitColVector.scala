@@ -49,7 +49,7 @@ final case class UnitColVector private[colvector] (
   def withData(array: Array[Byte])(implicit source: VeColVectorSource,
                                    process: VeProcess,
                                    context: OriginalCallingContext,
-                                   metrics: VeProcessMetrics): VeColVector = {
+                                   metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     metrics.measureRunningTime {
       val buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {
         case (start, size) => array.slice(start, start + size)
@@ -61,7 +61,7 @@ final case class UnitColVector private[colvector] (
         veType,
         numItems,
         buffers
-      ).toVeColVector
+      ).asyncToVeColVector
     }(metrics.registerDeserializationTime)
   }
 
