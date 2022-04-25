@@ -1,4 +1,4 @@
-package com.nec.colvector
+package com.nec.cyclone
 
 import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
@@ -11,14 +11,6 @@ object InputSamples {
 
   def seqOpt[T: ClassTag]: Seq[Option[T]] = {
     seqOpt[T](Random.nextInt(100))
-  }
-
-  def array[T: ClassTag](size: Int): Array[T] = {
-    seq[T](size).toArray
-  }
-
-  def array[T: ClassTag]: Array[T] = {
-    seq[T](Random.nextInt(100)).toArray
   }
 
   def seq[T: ClassTag](size: Int): Seq[T] = {
@@ -40,7 +32,7 @@ object InputSamples {
       0.until(size).map(_ => Random.nextDouble * 100000).asInstanceOf[Seq[T]]
 
     } else if (klass == classOf[String]) {
-      0.until(size).map(_ => Random.nextString(Random.nextInt(30) + 1)).asInstanceOf[Seq[T]]
+      0.until(size).map(_ => Random.nextString(30)).asInstanceOf[Seq[T]]
 
     } else {
       throw new NotImplementedError(s"Type not supported: ${klass}")

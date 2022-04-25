@@ -1,0 +1,48 @@
+# AVEO Benchmark
+
+The AVEO Benchmark project is used to design and benchmark different strategies
+for moving data between the host and VE.
+
+## Developement
+
+### Writing the Benchmarks
+
+See `com.nec.cyclone.ExampleBenchmark` as an example for writing parameterized
+benchmarks.
+
+### Running the Benchmarks
+
+From the root project directory, run the command in the `sbt` console:
+
+```sh
+aveobench / clean; aveobench / jmh:run -bm avgt -tu ns
+```
+
+This will measure the average time of the code being run, in nanoseconds.  By
+default, 1 JVM process fork is made to run 5 warmup iterations followed by 5
+production iterations for every benchmark - all three parameters can be adjusted
+either on the code level with annotations or on the CLI invocation level with
+flags.  Information on all available flags for the `jmh` command can be found in:
+
+```sh
+aveobench / jmh:run -h
+```
+
+### Benchmark Visualization
+
+To generate reports for visualization, run `jmh` with the following flags:
+
+```sh
+-rff benchmark-out.json -rf json
+```
+
+The output JSON report will be found in the directory of this project.  This
+report can then be imported into [JMH Visualizer](https://jmh.morethan.io/) for
+visualization.  Note that reports are available in other formats such as CSV.
+
+## Resources
+
+* [JMH Visualizer](https://jmh.morethan.io/)
+* [JMH Tutorial](https://jenkov.com/tutorials/java-performance/jmh.html)
+* [JMH Benchmarking with Scala](https://www.gaurgaurav.com/java/scala-benchmarking-jmh/)
+* [JMH Benchmarking with Examples](https://javadevcentral.com/jmh-benchmark-with-examples)

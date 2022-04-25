@@ -624,3 +624,20 @@ lazy val `rddbench` = project
     ),
     version := "0.1"
   )
+
+
+/**
+ * *****************************************************************************
+ * AVEOBench Build Settings
+ * *****************************************************************************
+ */
+
+lazy val `aveobench` = project
+  .dependsOn(root)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    version := "0.1",
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-sql" % sparkVersion.value
+    )
+  )
