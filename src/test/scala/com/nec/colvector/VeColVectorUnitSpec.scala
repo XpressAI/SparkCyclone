@@ -2,11 +2,11 @@ package com.nec.colvector
 
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.{VeKernelInfra, WithVeProcess}
-import scala.util.Random
-import java.io._
+import com.nec.ve.WithVeProcess
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
+
+import scala.util.Random
 
 @VectorEngineTest
 final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
@@ -15,7 +15,7 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
   def runByteArraySerializationTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec1 = input.toVeColVector
     val bytes = colvec1.toBytes
-    val colvec2 = colvec1.toUnitColVector.withData(bytes)
+    val colvec2 = colvec1.toUnitColVector.withData(bytes).apply().get()
 
     colvec1.container should not be (colvec2.container)
     colvec1.buffers should not be (colvec2.buffers)
