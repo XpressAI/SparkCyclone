@@ -1,18 +1,14 @@
 package com.nec.spark.planning.plans
 
 import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
-import com.nec.colvector.{ByteArrayColVector, VeColVector}
+import com.nec.colvector.{ByteArrayColVector, VeColBatch, VeColVector}
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
-import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import scala.concurrent.duration.NANOSECONDS
 
 object VeFetchFromCachePlan {
   def apply(child: SparkPlan, serializer: CycloneCacheBase): VeFetchFromCachePlan =
@@ -35,6 +31,8 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       .toList
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
+
     child
       .executeColumnar()
       .map(cb => {

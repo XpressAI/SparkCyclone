@@ -19,19 +19,17 @@
  */
 package com.nec.spark.planning.plans
 
+import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-import scala.concurrent.duration.NANOSECONDS
 import scala.language.dynamics
 
 final case class VeProjectEvaluationPlan(
@@ -61,6 +59,8 @@ final case class VeProjectEvaluationPlan(
 
   import projectionContext._
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()

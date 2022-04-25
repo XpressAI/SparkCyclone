@@ -1,8 +1,8 @@
 package com.nec.spark.planning.aggregation
 
+import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
 import com.nec.spark.planning._
-import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
@@ -24,6 +24,8 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()

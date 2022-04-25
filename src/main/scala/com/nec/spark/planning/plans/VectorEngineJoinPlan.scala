@@ -1,9 +1,8 @@
 package com.nec.spark.planning.plans
 
+import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
 import com.nec.spark.planning._
-import com.nec.colvector.VeBatchOfBatches
-import com.nec.colvector.VeColBatch
 import com.nec.ve.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -27,6 +26,8 @@ case class VectorEngineJoinPlan(
   ) ++ batchMetrics("right before exchange")
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
+
     VeRDDOps
       .joinExchange(
         left = left.asInstanceOf[SupportsKeyedVeColBatch].executeVeColumnarKeyed().mapPartitions(b => collectBatchMetrics("left before exchange", b)),

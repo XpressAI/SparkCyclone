@@ -1,18 +1,14 @@
 package com.nec.spark.planning.aggregation
 
+import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.colvector.VeColBatch
-import com.nec.colvector.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
@@ -30,6 +26,8 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
