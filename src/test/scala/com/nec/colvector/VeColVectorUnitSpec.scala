@@ -24,24 +24,6 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
     colvec2.toBytePointerColVector
   }
 
-  def runDataStreamSerializationTest(input: BytePointerColVector): BytePointerColVector = {
-    val colvec1 = input.toVeColVector
-
-    val bostream = new ByteArrayOutputStream
-    val ostream = new DataOutputStream(bostream)
-    colvec1.toStream(ostream)
-
-    val bistream = new ByteArrayInputStream(bostream.toByteArray)
-    val istream = new DataInputStream(bistream)
-    val colvec2 = colvec1.toUnitColVector.withData(istream)
-
-    colvec1.container should not be (colvec2.container)
-    colvec1.buffers should not be (colvec2.buffers)
-    colvec2.toBytes.toSeq should be (colvec1.toBytes.toSeq)
-
-    colvec2.toBytePointerColVector
-  }
-
   "VeColVector" should {
     "correctly serialize to and deserialize from Array[Byte] (Int)" in {
       val input = InputSamples.seqOpt[Int]
@@ -71,36 +53,6 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
     "correctly serialize to and deserialize from Array[Byte] (String)" in {
       val input = InputSamples.seqOpt[String]
       runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Int)" in {
-      val input = InputSamples.seqOpt[Int]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Short)" in {
-      val input = InputSamples.seqOpt[Short]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Long)" in {
-      val input = InputSamples.seqOpt[Long]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Float)" in {
-      val input = InputSamples.seqOpt[Float]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (Double)" in {
-      val input = InputSamples.seqOpt[Double]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
-    }
-
-    "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream (String)" in {
-      val input = InputSamples.seqOpt[String]
-      runDataStreamSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
     }
 
     "NOT crash if a double-free were called" in {
