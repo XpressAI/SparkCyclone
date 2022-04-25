@@ -91,9 +91,13 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker, reg
       case Some(hist) => hist.update(timeTaken)
       case None => {
         val hist = new Histogram(new UniformReservoir())
-        metricRegistry.register(MetricRegistry.name("ve", s"veCallTimeHist_${functionName}"), hist)
-        perFunctionHistograms.put(functionName, hist)
-        hist.update(timeTaken)
+        try {
+          metricRegistry.register(MetricRegistry.name("ve", s"veCallTimeHist_${functionName}"), hist)
+          perFunctionHistograms.put(functionName, hist)
+          hist.update(timeTaken)
+        }catch{
+          case e: Exception => // NoOP
+        }
       }
     }
   }
