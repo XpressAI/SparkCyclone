@@ -77,6 +77,8 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   override def veFunction: VeFunction = exchangeFunction
 
   override def executeVeColumnarKeyed(): RDD[(Int, VeColBatch)] = {
+    initializeMetrics()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
