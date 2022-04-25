@@ -1,11 +1,12 @@
-package com.nec.ve
+package com.nec.cache
 
-import com.nec.colvector.WithTestAllocator
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cache.{ArrowEncodingSettings, ColumnarBatchToVeColBatch}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
+import com.nec.ve.WithVeProcess
 import com.nec.ve.VeProcess.OriginalCallingContext
+import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType
@@ -49,32 +50,30 @@ final class ColumnarBatchToVeColBatchTest
   import OriginalCallingContext.Automatic._
   import ColumnarBatchToVeColBatchTest._
 
-  "It works in row-based transformation" in {
-    WithTestAllocator { implicit alloc =>
-      val expectedCols: List[String] = ColumnarBatchToVeColBatch
-        .toVeColBatchesViaRows(
-          columnarBatches = columnarBatches.iterator,
-          arrowSchema = schema,
-          completeInSpark = false
-        )
-        .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
-        .toList
+  implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
 
-      assert(expectedCols == List("[1, 34, 9]", "[2, 3]"))
-    }
+  "It works in row-based transformation" in {
+    val expectedCols: List[String] = ColumnarBatchToVeColBatch
+      .toVeColBatchesViaRows(
+        columnarBatches = columnarBatches.iterator,
+        arrowSchema = schema,
+        completeInSpark = false
+      )
+      .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
+      .toList
+
+    assert(expectedCols == List("[1, 34, 9]", "[2, 3]"))
   }
 
   "It works in columnar-based transformation" in {
-    WithTestAllocator { implicit alloc =>
-      val gotCols: List[String] = ColumnarBatchToVeColBatch
-        .toVeColBatchesViaCols(
-          columnarBatches = columnarBatches.iterator,
-          arrowSchema = schema,
-          completeInSpark = false
-        )
-        .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
-        .toList
-      assert(gotCols == List("[1, 34, 9, 2, 3]"))
-    }
+    val gotCols: List[String] = ColumnarBatchToVeColBatch
+      .toVeColBatchesViaCols(
+        columnarBatches = columnarBatches.iterator,
+        arrowSchema = schema,
+        completeInSpark = false
+      )
+      .flatMap(_.columns.map(_.toBytePointerColVector.toArrowVector.toString))
+      .toList
+    assert(gotCols == List("[1, 34, 9, 2, 3]"))
   }
 }

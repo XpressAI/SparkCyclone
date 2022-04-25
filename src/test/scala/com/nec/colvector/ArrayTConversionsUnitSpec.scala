@@ -1,6 +1,5 @@
 package com.nec.colvector
 
-import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
@@ -10,7 +9,7 @@ import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class ArrayTConversionsUnitSpec extends AnyWordSpec {
+final class ArrayTConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Array[T]): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"
@@ -39,27 +38,27 @@ class ArrayTConversionsUnitSpec extends AnyWordSpec {
 
   "ArrayTConversions" should {
     "correctly convert Array[Int] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000)).toArray)
+      runConversionTest(InputSamples.array[Int])
     }
 
     "correctly convert Array[Short] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000).toShort).toArray)
+      runConversionTest(InputSamples.array[Short])
     }
 
     "correctly convert Array[Long] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextLong).toArray)
+      runConversionTest(InputSamples.array[Long])
     }
 
     "correctly convert Array[Float] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextFloat * 1000).toArray)
+      runConversionTest(InputSamples.array[Float])
     }
 
     "correctly convert Array[Double] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => Random.nextDouble * 1000).toArray)
+      runConversionTest(InputSamples.array[Double])
     }
 
     "correctly convert Array[String] to BytePointerColVector and back" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => Random.nextString(Random.nextInt(30))).toArray
+      val input = InputSamples.array[String]
       // Set one of the values to null
       if (input.size > 0) input(Random.nextInt(input.size)) = null
 

@@ -34,6 +34,14 @@ final case class ByteArrayColVector private[colvector] (
     s"[${getClass.getName}] Should not contain empty Array[Byte]'s"
   )
 
+  def === (other: ByteArrayColVector): Boolean = {
+    source == other.source &&
+      name == other.name &&
+      veType == other.veType &&
+      numItems == other.numItems &&
+      buffers.map(_.toSeq) == other.buffers.map(_.toSeq)
+  }
+
   def toSparkColumnVector: ColumnVector = {
     new VeColColumnarVector(Right(this), veType.toSparkType)
   }
@@ -60,16 +68,5 @@ final case class ByteArrayColVector private[colvector] (
                     context: VeProcess.OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
     toBytePointerColVector.toVeColVector
-  }
-
-  def serialize: Array[Byte] = {
-    val lens = buffers.map(_.size)
-    val offsets = lens.scanLeft(0)(_ + _)
-    val output = Array.ofDim[Byte](lens.foldLeft(0)(_ + _))
-
-    buffers.zip(offsets).foreach { case (buffer, offset) =>
-      System.arraycopy(buffer, 0, output, offset, buffer.length)
-    }
-    output
   }
 }

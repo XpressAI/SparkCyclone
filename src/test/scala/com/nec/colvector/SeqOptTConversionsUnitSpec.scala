@@ -1,16 +1,14 @@
 package com.nec.colvector
 
-import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
 import com.nec.util.FixedBitSet
 import scala.reflect.ClassTag
-import scala.util.Random
 import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class SeqOptTConversionsUnitSpec extends AnyWordSpec {
+final class SeqOptTConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Seq[Option[T]]): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"
@@ -38,27 +36,27 @@ class SeqOptTConversionsUnitSpec extends AnyWordSpec {
 
   "SeqOptTConversions" should {
     "correctly convert Seq[Option[Int]] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None))
+      runConversionTest(InputSamples.seqOpt[Int])
     }
 
     "correctly convert Seq[Option[Short]] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000).toShort) else None))
+      runConversionTest(InputSamples.seqOpt[Short])
     }
 
     "correctly convert Seq[Option[Long]] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None))
+      runConversionTest(InputSamples.seqOpt[Long])
     }
 
     "correctly convert Seq[Option[Float]] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextFloat * 1000) else None))
+      runConversionTest(InputSamples.seqOpt[Float])
     }
 
     "correctly convert Seq[Option[Double]] to BytePointerColVector and back" in {
-      runConversionTest(0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextDouble * 1000) else None))
+      runConversionTest(InputSamples.seqOpt[Double])
     }
 
     "correctly convert Seq[Option[String] to BytePointerColVector and back" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextString(Random.nextInt(30))) else None)
+      val input = InputSamples.seqOpt[String]
 
       val name = s"${UUID.randomUUID}"
       val source = VeColVectorSource(s"${UUID.randomUUID}")

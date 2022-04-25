@@ -32,6 +32,16 @@ final case class BytePointerColVector private[colvector] (
     }
   }
 
+  def toUnitColVector: UnitColVector = {
+    UnitColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      dataSize
+    )
+  }
+
   def toVeColVector(implicit source: VeColVectorSource,
                     process: VeProcess,
                     context: OriginalCallingContext,
@@ -78,5 +88,16 @@ final case class BytePointerColVector private[colvector] (
       numItems,
       nbuffers
     )
+  }
+
+  def toBytes: Array[Byte] = {
+    val bufferSizes = buffers.map(_.limit().toInt)
+    val bytes = Array.ofDim[Byte](bufferSizes.foldLeft(0)(_ + _))
+
+    (buffers, bufferSizes.scanLeft(0)(_ + _), bufferSizes).zipped.foreach {
+      case (buffer, start, size) => buffer.get(bytes, start, size)
+    }
+
+    bytes
   }
 }

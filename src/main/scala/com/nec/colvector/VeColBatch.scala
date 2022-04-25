@@ -60,9 +60,9 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns(idx).toBytePointerColVector.toArray[T]
   }
 
-  def serializeToStreamSize: Int = {
-    List(4, 4) ++ columns.flatMap { col =>
-      List(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
+  def streamedSize: Int = {
+    Seq(4, 4) ++ columns.flatMap { col =>
+      Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
     }
   }.sum
 
@@ -83,12 +83,12 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     }
   }
 
-  def serialize(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
+  def toBytes(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
     val stream = new ByteArrayOutputStream()
     val writer = new ObjectOutputStream(stream)
     writer.writeObject(toUnit)
     writer.writeInt(columns.size)
-    columns.foreach { vec => writer.writeObject(vec.serialize) }
+    columns.foreach { vec => writer.writeObject(vec.toBytes) }
     writer.flush
     writer.close
     stream.flush
@@ -179,10 +179,10 @@ object VeColBatch {
     VeColBatch(columns)
   }
 
-  def fromByteArray(data: Array[Byte])(implicit source: VeColVectorSource,
-                                       process: VeProcess,
-                                       context: OriginalCallingContext,
-                                       metrics: VeProcessMetrics): VeColBatch = {
+  def fromBytes(data: Array[Byte])(implicit source: VeColVectorSource,
+                                   process: VeProcess,
+                                   context: OriginalCallingContext,
+                                   metrics: VeProcessMetrics): VeColBatch = {
     val stream = new ByteArrayInputStream(data)
     val reader = new ObjectInputStream(stream)
     val batch = reader.readObject.asInstanceOf[UnitColBatch]

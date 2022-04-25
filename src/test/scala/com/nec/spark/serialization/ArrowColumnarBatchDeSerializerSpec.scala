@@ -1,13 +1,11 @@
 package com.nec.spark.serialization
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.colvector.ArrowVectorBuilders.withDirectIntVector
-import com.nec.colvector.WithTestAllocator
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializer.RichFieldVector
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.ValueInfo.{FloatStorage, IntStorage, StringStorage}
 import com.nec.spark.serialization.ArrowColumnarBatchDeSerializerSpec.{ImmutableColBatch, extractFieldVectors, genColB}
 import com.nec.util.ReflectionOps._
-import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.{FieldVector, Float8Vector, IntVector, VarCharVector}
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.scalacheck.{Arbitrary, Gen, Prop}
@@ -158,81 +156,63 @@ object ArrowColumnarBatchDeSerializerSpec {
 
 }
 final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers {
-  "Vectors can be merged" in {
-    WithTestAllocator { implicit alloc =>
-      withDirectIntVector(Seq(1, 2, 3)) { iv =>
-        withDirectIntVector(Seq(4, 5, 6)) { iv2 =>
-          iv.append(iv2)
-          val output = (0 until iv.getValueCount)
-            .map(i => if (iv.isNull(i)) None else Some(iv.get(i)))
-            .flatten
-            .toList
-          expect(output == List(1, 2, 3, 4, 5, 6))
-        }
-      }
-    }
-  }
+  implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
+
   "Iterator Vectors can be merged" in {
-    WithTestAllocator { implicit allocator =>
-      val p: Prop = Prop.forAll(genColB.filter(_.rowsCount > 5)) { immutableColBatch =>
+    val p: Prop = Prop.forAll(genColB.filter(_.rowsCount > 5)) { immutableColBatch =>
+      try {
+        val (splittedL, splittedR) = immutableColBatch.splitAt(immutableColBatch.rowsCount / 2)
+        val cbvL = splittedL.toColumnarBatch
+        val cbvR = splittedR.toColumnarBatch
+        val byteArrayL = ArrowColumnarBatchDeSerializer.serialize(cbvL.columnarBatch)
+        val byteArrayR = ArrowColumnarBatchDeSerializer.serialize(cbvR.columnarBatch)
+
         try {
-          val (splittedL, splittedR) = immutableColBatch.splitAt(immutableColBatch.rowsCount / 2)
-          val cbvL = splittedL.toColumnarBatch
-          val cbvR = splittedR.toColumnarBatch
-          val byteArrayL = ArrowColumnarBatchDeSerializer.serialize(cbvL.columnarBatch)
-          val byteArrayR = ArrowColumnarBatchDeSerializer.serialize(cbvR.columnarBatch)
-
-          try {
-            val colBatchWithReader =
-              ArrowColumnarBatchDeSerializer
-                .deserializeIterator(Iterator(byteArrayL, byteArrayR))
-                .get
-            val gotCols: List[FieldVector] = extractFieldVectors(colBatchWithReader.columnarBatch)
-            try {
-              val results = gotCols.zip(immutableColBatch.columns).map { case (fv, vi) =>
-                vi.parseFV(fv)
-              }
-
-              results == immutableColBatch.columns.map(_.values)
-            } finally {
-              colBatchWithReader.columnarBatch.close()
-              colBatchWithReader.arrowStreamReader.close(true)
-            }
-          } finally {
-            List(cbvL, cbvR).flatMap(_.arrowVectors).foreach(_.close())
-          }
-        } catch {
-          case e: Throwable =>
-//            e.printStackTrace()
-            throw e
-        }
-      }
-      check(p)
-    }
-
-  }
-
-  "It works" in {
-    WithTestAllocator { implicit allocator =>
-      val p: Prop = Prop.forAll(genColB) { immutableColBatch =>
-        val clz = immutableColBatch.toColumnarBatch
-        val cb = clz.columnarBatch
-        try {
-          val byteArray = ArrowColumnarBatchDeSerializer.serialize(cb)
-          val colBatchWithReader = ArrowColumnarBatchDeSerializer.deserialize(byteArray)
+          val colBatchWithReader =
+            ArrowColumnarBatchDeSerializer
+              .deserializeIterator(Iterator(byteArrayL, byteArrayR))
+              .get
           val gotCols: List[FieldVector] = extractFieldVectors(colBatchWithReader.columnarBatch)
           try {
-            val gotColsStr = gotCols.toString()
-            val avsStr = clz.arrowVectors.toString()
-            gotColsStr == avsStr
+            val results = gotCols.zip(immutableColBatch.columns).map { case (fv, vi) =>
+              vi.parseFV(fv)
+            }
+
+            results == immutableColBatch.columns.map(_.values)
           } finally {
             colBatchWithReader.columnarBatch.close()
             colBatchWithReader.arrowStreamReader.close(true)
           }
-        } finally clz.arrowVectors.foreach(_.close())
+        } finally {
+          List(cbvL, cbvR).flatMap(_.arrowVectors).foreach(_.close())
+        }
+      } catch {
+        case e: Throwable =>
+          throw e
       }
-      check(p)
     }
+    check(p)
+  }
+
+  "It works" in {
+    val p: Prop = Prop.forAll(genColB) { immutableColBatch =>
+      val clz = immutableColBatch.toColumnarBatch
+      val cb = clz.columnarBatch
+      try {
+        val byteArray = ArrowColumnarBatchDeSerializer.serialize(cb)
+        val colBatchWithReader = ArrowColumnarBatchDeSerializer.deserialize(byteArray)
+        val gotCols: List[FieldVector] = extractFieldVectors(colBatchWithReader.columnarBatch)
+        try {
+          val gotColsStr = gotCols.toString()
+          val avsStr = clz.arrowVectors.toString()
+          gotColsStr == avsStr
+        } finally {
+          colBatchWithReader.columnarBatch.close()
+          colBatchWithReader.arrowStreamReader.close(true)
+        }
+      } finally clz.arrowVectors.foreach(_.close())
+    }
+    check(p)
   }
 
   "Check one reduced case" in {
@@ -245,20 +225,19 @@ final class ArrowColumnarBatchDeSerializerSpec extends AnyFreeSpec with Checkers
         StringStorage(None)
       )
     )
-    WithTestAllocator { implicit alloc =>
-      val clz = icb.toColumnarBatch
-      val cb = clz.columnarBatch
-      val ba = ArrowColumnarBatchDeSerializer.serialize(cb)
-      val otherDb = ArrowColumnarBatchDeSerializer.deserialize(ba)
 
-      val gotCols = extractFieldVectors(otherDb.columnarBatch).toString()
-      val expt = clz.arrowVectors.toString()
+    val clz = icb.toColumnarBatch
+    val cb = clz.columnarBatch
+    val ba = ArrowColumnarBatchDeSerializer.serialize(cb)
+    val otherDb = ArrowColumnarBatchDeSerializer.deserialize(ba)
 
-      try expect(gotCols == expt)
-      finally {
-        otherDb.columnarBatch.close()
-        otherDb.arrowStreamReader.close(true)
-      }
+    val gotCols = extractFieldVectors(otherDb.columnarBatch).toString()
+    val expt = clz.arrowVectors.toString()
+
+    try expect(gotCols == expt)
+    finally {
+      otherDb.columnarBatch.close()
+      otherDb.arrowStreamReader.close(true)
     }
   }
 

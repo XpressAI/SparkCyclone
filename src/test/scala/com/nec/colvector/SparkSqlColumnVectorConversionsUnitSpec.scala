@@ -4,7 +4,6 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeScalarType
-import com.nec.colvector.VeColVectorSource
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID
@@ -15,7 +14,7 @@ import org.apache.spark.sql.vectorized.ColumnVector
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
+final class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T : ClassTag](input: Seq[Option[T]], column: ColumnVector): Unit = {
     implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
     val name = s"${UUID.randomUUID}"
@@ -51,7 +50,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
 
   "SparkSqlColumnVectorConversions" should {
     "correctly convert IntegerType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None)
+      val input = InputSamples.seqOpt[Int]
       val column = newColumnVector(input.size, IntegerType)
 
       input.zipWithIndex.foreach {
@@ -63,7 +62,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert ShortType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000).toShort) else None)
+      val input = InputSamples.seqOpt[Short]
       val column = newColumnVector(input.size, ShortType)
 
       input.zipWithIndex.foreach {
@@ -75,7 +74,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert LongType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None)
+      val input = InputSamples.seqOpt[Long]
       val column = newColumnVector(input.size, LongType)
 
       input.zipWithIndex.foreach {
@@ -87,7 +86,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert FloatType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextFloat * 1000) else None)
+      val input = InputSamples.seqOpt[Float]
       val column = newColumnVector(input.size, FloatType)
 
       input.zipWithIndex.foreach {
@@ -99,7 +98,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert DoubleType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextDouble * 1000) else None)
+      val input = InputSamples.seqOpt[Double]
       val column = newColumnVector(input.size, DoubleType)
 
       input.zipWithIndex.foreach {
@@ -111,7 +110,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert DateType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextInt(10000)) else None)
+      val input = InputSamples.seqOpt[Int]
       // The only difference between DateType and IntegerType ColumnVector is the type label
       val column = newColumnVector(input.size, DateType)
 
@@ -124,7 +123,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert TimestampType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextLong) else None)
+      val input = InputSamples.seqOpt[Long]
       val column = newColumnVector(input.size, TimestampType)
 
       input.zipWithIndex.foreach {
@@ -136,7 +135,7 @@ class SparkSqlColumnVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert StringType ColumnVector to BytePointerColVector" in {
-      val input = 0.until(Random.nextInt(100)).map(_ => if (Math.random < 0.5) Some(Random.nextString(Random.nextInt(30))) else None)
+      val input = InputSamples.seqOpt[String]
       val column = newColumnVector(input.size, StringType)
 
       input.zipWithIndex.foreach {

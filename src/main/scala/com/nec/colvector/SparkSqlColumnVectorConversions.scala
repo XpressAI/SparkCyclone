@@ -6,7 +6,7 @@ import com.nec.util.ReflectionOps._
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, ColumnVector}
 import org.bytedeco.javacpp._
 
 object SparkSqlColumnVectorConversions {
@@ -162,6 +162,12 @@ object SparkSqlColumnVectorConversions {
       PartialFunction.condOpt(vector.readPrivate.accessor.vector.obj) {
         case x: FieldVector => x
       }
+    }
+  }
+
+  implicit class ExtendedColumnarBatch(batch: ColumnarBatch) {
+    def columns: Seq[ColumnVector] = {
+      (0 until batch.numCols).map(batch.column(_))
     }
   }
 }
