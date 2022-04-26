@@ -1,10 +1,10 @@
 package com.nec.spark.planning.plans
 
 import com.nec.cache.{ArrowEncodingSettings, ColumnarBatchToVeColBatch, CycloneCacheBase, DualMode}
+import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.plans.SparkToVectorEnginePlan.ConvertColumnarToColumnar
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
-import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -38,6 +38,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
+
+    initializeMetrics()
 
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.

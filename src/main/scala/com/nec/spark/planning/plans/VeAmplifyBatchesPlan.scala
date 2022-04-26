@@ -1,10 +1,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.cache.ArrowEncodingSettings
+import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.colvector.VeColBatch
-import com.nec.colvector.VeBatchOfBatches
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -28,6 +27,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+    initializeMetrics()
 
     child
       .asInstanceOf[SupportsVeColBatch]

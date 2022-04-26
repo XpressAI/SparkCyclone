@@ -2,12 +2,11 @@ package com.nec.spark.planning
 
 import com.nec.colvector.VeColBatch
 import org.apache.spark.SparkContext
-
-import scala.language.implicitConversions
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.duration.NANOSECONDS
+import scala.language.implicitConversions
 
 trait PlanMetrics {
   def BATCH = "batch"
@@ -19,6 +18,12 @@ trait PlanMetrics {
 
   protected def sparkContext: SparkContext
   def longMetric(name: String): SQLMetric
+  def metrics: Map[String, SQLMetric]
+
+  def initializeMetrics(): Unit = {
+    // Access metrics to ensure they are initialized
+    metrics.size
+  }
 
   def invocationMetrics(metricPrefix: String) = Map(
     s"${metricPrefix}Exec" -> SQLMetrics.createTimingMetric(sparkContext, s"${metricPrefix} execution time"),

@@ -9,7 +9,6 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -24,12 +23,16 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
 
 
   override def doExecute(): RDD[InternalRow] = {
+    initializeMetrics()
+
     doExecuteColumnar().mapPartitions(columnarBatchIterator => {
       columnarBatchIterator.flatMap(mapBatchToRow)
     })
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    initializeMetrics()
+
     child
       .asInstanceOf[SupportsVeColBatch]
       .executeVeColumnar()
