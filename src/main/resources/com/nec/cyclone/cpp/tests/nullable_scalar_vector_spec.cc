@@ -383,4 +383,36 @@ namespace cyclone::tests {
 
     CHECK(result == expected);
   }
+
+  TEST_CASE("group_indexes_on_subset short-circuit works"){
+    std::vector<long> grouping_1 = { 1, 2, 3, 4, 5 };
+    auto *input1 = new NullableScalarVec(grouping_1);
+
+    size_t count = grouping_1.size();
+    size_t start_arr[5] = {0, 1, 2, 3, 4};
+    size_t start_group_pos[6] = {0, 1, 2, 3, 4, 5};
+
+    size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+    size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+    size_t a_pos_idxs_size;
+
+    input1->group_indexes_on_subset(start_arr, start_group_pos, 6, a_arr, a_pos_idxs, a_pos_idxs_size);
+
+    CHECK(a_pos_idxs_size == 6);
+    CHECK(a_arr[0] == start_arr[0]);
+    CHECK(a_arr[1] == start_arr[1]);
+    CHECK(a_arr[2] == start_arr[2]);
+    CHECK(a_arr[3] == start_arr[3]);
+    CHECK(a_arr[4] == start_arr[4]);
+
+    CHECK(a_pos_idxs[0] == start_group_pos[0]);
+    CHECK(a_pos_idxs[1] == start_group_pos[1]);
+    CHECK(a_pos_idxs[2] == start_group_pos[2]);
+    CHECK(a_pos_idxs[3] == start_group_pos[3]);
+    CHECK(a_pos_idxs[4] == start_group_pos[4]);
+    CHECK(a_pos_idxs[5] == start_group_pos[5]);
+
+    free(a_arr);
+    free(a_pos_idxs);
+  }
 }
