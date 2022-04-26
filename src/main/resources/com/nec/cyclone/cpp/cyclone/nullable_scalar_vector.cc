@@ -391,8 +391,10 @@ template <typename T>
 void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, size_t* group_pos, size_t group_pos_size, size_t* idx_arr, size_t* out_group_pos, size_t &out_group_pos_size) const {
   // Shortcut for case when every element would end up in its own group anyway
   if(group_pos_size > count){
-    idx_arr = iter_order_arr;
-    out_group_pos = group_pos;
+    auto start = group_pos[0];
+    auto count = group_pos[group_pos_size - 1] - start;
+    memcpy(&idx_arr[start], &iter_order_arr[start], sizeof(size_t) * count);
+    memcpy(out_group_pos, group_pos, sizeof(size_t) * group_pos_size);
     out_group_pos_size = group_pos_size;
     return;
   }
