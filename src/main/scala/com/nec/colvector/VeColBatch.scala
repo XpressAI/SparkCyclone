@@ -1,14 +1,15 @@
 package com.nec.colvector
 
-import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
-import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
+
 import java.io._
+import java.nio.channels.Channels
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.util.Try
@@ -68,9 +69,12 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
 
   def toStream(stream: DataOutputStream)(implicit process: VeProcess,
                                          metrics: VeProcessMetrics): Unit = {
+    val hostBuffersAsync = columns.map(_.toBytePointersAsync())
+    val channel = Channels.newChannel(stream)
+
     stream.writeInt(VeColBatch.ColLengthsId)
     stream.writeInt(columns.size)
-    columns.foreach { vec =>
+    columns.zip(hostBuffersAsync).foreach { case (vec, buffers) =>
       stream.writeInt(VeColBatch.DescLengthId)
       stream.writeInt(-1)
       stream.writeInt(VeColBatch.DescDataId)
@@ -79,7 +83,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
       // no bytes length as it's a stream here
       stream.writeInt(-1)
       stream.writeInt(VeColBatch.PayloadBytesId)
-      vec.toStream(stream)
+      buffers.map(_.get()).foreach{ bytePointer =>
+        val numWritten = channel.write(bytePointer.asBuffer())
+        require(numWritten == bytePointer.limit(), s"Written ${numWritten}, expected ${bytePointer.limit()}")
+      }
     }
   }
 
@@ -174,7 +181,7 @@ object VeColBatch {
             e
           )
       }
-    }
+    }.map(_.apply()).map(_.get())
 
     VeColBatch(columns)
   }
@@ -199,8 +206,11 @@ object VeColBatch {
                                                    metrics: VeProcessMetrics): VeColBatch = {
     VeColBatch(
       (0 until batch.numCols).map { i =>
-        batch.column(i).getArrowValueVector.toBytePointerColVector.toVeColVector
-      }
+        batch.column(i)
+          .getArrowValueVector
+          .toBytePointerColVector
+          .asyncToVeColVector
+      }.map(_.apply()).map(_.get())
     )
   }
 

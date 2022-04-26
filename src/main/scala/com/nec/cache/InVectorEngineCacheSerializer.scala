@@ -1,10 +1,9 @@
 package com.nec.cache
 
-import com.nec.colvector.BytePointerColVector
-import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.ArrowVectorConversions._
-import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.VeColBatch
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
@@ -95,13 +94,15 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
             import OriginalCallingContext.Automatic._
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
-                acv.toBytePointerColVector.toVeColVector
+                acv.toBytePointerColVector.asyncToVeColVector
               case None =>
                 columnarBatch.column(i)
                   .toBytePointerColVector(schema(i).name, columnarBatch.numRows)
-                  .toVeColVector
+                  .asyncToVeColVector
             }
           }
+          .map(_.apply())
+          .map(_.get())
           .toList
           .map(byteArrayColVector => Left(byteArrayColVector))
       )

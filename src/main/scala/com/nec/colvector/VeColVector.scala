@@ -1,13 +1,13 @@
 package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
+import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.veoffload.global.veo
 import org.slf4j.LoggerFactory
-import java.io.OutputStream
 
 final case class VeColVector private[colvector] (
   source: VeColVectorSource,
@@ -40,9 +40,12 @@ final case class VeColVector private[colvector] (
     bytes
   }
 
-  def toStream(stream: OutputStream)(implicit process: VeProcess): Unit = {
-    buffers.zip(bufferSizes).foreach { case (start, size) =>
-      process.writeToStream(stream, start, size)
+  def toBytePointersAsync()(implicit process: VeProcess): Seq[VeAsyncResult[BytePointer]] = {
+    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+    buffers.zip(bufferSizes).map { case (start, size) =>
+      val bp = new BytePointer(size)
+      val handle = process.getAsync(bp, start, size)
+      VeAsyncResult(handle){() => bp}
     }
   }
 
@@ -53,7 +56,10 @@ final case class VeColVector private[colvector] (
   def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
       val ptr = new BytePointer(size)
-      process.get(location, ptr, size)
+      val handle = process.getAsync(ptr, location, size)
+      (ptr, handle)
+    }.map{ case (ptr, handle) =>
+      require(process.waitResult(handle)(null)._1 == veo.VEO_COMMAND_OK)
       ptr
     }
 
@@ -86,52 +92,6 @@ final case class VeColVector private[colvector] (
       require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
       allocations.foreach(process.free)
       memoryFreed = true
-    }
-  }
-}
-
-object VeColVector {
-  def buildContainer(veType: VeType,
-                     count: Int,
-                     buffers: Seq[Long],
-                     dataSizeO: Option[Int])
-                    (implicit source: VeColVectorSource,
-                     process: VeProcess,
-                     context: OriginalCallingContext): Long = {
-    veType match {
-      case stype: VeScalarType =>
-        require(buffers.size == 2, s"Exactly 2 VE buffer pointers are required to construct container for ${stype}")
-
-        // Declare the struct in host memory
-        // The layout of `nullable_T_vector` is the same for all T = primitive
-        val ptr = new BytePointer(stype.containerSize.toLong)
-
-        // Assign the data, validity, and count values
-        ptr.putLong(0, buffers(0))
-        ptr.putLong(8, buffers(1))
-        ptr.putInt(16, count.abs)
-
-        // Copy the struct to VE and return the VE pointer
-        process.putPointer(ptr)
-
-      case VeString =>
-        require(buffers.size == 4, s"Exactly 4 VE buffer pointers are required to construct container for ${VeString}")
-        require(dataSizeO.nonEmpty, s"dataSize is required to construct container for ${VeString}")
-        val Some(dataSize) = dataSizeO
-
-        // Declare the struct in host memory
-        val ptr = new BytePointer(VeString.containerSize.toLong)
-
-        // Assign the data, validity, and count values
-        ptr.putLong(0,  buffers(0))
-        ptr.putLong(8,  buffers(1))
-        ptr.putLong(16, buffers(2))
-        ptr.putLong(24, buffers(3))
-        ptr.putInt(32,  dataSize.abs)
-        ptr.putInt(36,  count.abs)
-
-        // Copy the struct to VE and return the VE pointer
-        process.putPointer(ptr)
     }
   }
 }

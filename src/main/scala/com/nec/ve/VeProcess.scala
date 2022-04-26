@@ -1,39 +1,59 @@
 package com.nec.ve
 
+import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
-import com.nec.colvector.VeBatchOfBatches
-import com.nec.colvector.{VeColVector, VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp._
 import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.veo_proc_handle
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
-import java.io.{InputStream, OutputStream}
-import java.nio.channels.Channels
 import java.nio.file.Path
 import scala.reflect.ClassTag
 
 trait VeProcess {
-  def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-    context: OriginalCallingContext
-  ): Long
-  def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit
-
-  final def readAsPointer(containerLocation: Long, containerSize: Int): BytePointer = {
-    val bp = new BytePointer(containerSize)
-    get(containerLocation, bp, containerSize)
-    bp
-  }
-
   def validateVectors(list: Seq[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
   def allocate(size: Long)(implicit context: OriginalCallingContext): Long
   def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
-  def get(from: Long, to: BytePointer, size: Long): Unit
   def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
+
+  /**
+   * Asynchronously write a pointer to the given target location
+   * @param source input
+   * @param to target
+   * @param context original calling context
+   * @return Handle for checking the operation status or veo.VEO_REQUEST_ID_INVALID if the request failed
+   */
+  def putAsync(source: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long
+
+  /**
+   * Asynchronously read from a pointer into the given destination
+   * @param destination target (must have at least "size" capacity)
+   * @param source source pointer on the VE
+   * @param size count of bytes to read
+   * @return Handle for checking the operation status or veo.VEO_REQUEST_ID_INVALID if the request failed
+   */
+  def getAsync(destination: BytePointer, source: Long, size: Long): Long
+
+  /**
+   * Check the result of an async operation without waiting for it to finish
+   * @param handle handle for checking operation status
+   * @param context original calling context
+   * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
+   */
+  def peekResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+
+  /**
+   * Wait for the result of an async operation
+   * @param handle handle for checking operation status
+   * @param context original calling context
+   * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
+   */
+  def waitResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+
 
   /** Return a single dataset */
   def execute(
@@ -113,8 +133,6 @@ object VeProcess {
     ): Long =
       f().putPointer(bytePointer)
 
-    override def get(from: Long, to: BytePointer, size: Long): Unit = f().get(from, to, size)
-
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit =
       f().free(memoryLocation)
 
@@ -160,16 +178,20 @@ object VeProcess {
     )(implicit context: OriginalCallingContext):  List[(K, List[VeColVector])] =
       f().executeGrouping(libraryReference, functionName, inputs, results)
 
-    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit =
-      f().writeToStream(outStream, bufPos, bufLen)
 
-    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-      context: OriginalCallingContext
-    ): Long = f().loadFromStream(inputStream, bytes)
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = f().putAsync(bytePointer, to)
+
+    override def getAsync(destination: BytePointer, source: Long, size: Long): Long = f().getAsync(destination, source, size)
+
+    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().peekResult(handle)
+
+    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().waitResult(handle)
+
   }
 
   final case class WrappingVeo(
     veo_proc_handle: veo_proc_handle,
+    veo_thr_ctxt: veo_thr_ctxt,
     source: VeColVectorSource,
     veProcessMetrics: VeProcessMetrics
   ) extends VeProcess
@@ -207,9 +229,6 @@ object VeProcess {
       )
       memoryLocation
     }
-
-    override def get(from: Long, to: BytePointer, size: Long): Unit =
-      veo.veo_read_mem(veo_proc_handle, to, from, size)
 
     override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
@@ -277,39 +296,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outPointers.zip(results).map {
-        case (outPointer, CScalarVector(name, scalar)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(16),
-            name = name,
-            veType = scalar,
-            container = outContainerLocation,
-            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-            dataSize = None
-          ).register()
-        case (outPointer, CVarChar(name)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(36),
-            name = name,
-            dataSize = Some(bytePointer.getInt(32)),
-            veType = VeString,
-            container = outContainerLocation,
-            buffers = Seq(
-              bytePointer.getLong(0),
-              bytePointer.getLong(8),
-              bytePointer.getLong(16),
-              bytePointer.getLong(24)
-            )
-          ).register()
-      }
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
@@ -393,47 +380,9 @@ object VeProcess {
       )
 
       (0 until gotCounts).toList.map { set =>
-        set -> outPointers.zip(results).map {
-          case (outPointer, CVarChar(name)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
-
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(36),
-              name = name,
-              veType = VeString,
-              container = outContainerLocation,
-              buffers = Seq(
-                bytePointer.getLong(0),
-                bytePointer.getLong(8),
-                bytePointer.getLong(16),
-                bytePointer.getLong(24)
-              ),
-              dataSize = Some(bytePointer.getInt(32))
-            ).register()
-          case (outPointer, CScalarVector(name, r)) =>
-            val outContainerLocation = outPointer.get(set)
-            require(
-              outContainerLocation > 0,
-              s"Expected container location to be > 0, got ${outContainerLocation} for set ${set}"
-            )
-            val bytePointer = readAsPointer(outContainerLocation, r.containerSize)
-
-            VeColVector(
-              source = source,
-              numItems = bytePointer.getInt(16),
-              name = name,
-              veType = r,
-              container = outContainerLocation,
-              buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-              dataSize = None
-            ).register()
-        }
+        set -> readAllVeColVectorsAsync(outPointers.map(_.get(set)).zip(results))
+      }.map{ case (set, asyncResult) =>
+        set -> asyncResult.map(_.get())
       }
     }
 
@@ -497,39 +446,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outPointers.zip(results).map {
-        case (outPointer, CScalarVector(name, scalar)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(16),
-            name = name,
-            veType = scalar,
-            container = outContainerLocation,
-            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-            dataSize = None
-          ).register()
-        case (outPointer, CVarChar(name)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(36),
-            name = name,
-            dataSize = Some(bytePointer.getInt(32)),
-            veType = VeString,
-            container = outContainerLocation,
-            buffers = Seq(
-              bytePointer.getLong(0),
-              bytePointer.getLong(8),
-              bytePointer.getLong(16),
-              bytePointer.getLong(24)
-            )
-          ).register()
-      }
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def executeJoin(
@@ -621,39 +538,7 @@ object VeProcess {
       )
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      outPointers.zip(results).map {
-        case (outPointer, CScalarVector(name, scalar)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(16),
-            name = name,
-            veType = scalar,
-            container = outContainerLocation,
-            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-            dataSize = None
-          ).register()
-        case (outPointer, CVarChar(name)) =>
-          val outContainerLocation = outPointer.get()
-          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(36),
-            name = name,
-            dataSize = Some(bytePointer.getInt(32)),
-            veType = VeString,
-            container = outContainerLocation,
-            buffers = Seq(
-              bytePointer.getLong(0),
-              bytePointer.getLong(8),
-              bytePointer.getLong(16),
-              bytePointer.getLong(24)
-            )
-          ).register()
-      }
+      readAllVeColVectors(outPointers.map(_.get()).zip(results))
     }
 
     override def executeGrouping[K: ClassTag](
@@ -729,22 +614,27 @@ object VeProcess {
 
       require(fnCallResult.get() == 0L, s"Expected 0, got ${fnCallResult.get()} back instead.")
 
-      val groups = VeColBatch(List(readVeColVector(groupsOutPointer.get(), results.head)))
+      val groups = VeColBatch(readAllVeColVectors(List((groupsOutPointer.get(), results.head))))
       val numGroups = groups.numRows
       val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
 
       val scope = new PointerScope()
 
-      val actualOutPointers = outPointers.map(p => new LongPointer(readAsPointer(p.get(), 8 * numGroups)))
+      val actualOutPointers = outPointers.map(_.get()).map { containerLocation =>
+          val size = 8 * numGroups;
+          val dst = new BytePointer(size)
+          val handle = getAsync(dst, containerLocation, size)
+          (dst, handle)
+        }.map { case (dst, handle) =>
+          require(waitResult(handle)._1 == veo.VEO_COMMAND_OK)
+          new LongPointer(dst)
+      }
 
       val o = (0 until numGroups).map { (i) =>
         val k: K = groupKeys(i)
-
-        k -> actualOutPointers.zip(results).map { case (outPointer, vector) =>
-          val outContainerLocation = outPointer.get(i)
-          val r = readVeColVector(outContainerLocation, vector)
-          r
-        }
+        k -> readAllVeColVectorsAsync(actualOutPointers.map(_.get(i)).zip(results))
+      }.map{case (k, asyncResult) =>
+        k -> asyncResult.map(_.get())
       }.toList
 
       outPointers.foreach(p => veo.veo_free_mem(veo_proc_handle, p.get()))
@@ -753,68 +643,83 @@ object VeProcess {
       o
     }
 
-    override def writeToStream(outStream: OutputStream, bufPos: Long, bufLen: Int): Unit = {
-      if (bufLen > 1) {
-        val buf = new BytePointer(bufLen)
-        veo.veo_read_mem(veo_proc_handle, buf, bufPos, bufLen)
-        val numWritten = Channels.newChannel(outStream).write(buf.asBuffer())
-        require(numWritten == bufLen, s"Written ${numWritten}, expected ${bufLen}")
+    private def readAllVeColVectors(pointerVecs: List[(Long, CVector)])(implicit
+                                                                             context: OriginalCallingContext
+    ): List[VeColVector] = {
+      readAllVeColVectorsAsync(pointerVecs).map(_.get())
+    }
+
+    private def readAllVeColVectorsAsync(pointerVecs: List[(Long, CVector)])(implicit
+                                                                          context: OriginalCallingContext
+    ): List[VeAsyncResult[VeColVector]] = {
+      pointerVecs.map {
+        case (outContainerLocation, cvec) =>
+          require(
+            outContainerLocation > 0,
+            s"Expected container location to be > 0, got ${outContainerLocation}"
+          )
+
+          val bytePointer = new BytePointer(cvec.veType.containerSize)
+          val handle = getAsync(bytePointer, outContainerLocation, cvec.veType.containerSize)
+          VeAsyncResult(handle){ () =>
+            val veColVector = cvec match {
+              case CVarChar(name) =>
+                VeColVector(
+                  source = source,
+                  numItems = bytePointer.getInt(36),
+                  name = name,
+                  veType = VeString,
+                  container = outContainerLocation,
+                  buffers = Seq(
+                    bytePointer.getLong(0),
+                    bytePointer.getLong(8),
+                    bytePointer.getLong(16),
+                    bytePointer.getLong(24)
+                  ),
+                  dataSize = Some(bytePointer.getInt(32))
+                ).register()
+              case CScalarVector(name, r) =>
+                VeColVector(
+                  source = source,
+                  numItems = bytePointer.getInt(16),
+                  name = name,
+                  veType = r,
+                  container = outContainerLocation,
+                  buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
+                  dataSize = None
+                ).register()
+            }
+            bytePointer.close()
+            veColVector
+          }(this, context)
       }
     }
 
-    override def loadFromStream(inputStream: InputStream, bytes: Int)(implicit
-      context: OriginalCallingContext
-    ): Long = {
-      val memoryLocation = allocate(bytes.toLong)
-      val bp = new BytePointer(bytes.toLong)
-      val buf = bp.asBuffer()
-
-      val channel = Channels.newChannel(inputStream)
-      var bytesRead = 0
-      while (bytesRead < bytes) {
-        bytesRead += channel.read(buf)
-      }
-      requireOk(
-        veo.veo_write_mem(veo_proc_handle, memoryLocation, bp, bytes.toLong),
-        s"Trying to write to memory location ${memoryLocation}; ${veProcessMetrics.checkTotalUsage()}"
-      )
-      memoryLocation
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = {
+      veo.veo_async_write_mem(veo_thr_ctxt, to, bytePointer, bytePointer.limit())
     }
 
-    private def readVeColVector(outContainerLocation: Long, cVector: CVector)(implicit originalCallingContext: OriginalCallingContext): VeColVector = {
-      cVector match {
-        case CScalarVector(name, scalar) =>
-          val bytePointer = readAsPointer(outContainerLocation, scalar.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(16),
-            name = name,
-            veType = scalar,
-            container = outContainerLocation,
-            buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-            dataSize = None
-          ).register()
-        case CVarChar(name) =>
-          val bytePointer = readAsPointer(outContainerLocation, VeString.containerSize)
-
-          VeColVector(
-            source = source,
-            numItems = bytePointer.getInt(36),
-            name = name,
-            dataSize = Some(bytePointer.getInt(32)),
-            veType = VeString,
-            container = outContainerLocation,
-            buffers = Seq(
-              bytePointer.getLong(0),
-              bytePointer.getLong(8),
-              bytePointer.getLong(16),
-              bytePointer.getLong(24)
-            )
-          ).register()
-      }
+    override def getAsync(destination: BytePointer, source: Long, size: Long): Long = {
+      veo.veo_async_read_mem(veo_thr_ctxt, destination, source, size)
     }
 
+    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+      val retp = new LongPointer(0)
+      val res = veo.veo_call_peek_result(veo_thr_ctxt, handle, retp)
+      val retVal = retp.get()
+      requireOk(retVal.toInt)
+      retp.close()
+      (res, retVal)
+    }
+
+    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+      val retp = new LongPointer(0)
+      val res = veo.veo_call_wait_result(veo_thr_ctxt, handle, retp)
+      val retVal = retp.get()
+      requireOk(retVal.toInt)
+      retp.close()
+      (res, retVal)
+    }
   }
 
   object Requires {

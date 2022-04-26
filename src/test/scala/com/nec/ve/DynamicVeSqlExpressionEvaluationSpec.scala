@@ -44,6 +44,7 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
 
   override protected def beforeAll(): Unit = {
     SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
+    SparkCycloneExecutorPlugin._veo_thr_ctxt = veo.veo_context_open(SparkCycloneExecutorPlugin._veo_proc)
     super.beforeAll()
   }
 
