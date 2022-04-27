@@ -83,7 +83,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
       // no bytes length as it's a stream here
       stream.writeInt(-1)
       stream.writeInt(VeColBatch.PayloadBytesId)
-      buffers.map(_.get()).foreach{ bytePointer =>
+      buffers.map(_.get()).filterNot(_.limit() == 0).foreach{ bytePointer =>
         val numWritten = channel.write(bytePointer.asBuffer())
         require(numWritten == bytePointer.limit(), s"Written ${numWritten}, expected ${bytePointer.limit()}")
       }
