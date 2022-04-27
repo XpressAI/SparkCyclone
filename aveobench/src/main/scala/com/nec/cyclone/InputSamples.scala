@@ -1,5 +1,6 @@
 package com.nec.cyclone
 
+import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
@@ -36,6 +37,15 @@ object InputSamples {
 
     } else {
       throw new NotImplementedError(s"Type not supported: ${klass}")
+    }
+  }
+
+  def bpcv(typ: String, ncolumns: Int, size: Int)(implicit source: VeColVectorSource): Seq[BytePointerColVector] = {
+    typ match {
+      case "Short"  => 0.until(ncolumns).map(_ => InputSamples.seqOpt[Short](size).toBytePointerColVector("_"))
+      case "Double" => 0.until(ncolumns).map(_ => InputSamples.seqOpt[Double](size).toBytePointerColVector("_"))
+      case "String" => 0.until(ncolumns).map(_ => InputSamples.seqOpt[String](size).toBytePointerColVector("_"))
+      case _        => 0.until(ncolumns).map(_ => InputSamples.seqOpt[Int](size).toBytePointerColVector("_"))
     }
   }
 }
