@@ -1,5 +1,7 @@
 package com.nec.cyclone
 
+import com.nec.cyclone.colvector.BytePointerColVectorOps._
+import com.nec.cyclone.colvector.CompressedBytePointerColVector
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
@@ -11,13 +13,13 @@ import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
-object VeTransferBenchmarks {
+object CompressedVeTransferBenchmarks {
   implicit val source = VeColVectorSource(getClass.getName)
 
   @State(Scope.Benchmark)
   class Fixture {
     // Benchmark results are grouped by lexicographical order of the parameters
-    @Param(Array(/* "100", "1000", "10000", "100000", "1000000" ,  */"10000000", "100000000"))
+    @Param(Array("100", "1000", "10000", "100000", "1000000",  "10000000", "100000000"))
     var size: Int = _
 
     @Param(Array("Short", "Int", "Double", "String"))
@@ -30,7 +32,7 @@ object VeTransferBenchmarks {
     var handle: veo_proc_handle = _
     var process: VeProcess.WrappingVeo = _
     var tcontext: veo_thr_ctxt = _
-    var inputs: Seq[BytePointerColVector] = _
+    var inputs: Seq[CompressedBytePointerColVector] = _
 
     // Temporary data
     val data = MBuf.empty[VeColVector]
@@ -41,8 +43,8 @@ object VeTransferBenchmarks {
       tcontext = veo.veo_context_open(handle)
       process = VeProcess.WrappingVeo(handle, tcontext, source, VeProcessMetrics.noOp)
 
-      // Initialize BytePointerColVectors
-      inputs = InputSamples.bpcv(typ, ncolumns, size)
+      // Initialize CompressedBytePointerColVector
+      inputs = InputSamples.bpcv(typ, ncolumns, size).map(_.compressed)
     }
 
     @TearDown(Level.Invocation)
@@ -59,30 +61,13 @@ object VeTransferBenchmarks {
   }
 }
 
-class BasicVeTransferBenchmarks {
+class MultipleCompressedVeTransferBenchmarks {
   @Benchmark
   @Fork(value = 1)
   @Warmup(iterations = 2)
   @Measurement(iterations = 5)
   @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark1(fixture: VeTransferBenchmarks.Fixture): Int = {
-    implicit val process = fixture.process
-    implicit val source = process.source
-    implicit val metrics = process.veProcessMetrics
-
-    val bpcv = fixture.inputs.head
-    fixture.data += bpcv.toVeColVector
-    bpcv.numItems
-  }
-}
-
-class MultipleVeTransferBenchmarks {
-  @Benchmark
-  @Fork(value = 1)
-  @Warmup(iterations = 2)
-  @Measurement(iterations = 5)
-  @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark1(fixture: VeTransferBenchmarks.Fixture): Int = {
+  def benchmark1(fixture: CompressedVeTransferBenchmarks.Fixture): Int = {
     implicit val process = fixture.process
     implicit val source = process.source
     implicit val metrics = process.veProcessMetrics
@@ -96,7 +81,7 @@ class MultipleVeTransferBenchmarks {
   @Warmup(iterations = 2)
   @Measurement(iterations = 5)
   @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark2(fixture: VeTransferBenchmarks.Fixture): Int = {
+  def benchmark2(fixture: CompressedVeTransferBenchmarks.Fixture): Int = {
     implicit val process = fixture.process
     implicit val source = process.source
     implicit val metrics = process.veProcessMetrics
