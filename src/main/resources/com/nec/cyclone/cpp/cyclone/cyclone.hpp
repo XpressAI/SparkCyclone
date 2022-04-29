@@ -28,6 +28,7 @@
 #include "cyclone/cyclone_function_view.hpp"
 #include "cyclone/cyclone_sort.hpp"
 #include "cyclone/cyclone_utils.hpp"
+#include "cyclone/packed_transfer.hpp"
 #include "cyclone/tuple_hash.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
