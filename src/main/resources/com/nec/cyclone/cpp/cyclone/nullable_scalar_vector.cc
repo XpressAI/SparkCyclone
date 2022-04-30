@@ -46,24 +46,16 @@ NullableScalarVec<T> * NullableScalarVec<T>::constant(const size_t size, const T
 
 template <typename T>
 NullableScalarVec<T>::NullableScalarVec(const std::vector<T> &src) {
-  // Initialize count
-  count = src.size();
+  // Resize to the desired size
+  resize(src.size());
 
   // Copy the data
-  data = static_cast<T *>(malloc(sizeof(T) * src.size()));
-  if (data == nullptr) {
-    std::cerr << "NullableScalarVec<T>::__ctor() (data) failed." << std::endl;
-  }
   for (auto i = 0; i < src.size(); i++) {
     data[i] = src[i];
   }
 
   // Set the validityBuffer
   const size_t vcount = ceil(src.size() / 64.0);
-  validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
-  if (validityBuffer == nullptr) {
-    std::cerr << "NullableScalarVec<T>::__ctor() (validity) failed." << std::endl;
-  }
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
   }
@@ -80,6 +72,7 @@ NullableScalarVec<T>::NullableScalarVec(const size_t size, const T value) {
     data[i] = value;
   }
 
+  // Set the validityBuffer
   const size_t vcount = ceil(size / 64.0);
   for (auto i = 0; i < vcount; i++) {
     validityBuffer[i] = 0xffffffffffffffff;
@@ -106,13 +99,13 @@ void NullableScalarVec<T>::resize(const size_t size) {
   // Set count
   count = size;
 
-  // Set data to new buffer
+  // Initialize new data buffer
   data = static_cast<T *>(malloc(sizeof(T) * count));
   if (data == nullptr) {
     std::cerr << "NullableScalarVec<T>::resize() (data) failed." << std::endl;
   }
 
-  // Set validityBuffer to new buffer
+  // Initialize new validityBuffer (set to 8-byte boundary size for Arrow compatibility)
   const auto vbytes = frovedis::ceil_div(count, int32_t(64)) * sizeof(uint64_t);
   validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
   if (validityBuffer == nullptr) {
@@ -279,7 +272,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::select(const std::vector<size_t> &s
     std::cerr << "NullableScalarVec<T>::select() (data) failed." << std::endl;
   }
 
-  // Allocate validityBuffer
+  // Allocate validityBuffer in 8-byte sizes for Arrow compatibility
   const auto vbytes = frovedis::ceil_div(output->count, int32_t(64)) * sizeof(uint64_t);
   output->validityBuffer = static_cast<uint64_t *>(calloc(vbytes, 1));
   if (output->validityBuffer == nullptr) {
@@ -346,12 +339,16 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   // Allocate
   auto *output = allocate();
 
-  // Set the total count, and allocate data and validityBuffer
+  // Set the total count
   output->count = rows;
+
+  // Allocate data
   output->data = static_cast<T *>(malloc(sizeof(T) * rows));
   if (output->data == nullptr) {
     std::cerr << "NullableScalarVec<T>::merge() (output) failed." << std::endl;
   }
+
+  // Allocate the validityBuffer
   output->validityBuffer = static_cast<uint64_t *>(calloc(sizeof(uint64_t) * frovedis::ceil_div(rows, size_t(64)), 1));
   if (output->validityBuffer == nullptr) {
     std::cerr << "NullableScalarVec<T>::merge() (validity) failed." << std::endl;

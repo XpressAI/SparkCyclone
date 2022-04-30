@@ -305,7 +305,7 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("group_indexes_on_subset works (with different types)"){
-    std::vector<long> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+    std::vector<int64_t> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
     auto *input1 = new NullableScalarVec(grouping_1);
 
     //    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14
@@ -385,7 +385,7 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("group_indexes_on_subset short-circuit works"){
-    std::vector<long> grouping_1 = { 1, 2, 3, 4, 5 };
+    std::vector<int64_t> grouping_1 = { 1, 2, 3, 4, 5 };
     auto *input1 = new NullableScalarVec(grouping_1);
 
     size_t count = grouping_1.size();

@@ -28,17 +28,6 @@
 #include "frovedis/dataframe/join.hpp"
 
 namespace cyclone {
-  template<typename T>
-  void print_vec(char *name, std::vector<T> a) {
-        std::cout << name << " = [";
-        std::string comma = "";
-        for (int i = 0; i < a.size(); i++) {
-            std::cout << comma << a[i];
-            comma = ",";
-        }
-        std::cout << "]" << std::endl;
-  }
-
   inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
     std::vector<size_t> groups = ids;
     frovedis::radix_sort(groups);
@@ -158,6 +147,11 @@ namespace cyclone {
     tmp.seekp(-2, tmp.cur);
     tmp << " ]";
     return stream << tmp.str();
+  }
+
+  template<typename T>
+  void print_vec(const std::string &name, const std::vector<T> &vec) {
+    std::cout << name <<  " = " << vec << std::endl;
   }
 }
 
