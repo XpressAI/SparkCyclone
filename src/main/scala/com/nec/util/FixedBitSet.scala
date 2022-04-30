@@ -5,7 +5,11 @@ import org.bytedeco.javacpp.BytePointer
 
 object FixedBitSet {
   def ones(size: Int): BytePointer = {
-    val buffer = new BytePointer((size / 8.0).ceil.toLong)
+    /*
+      The buffer is created in 8-byte boundary sizes to be consistent for use by
+      the column vector classes that depend on this property for Arrow compatibility.
+    */
+    val buffer = new BytePointer((size / 64.0).ceil.toLong * 8L)
     for (i <- 0L until buffer.capacity()) {
       buffer.put(i, -1.toByte)
     }
@@ -36,8 +40,14 @@ case class FixedBitSet(size: Int) {
   }
 
   def toByteArray: Array[Byte] = {
-    // The Array[Byte] is zero-initialized
-    val bytes = new Array[Byte]((size / 8.0).ceil.toInt)
+    /*
+      The Array[Byte] is zero-initialized, and is created in 8-byte boundary
+      sizes to be consistent for use by the column vector classes that depend on
+      this property for Arrow compatibility:
+
+        https://wesm.github.io/arrow-site-test/format/Layout.html#alignment-and-padding
+    */
+    val bytes = new Array[Byte]((size / 64.0).ceil.toInt * 8)
 
     /*
       BitSet saves storage space by only writing bytes out if there is a bit set

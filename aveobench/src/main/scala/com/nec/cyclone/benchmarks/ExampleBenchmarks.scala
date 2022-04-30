@@ -1,9 +1,9 @@
-package com.nec.cyclone
+package com.nec.cyclone.benchmarks
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
-object ExampleBenchmark {
+object ExampleBenchmarks {
   @State(Scope.Benchmark)
   class Params {
     // Benchmark results are grouped by lexicographical order of the parameters
@@ -15,11 +15,11 @@ object ExampleBenchmark {
   }
 }
 
-class ExampleBenchmark {
+class ExampleBenchmarks {
   @Benchmark
   @Fork(value = 1)
   @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark1(params: ExampleBenchmark.Params, sink: Blackhole): Double = {
+  def benchmark1(params: ExampleBenchmarks.Params, sink: Blackhole): Double = {
     val sum: Double = List.range(1, params.size * params.factor).sum
     sink.consume(sum)
     sum

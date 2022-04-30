@@ -7,15 +7,16 @@ for moving data between the host and VE.
 
 ### Writing the Benchmarks
 
-See `com.nec.cyclone.ExampleBenchmark` as an example for writing parameterized
-benchmarks.
+See `com.nec.cyclone.benchmarks.ExampleBenchmarks` for examples in writing
+parameterized benchmarks.
 
 ### Running the Benchmarks
 
-From the root project directory, run the command in the `sbt` console:
+From the root project directory, run the command in the `sbt` console to kick
+off a specific benchmark class:
 
 ```sh
-aveobench / clean; aveobench / jmh:run -bm avgt -tu ns
+aveobench / clean; aveobench / jmh:run -bm avgt -tu ns ExampleBenchmarks
 ```
 
 This will measure the average time of the code being run, in nanoseconds.  By
@@ -33,12 +34,13 @@ aveobench / jmh:run -h
 To generate reports for visualization, run `jmh` with the following flags:
 
 ```sh
--rff benchmark-out.json -rf json
+-rff benchmark-out.csv -rf csv
 ```
 
-The output JSON report will be found in the directory of this project.  This
-report can then be imported into [JMH Visualizer](https://jmh.morethan.io/) for
-visualization.  Note that reports are available in other formats such as CSV.
+This will generate a CSV in the `aveobench` project directory, which can then be
+imported into a spreadsheet software for custom chart generation.  JSON format
+is also supported, and JMH JSON reports can be imported into
+[JMH Visualizer](https://jmh.morethan.io/) for quick visualization.
 
 ## Resources
 

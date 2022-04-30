@@ -1,7 +1,6 @@
-package com.nec.cyclone
+package com.nec.cyclone.benchmarks
 
-import com.nec.cyclone.colvector.BytePointerColVectorOps._
-import com.nec.cyclone.colvector.CompressedBytePointerColVector
+import com.nec.cyclone.colvector._
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
@@ -13,7 +12,7 @@ import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
-object CompressedVeTransferBenchmarks {
+object CompressedBatchVeTransferBenchmarks {
   implicit val source = VeColVectorSource(getClass.getName)
 
   @State(Scope.Benchmark)
@@ -32,10 +31,10 @@ object CompressedVeTransferBenchmarks {
     var handle: veo_proc_handle = _
     var process: VeProcess.WrappingVeo = _
     var tcontext: veo_thr_ctxt = _
-    var inputs: Seq[CompressedBytePointerColVector] = _
+    var input: CompressedBytePointerColBatch = _
 
     // Temporary data
-    val data = MBuf.empty[VeColVector]
+    val data = MBuf.empty[CompressedVeColBatch]
 
     @Setup(Level.Trial)
     def setup0: Unit = {
@@ -43,8 +42,8 @@ object CompressedVeTransferBenchmarks {
       tcontext = veo.veo_context_open(handle)
       process = VeProcess.WrappingVeo(handle, tcontext, source, VeProcessMetrics.noOp)
 
-      // Initialize CompressedBytePointerColVector
-      inputs = InputSamples.bpcv(typ, ncolumns, size).map(_.compressed)
+      // Initialize CompressedBytePointerColBatch
+      input = BytePointerColBatch(InputSamples.bpcv(typ, ncolumns, size)).compressed
     }
 
     @TearDown(Level.Invocation)
@@ -61,35 +60,18 @@ object CompressedVeTransferBenchmarks {
   }
 }
 
-class MultipleCompressedVeTransferBenchmarks {
+class CompressedBatchVeTransferBenchmarks {
   @Benchmark
   @Fork(value = 1)
-  @Warmup(iterations = 2)
-  @Measurement(iterations = 5)
+  @Warmup(iterations = 5)
+  @Measurement(iterations = 10)
   @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark1(fixture: CompressedVeTransferBenchmarks.Fixture): Int = {
+  def benchmark1(fixture: CompressedBatchVeTransferBenchmarks.Fixture): Int = {
     implicit val process = fixture.process
     implicit val source = process.source
     implicit val metrics = process.veProcessMetrics
 
-    fixture.data ++= fixture.inputs.map(_.toVeColVector)
-    fixture.inputs.size
-  }
-
-  @Benchmark
-  @Fork(value = 1)
-  @Warmup(iterations = 2)
-  @Measurement(iterations = 5)
-  @BenchmarkMode(Array(Mode.AverageTime))
-  def benchmark2(fixture: CompressedVeTransferBenchmarks.Fixture): Int = {
-    implicit val process = fixture.process
-    implicit val source = process.source
-    implicit val metrics = process.veProcessMetrics
-
-    // Allocate
-    val resultFs = fixture.inputs.map(_.asyncToVeColVector)
-    // Transfer asynchronously and wait
-    fixture.data ++= resultFs.map(_.apply()).map(_.get())
-    fixture.inputs.size
+    fixture.data += fixture.input.toCompressedVeColBatch
+    fixture.input.columns.size
   }
 }

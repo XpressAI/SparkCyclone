@@ -1,4 +1,4 @@
-package com.nec.cyclone
+package com.nec.cyclone.benchmarks
 
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._

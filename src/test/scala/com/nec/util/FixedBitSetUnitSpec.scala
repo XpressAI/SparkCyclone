@@ -41,7 +41,7 @@ class FixedBitSetUnitSpec extends AnyWordSpec {
       }
 
       val bytes = bitset1.toByteArray
-      bytes.size should be ((size / 8.0).ceil.toInt)
+      bytes.size should be ((size / 64.0).ceil.toInt * 8)
 
       val bitset2 = BitSet.valueOf(bytes)
       for (i <- 0 until size) {
@@ -60,14 +60,14 @@ class FixedBitSetUnitSpec extends AnyWordSpec {
       }
 
       val bitset2 = FixedBitSet.from(bitset1.toBytePointer)
-      bitset1.toSeq should be (bitset2.toSeq)
+      bitset1.toSeq should be (bitset2.toSeq.take(bitset1.size))
     }
 
     "correctly create an Array[Byte] of 1-bits" in {
       val size = (Random.nextInt(10) + 1)
 
       val bytes = FixedBitSet.from(FixedBitSet.ones(size)).toByteArray
-      bytes.size should be ((size / 8.0).ceil)
+      bytes.size should be ((size / 64.0).ceil * 8)
       bytes.foreach(b => b should be (-1.toByte))
     }
   }

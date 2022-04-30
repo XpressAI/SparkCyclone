@@ -1,4 +1,4 @@
-package com.nec.cyclone
+package com.nec.cyclone.benchmarks
 
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
@@ -17,7 +17,7 @@ object VeTransferBenchmarks {
   @State(Scope.Benchmark)
   class Fixture {
     // Benchmark results are grouped by lexicographical order of the parameters
-    @Param(Array(/* "100", "1000", "10000", "100000", "1000000" ,  */"10000000", "100000000"))
+    @Param(Array("100", "1000", "10000", "100000", "1000000" , "10000000", "100000000"))
     var size: Int = _
 
     @Param(Array("Short", "Int", "Double", "String"))
