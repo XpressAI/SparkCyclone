@@ -1,12 +1,10 @@
 package com.nec.cache
 
-import com.nec.colvector.BytePointerColVector
-import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.ArrowVectorConversions._
+import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.ValueVector
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
@@ -77,7 +75,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,
-          arrowSchema = CycloneCacheBase.makaArrowSchema(schema)
+          arrowSchema = CycloneCacheBase.makeArrowSchema(schema)
         )
     })
   }

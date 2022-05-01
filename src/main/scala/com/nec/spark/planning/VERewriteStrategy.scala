@@ -21,10 +21,9 @@ package com.nec.spark.planning
 
 import com.nec.cache.CycloneCacheBase
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression._
-import com.nec.spark.agile.core.CodeLines
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.filter.FilterFunction
 import com.nec.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
@@ -218,12 +217,13 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       orderingExpressions
     )
 
+    val veFunction = sortFn.toVeFunction
     List(
       VectorEngineToSparkPlan(
         VeOneStageEvaluationPlan(
           outputExpressions = s.output,
-          veFunction = sortFn.toVeFunction,
-          child = SparkToVectorEnginePlan(planLater(child))
+          veFunction = veFunction,
+          child = SparkToVectorEnginePlan(planLater(child), veFunction)
         )
       )
     )
@@ -373,7 +373,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 
-      inputAmplifyFn = MergeFunction(s"input_amplify_${functionPrefix}", partialCFunction.inputs.map(_.veType))
       mergeFn = MergeFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
       amplifyFn = MergeFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
 
@@ -384,18 +383,15 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         )
 
     } yield {
-      val exchangePlan = VeAmplifyBatchesPlan(
-        amplifyFunction = inputAmplifyFn.toVeFunction,
-        child = SparkToVectorEnginePlan(planLater(child))
+      val veFunction = VeFunction(
+        veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
+        functionName = partialName,
+        namedResults = partialCFunction.outputs
       )
 
       val pag = VePartialAggregate(
-        partialFunction = VeFunction(
-          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-          functionName = partialName,
-          namedResults = partialCFunction.outputs
-        ),
-        child = exchangePlan,
+        partialFunction = veFunction,
+        child = SparkToVectorEnginePlan(planLater(child), veFunction),
         expectedOutputs = partialCFunction.outputs
           .map(_.veType)
           .zipWithIndex
@@ -476,17 +472,18 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         projections
       )
 
+      val veFunction = projectionFn.toVeFunction
       List(VectorEngineToSparkPlan(if (options.passThroughProject) {
         VeProjectEvaluationPlan(
           outputExpressions = projectList,
-          veFunction = projectionFn.toVeFunction,
-          child = SparkToVectorEnginePlan(planLater(child))
+          veFunction = veFunction,
+          child = SparkToVectorEnginePlan(planLater(child), veFunction)
         )
       } else {
         VeOneStageEvaluationPlan(
           outputExpressions = projectList,
-          veFunction = projectionFn.toVeFunction,
-          child = SparkToVectorEnginePlan(planLater(child))
+          veFunction = veFunction,
+          child = SparkToVectorEnginePlan(planLater(child), veFunction)
         )
       }))
     }
@@ -537,10 +534,11 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       val amplifyFn = MergeFunction(s"amplify_${filterFn.name}", data.map(_.veType))
 
+      val veFunction = filterFn.toVeFunction
       val filterPlan = VeOneStageEvaluationPlan(
         outputExpressions = f.output,
-        veFunction = filterFn.toVeFunction,
-        child = SparkToVectorEnginePlan(planLater(child))
+        veFunction = veFunction,
+        child = SparkToVectorEnginePlan(planLater(child), veFunction)
       )
 
       List(
@@ -624,9 +622,10 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       HashExchangeBuckets
     )
 
+    val veFunction = exchangeFn.toVeFunction
     VeHashExchangePlan(
-      exchangeFunction = exchangeFn.toVeFunction,
-      child = SparkToVectorEnginePlan(planLater(child))
+      exchangeFunction = veFunction,
+      child = SparkToVectorEnginePlan(planLater(child), veFunction)
     )
   }
 

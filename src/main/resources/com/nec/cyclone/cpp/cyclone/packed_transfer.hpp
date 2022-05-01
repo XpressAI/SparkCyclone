@@ -22,10 +22,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-int handle_transfer(char** td, uintptr_t* od);
+extern "C" int handle_transfer(char** td, uintptr_t* od);
 
-void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, char* lengths, char* offsets, uintptr_t* od, size_t &output_pos);
-template<typename T> void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, uintptr_t* od, size_t &output_pos);
+void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, char* lengths, char* offsets, uintptr_t* od, size_t &output_pos);
+template<typename T> void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, uintptr_t* od, size_t &output_pos);
 
 const size_t COL_TYPE_SHORT = 0;
 const size_t COL_TYPE_INT = 1;
@@ -39,6 +39,10 @@ struct transfer_header {
   size_t header_size;
   size_t batch_count;
   size_t column_count;
+};
+
+struct column_type {
+  size_t type;
 };
 
 struct scalar_col_in {

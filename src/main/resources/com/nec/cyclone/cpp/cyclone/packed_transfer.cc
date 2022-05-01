@@ -30,52 +30,67 @@
 #include <iostream>
 
 
-void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
+void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
+  //std::cout << "merge_varchar_transfer" << std::endl;
   size_t cur_col_pos = 0;
   size_t cur_data_pos = 0;
   size_t cur_out_data_pos = 0;
   size_t cur_out_lengths_pos = 0;
   size_t cur_out_offsets_pos = 0;
 
-  int32_t i = 0;
+  uint64_t i = 0;
   for(auto b = 0; b < batch_count; b++){
-    cur_col_pos += sizeof(size_t); // Don't care about column type anymore - it has been asserted to be correct previously
+    cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     varchar_col_in* col_in = reinterpret_cast<varchar_col_in *>(&col_header[cur_col_pos]);
     cur_col_pos += sizeof(varchar_col_in);
+
+    //std::cout << "merge_varchar_transfer: copy data" << std::endl;
 
     size_t start_out_data_pos = cur_out_data_pos;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
     cur_data_pos += col_in->data_size;
     cur_out_data_pos += col_in->data_size;
 
+    //std::cout << "merge_varchar_transfer: copy offsets" << std::endl;
     // Offsets are relative to starting positions. After initially copying them, we need to correct them too.
     // Offsets specify where a string starts relative to the data buffer. When merging inputs they need to be offset
     // in order to be relative to the starting data position of the current batch.
     std::memcpy(&out_offsets[cur_out_offsets_pos], &input_data[cur_data_pos], col_in->offsets_size);
     if(b != 0){
+      //std::cout << "merge_varchar_transfer: fix offsets" << std::endl;
       // offsets in the first batch are correct, no need to update them.
       int32_t* offsets_int = reinterpret_cast<int32_t *>(&out_offsets[cur_out_offsets_pos]);
+      auto offset_correction = start_out_data_pos / sizeof(int32_t);
 #pragma _NEC vector
       for(auto oi = 0; oi < col_in->element_count; oi++){
-        offsets_int[oi] += (start_out_data_pos / sizeof(int32_t));
+        offsets_int[oi] += offset_correction;
       }
     }
     cur_data_pos += col_in->offsets_size;
     cur_out_offsets_pos += col_in->offsets_size;
 
+    //std::cout << "merge_varchar_transfer: copy lengths" << std::endl;
     std::memcpy(&out_lengths[cur_out_lengths_pos], &input_data[cur_data_pos], col_in->lengths_size);
     cur_data_pos += col_in->lengths_size;
     cur_out_lengths_pos += col_in->lengths_size;
 
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-#pragma _NEC vector
-    for(auto ci = 0; ci < col_in->element_count; ci++){
-      set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+    //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
     cur_data_pos += col_in->validity_buffer_size;
   }
 
+  //std::cout << "merge_varchar_transfer: allocate vector" << std::endl;
   nullable_varchar_vector* result = nullable_varchar_vector::allocate();
   result->data = reinterpret_cast<int32_t *>(out_data);
   result->offsets = reinterpret_cast<int32_t *>(out_offsets);
@@ -84,6 +99,7 @@ void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_da
   result->dataSize = cur_out_data_pos / sizeof(int32_t);
   result->count = i;
 
+  //std::cout << "merge_varchar_transfer: set output pointers" << std::endl;
   od[output_pos++] = reinterpret_cast<uintptr_t>(result);
   od[output_pos++] = reinterpret_cast<uintptr_t>(result->data);
   od[output_pos++] = reinterpret_cast<uintptr_t>(result->offsets);
@@ -93,35 +109,47 @@ void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_da
 
 
 template<typename T>
-void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, uintptr_t* od, size_t &output_pos){
+void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, uintptr_t* od, size_t &output_pos){
+  //std::cout << "merge_scalar_transfer" << std::endl;
+
   size_t cur_col_pos = 0;
   size_t cur_data_pos = 0;
   size_t cur_out_data_pos = 0;
 
-  int32_t i = 0;
+  uint64_t i = 0;
   for(auto b = 0; b < batch_count; b++){
-    cur_col_pos += sizeof(size_t); // Don't care about column type anymore - it has been asserted to be correct previously
+    cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     scalar_col_in* col_in = reinterpret_cast<scalar_col_in *>(&col_header[cur_col_pos]);
     cur_col_pos += sizeof(scalar_col_in);
 
+    //std::cout << "merge_scalar_transfer: copy data" << std::endl;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
     cur_data_pos += col_in->data_size;
 
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-#pragma _NEC vector
-    for(auto ci = 0; ci < col_in->element_count; ci++){
-      set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+    //std::cout << "merge_scalar_transfer: copy validity" << std::endl;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
     cur_out_data_pos += col_in->data_size;
     cur_data_pos += col_in->validity_buffer_size;
   }
 
+  //std::cout << "merge_scalar_transfer: allocate vector" << std::endl;
   NullableScalarVec<T>* result = NullableScalarVec<T>::allocate();
   result->data = reinterpret_cast<T* >(out_data);
   result->validityBuffer = out_validity_buffer;
   result->count = i;
 
+  //std::cout << "merge_scalar_transfer: set output pointers" << std::endl;
   od[output_pos++] = reinterpret_cast<uintptr_t>(result);
   od[output_pos++] = reinterpret_cast<uintptr_t>(result->data);
   od[output_pos++] = reinterpret_cast<uintptr_t>(result->validityBuffer);
@@ -211,33 +239,29 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
  * @param od output descriptor
  * @return 0 if successful
  */
-int handle_transfer(
+extern "C" int handle_transfer(
     char** td,
     uintptr_t* od
 ) {
-  std::cout << "Unpack header" << std::endl;
-
+  //std::cout << "Reading header." << std::endl;
   char* transfer = td[0];
   transfer_header *header = reinterpret_cast<transfer_header *>(transfer);
-  char* input_data = &transfer[header->header_size];
+  //std::cout << "header->header_size="  << header->header_size << std::endl;
+  //std::cout << "header->batch_count="  << header->batch_count << std::endl;
+  //std::cout << "header->column_count="  << header->column_count << std::endl;
 
-  std::cout << "header->header_size = " << header->header_size << std::endl;
-  std::cout << "header->batch_count = " << header->batch_count << std::endl;
-  std::cout << "header->column_count = " << header->column_count << std::endl;
+  char* input_data = &transfer[header->header_size];
 
   size_t input_pos = sizeof(transfer_header);
   size_t input_data_pos = 0;
   size_t output_pos = 0;
   for(auto c = 0; c < header->column_count; c++){
-    std::cout << "column transfer " << c << std::endl;
-    std::cout << "Input pos " << input_pos << std::endl;
-    size_t column_type = (reinterpret_cast<size_t *>(&transfer[input_pos]))[0];
-
-    std::cout << "column type " << column_type << std::endl;
+    size_t col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
+    //std::cout << "col_type="  << col_type << std::endl;
 
     size_t col_start = input_pos;
 
-    switch (column_type) {
+    switch (col_type) {
       case COL_TYPE_SHORT:
       case COL_TYPE_INT:
       case COL_TYPE_BIGINT:
@@ -246,46 +270,47 @@ int handle_transfer(
         size_t total_element_count = 0;
         size_t total_data_size = 0;
         size_t total_validity_buffer_size = 0;
-        std::cout << "Batch data collection" << std::endl;
         for(auto b = 0; b < header->batch_count; b++){
-          size_t cur_column_type = (reinterpret_cast<size_t *>(&transfer[input_pos]))[0];
-          input_pos += sizeof(size_t);
+          size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
+          input_pos += sizeof(column_type);
           // Sanity Check: Ensure column type doesn't change while reading a
           // batch of input columns
-          if(column_type != cur_column_type){
+          if(col_type != cur_col_type){
             return -2;
           }
 
-          std::cout << "column batch cast" << std::endl;
           scalar_col_in* col_in = reinterpret_cast<scalar_col_in *>(&transfer[input_pos]);
           input_pos += sizeof(scalar_col_in);
+
+          //std::cout << "col_in->element_count="  << col_in->element_count << std::endl;
+          //std::cout << "col_in->data_size="  << col_in->data_size << std::endl;
+          //std::cout << "col_in->validity_buffer_size="  << col_in->validity_buffer_size << std::endl;
+
 
           total_element_count += col_in->element_count;
           total_data_size += col_in->data_size;
           total_validity_buffer_size += col_in->validity_buffer_size;
         }
 
-        std::cout << "transfer data allocation " << total_data_size << std::endl;
         char* data = static_cast<char *>(malloc(total_data_size));
         const auto vbytes = sizeof(uint64_t) * frovedis::ceil_div(total_element_count, size_t(64));
-        std::cout << "validity buffer allocation " << vbytes << std::endl;
         uint64_t* validity_buffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
-        switch (column_type) {
+        switch (col_type) {
           case COL_TYPE_SHORT:
-            merge_scalar_transfer<int32_t>(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, od, output_pos);
+            merge_scalar_transfer<int32_t>(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, od, output_pos);
             break;
           case COL_TYPE_INT:
-            merge_scalar_transfer<int32_t>(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, od, output_pos);
+            merge_scalar_transfer<int32_t>(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, od, output_pos);
             break;
           case COL_TYPE_BIGINT:
-            merge_scalar_transfer<int64_t>(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
+            merge_scalar_transfer<int64_t>(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
             break;
           case COL_TYPE_FLOAT:
-            merge_scalar_transfer<float>(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
+            merge_scalar_transfer<float>(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
             break;
           case COL_TYPE_DOUBLE:
-            merge_scalar_transfer<double>(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
+            merge_scalar_transfer<double>(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer , od, output_pos);
             break;
           default:
             // Should be impossible to reach at this point!
@@ -303,17 +328,23 @@ int handle_transfer(
 
 
         for(auto b = 0; b < header->batch_count; b++){
-          size_t cur_column_type = (reinterpret_cast<size_t *>(&transfer[input_pos]))[0];
-          input_pos += sizeof(size_t);
+          size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
+          input_pos += sizeof(column_type);
 
           // Sanity Check: Ensure column type doesn't change while reading a
           // batch of input columns
-          if(column_type != cur_column_type){
+          if(col_type != cur_col_type){
             return -3;
           }
 
           varchar_col_in* col_in = reinterpret_cast<varchar_col_in *>(&transfer[input_pos]);
           input_pos += sizeof(varchar_col_in);
+
+          //std::cout << "col_in->element_count="  << col_in->element_count << std::endl;
+          //std::cout << "col_in->data_size="  << col_in->data_size << std::endl;
+          //std::cout << "col_in->offsets_size="  << col_in->offsets_size << std::endl;
+          //std::cout << "col_in->lengths_size="  << col_in->lengths_size << std::endl;
+          //std::cout << "col_in->validity_buffer_size="  << col_in->validity_buffer_size << std::endl;
 
           total_element_count += col_in->element_count;
           total_data_size += col_in->data_size;
@@ -328,9 +359,8 @@ int handle_transfer(
 
         const auto vbytes = sizeof(uint64_t) * frovedis::ceil_div(total_element_count, size_t(64));
         uint64_t* validity_buffer = static_cast<uint64_t *>(calloc(vbytes, 1));
-        memset(validity_buffer, 0xFF, vbytes);
 
-        merge_varchar_transfer(header->batch_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, lengths, offsets, od, output_pos);
+        merge_varchar_transfer(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, lengths, offsets, od, output_pos);
         input_data_pos += total_data_size + total_validity_buffer_size + total_offsets_size + total_lengths_size;
       }
         break;
@@ -350,8 +380,6 @@ int handle_transfer(
 
   // Sanity Check: ensure that reading the header resulted in getting to the
   // same number read as the header specifies
-  std::cout << "final input_pos " << input_pos << std::endl;
-  std::cout << "final input_data_pos " << input_data_pos << std::endl;
   if(expected_read == input_pos){
     return 0;
   }else{

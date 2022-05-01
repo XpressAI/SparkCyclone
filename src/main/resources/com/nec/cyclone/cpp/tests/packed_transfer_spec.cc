@@ -26,17 +26,17 @@ namespace cyclone::tests {
     template<typename T> const std::vector <T> raw{586, 951, 106, 318, 538, 620, 553, 605, 822, 941};
 
     template<typename T> void copy_scalar_vec_to_transfer_buffer(NullableScalarVec<T>* vec, char* header, char* data, size_t &header_pos, size_t &data_pos){
-      size_t* column_type = reinterpret_cast<size_t *>(&header[header_pos]);
+      column_type* col_type = reinterpret_cast<column_type *>(&header[header_pos]);
       if(std::is_same<T, int32_t>::value){
-        column_type[0] = COL_TYPE_INT;
+        col_type->type = COL_TYPE_INT;
       }else if(std::is_same<T, int64_t>::value){
-        column_type[0] = COL_TYPE_BIGINT;
+        col_type->type = COL_TYPE_BIGINT;
       }else if(std::is_same<T, float>::value){
-        column_type[0] = COL_TYPE_FLOAT;
+        col_type->type = COL_TYPE_FLOAT;
       }else if(std::is_same<T, double>::value){
-        column_type[0] = COL_TYPE_DOUBLE;
+        col_type->type = COL_TYPE_DOUBLE;
       }
-      header_pos += sizeof(size_t);
+      header_pos += sizeof(column_type);
 
       size_t element_count = static_cast<size_t>(vec->count);
       size_t data_size = sizeof(T) * element_count;
@@ -56,9 +56,9 @@ namespace cyclone::tests {
     }
 
     void copy_varchar_vec_to_transfer_buffer(nullable_varchar_vector* vec, char* header, char* data, size_t &header_pos, size_t &data_pos){
-      size_t* column_type = reinterpret_cast<size_t *>(&header[header_pos]);
-      column_type[0] = COL_TYPE_VARCHAR;
-      header_pos += sizeof(size_t);
+      column_type* col_type = reinterpret_cast<column_type *>(&header[header_pos]);
+      col_type->type = COL_TYPE_VARCHAR;
+      header_pos += sizeof(column_type);
 
       size_t element_count = static_cast<size_t>(vec->count);
       size_t data_size = vec->dataSize * sizeof(int32_t);

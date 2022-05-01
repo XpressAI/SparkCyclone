@@ -41,6 +41,7 @@ object ColumnarBatchToVeColBatch {
     }.toList.iterator
   }
 
+  // TODO: This is currently dead code, maybe get rid of it (branch to call it is permanently disabled)
   def toVeColBatchesViaRows(
     columnarBatches: Iterator[ColumnarBatch],
     arrowSchema: Schema,
