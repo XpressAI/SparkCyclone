@@ -27,7 +27,7 @@ final class ArrayTConversionsUnitSpec extends AnyWordSpec {
 
     // Check validity buffer
     val validityBuffer = colvec.buffers(1)
-    validityBuffer.capacity() should be ((input.size / 8.0).ceil.toLong)
+    validityBuffer.capacity() should be ((input.size / 64.0).ceil.toLong * 8)
     for (i <- 0 until validityBuffer.capacity().toInt) {
       validityBuffer.get(i) should be (-1.toByte)
     }

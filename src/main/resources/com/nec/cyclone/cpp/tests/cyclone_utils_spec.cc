@@ -39,13 +39,14 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("separate_to_groups() works") {
-      //std::vector<size_t> grouping = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
+      // std::vector<size_t> grouping = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
       std::vector<size_t> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
       std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
       std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
       std::vector<size_t> expected_keys = {10, 11};
       std::vector<size_t> keys;
       std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, keys);
+
       cyclone::print_vec("groups[0]", groups[0]);
       cyclone::print_vec("expect_0:", expected_0);
       cyclone::print_vec("groups[1]", groups[1]);
@@ -63,6 +64,7 @@ namespace cyclone::tests {
     std::vector<size_t> expected_keys = {0, 1};
     std::vector<size_t> keys;
     std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, keys);
+
     cyclone::print_vec("groups[0]", groups[0]);
     cyclone::print_vec("expect_0:", expected_0);
     cyclone::print_vec("groups[1]", groups[1]);
@@ -94,10 +96,10 @@ namespace cyclone::tests {
 
     cyclone::equi_join_indices(left, right, out_left, out_right);
 
-    //cyclone::print_vec("out_left", out_left);
-    //cyclone::print_vec("exp_left", expected_left);
-    //cyclone::print_vec("out_right", out_right);
-    //cyclone::print_vec("exp_right", expected_right);
+    cyclone::print_vec("out_left", out_left);
+    cyclone::print_vec("exp_left", expected_left);
+    cyclone::print_vec("out_right", out_right);
+    cyclone::print_vec("exp_right", expected_right);
 
     CHECK(out_left.size() == left.size());
     CHECK(out_right.size() == right.size());

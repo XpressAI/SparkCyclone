@@ -80,7 +80,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
     offsets[i] = offsets[i-1] + lengths[i-1];
   }
 
-  // Set the validityBuffer
+  // Initialize and set the validityBuffer (set to 8-byte boundary size for Arrow compatibility)
   const size_t vcount = frovedis::ceil_div(count, int32_t(64));
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
@@ -110,7 +110,7 @@ nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::s
   // Initialize and set the offsets to zero
   offsets = static_cast<int32_t *>(calloc(sizeof(int32_t) * count, 1));
 
-  // Set the validityBuffer
+  // Initialize and set the validityBuffer
   size_t vcount = frovedis::ceil_div(count, int32_t(64));
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
@@ -126,7 +126,7 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
   dataSize = src.chars.size();
 
   // Copy chars to data
-  data = static_cast<int32_t *>(malloc(dataSize * sizeof(int32_t)));
+  data = static_cast<int32_t *>(malloc(sizeof(int32_t) * dataSize));
   std::copy(src.chars.begin(), src.chars.end(), data);
 
   // Set the offsets
@@ -138,7 +138,7 @@ nullable_varchar_vector::nullable_varchar_vector(const frovedis::words &src) {
     lengths[i] = src.lens[i];
   }
 
-  // Set the validityBuffer
+  // Initialize and set the validityBuffer
   const size_t vcount = frovedis::ceil_div(count, int32_t(64));
   validityBuffer = static_cast<uint64_t *>(malloc(sizeof(uint64_t) * vcount));
   for (auto i = 0; i < vcount; i++) {
