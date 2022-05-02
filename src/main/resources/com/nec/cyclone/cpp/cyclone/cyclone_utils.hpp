@@ -153,6 +153,98 @@ namespace cyclone {
   void print_vec(const std::string &name, const std::vector<T> &vec) {
     std::cout << name <<  " = " << vec << std::endl;
   }
+
+
+  /**
+   * Append two bitsets using T as the holding type.
+   *
+   * *first_tail* needs to be allocated such that T fits into it an integer
+   * number of times.
+   *
+   * *second* does not need to be allocated to fit T an integer amount of times.
+   * The last bytes will always be handled in a byte-wise fashion.
+   *
+   * @tparam T holding type
+   * @param first_tail Pointer to last not yet full T of the first bitset
+   * @param dangling_bits Count of bits already set in first_tail
+   * @param second Pointer to the to-be-appended bitset
+   * @param second_bit_count Count of bits in second
+   * @return Count of bits set in the last T after appending
+   */
+  template<typename T>
+  inline size_t append_bitsets(T* first_tail, size_t dangling_bits, T* second, size_t second_bit_count) {
+    size_t bits_per_byte = 8;
+    auto bits_per_T = sizeof(T) * bits_per_byte;
+    std::cout << "[append_bitsets] bits_per_T=" << bits_per_T << std::endl;
+
+    // Simplest case: No dangling bits means we can straight copy the to be appended second bitset unto the tail of the
+    // first bitset, as we have byte-granularity anyway
+    if (dangling_bits == 0) {
+      std::cout << "[append_bitsets] byte-wise copy" << std::endl;
+
+      auto bytes = frovedis::ceil_div(second_bit_count, bits_per_byte);
+      std::cout << "[append_bitsets] bytes=" << bytes << std::endl;
+      std::memcpy(first_tail, second, bytes);
+
+      size_t out_dangling = second_bit_count % bits_per_T;
+      std::cout << "[append_bitsets] out_dangling=" << out_dangling << std::endl;
+      return out_dangling;
+    }
+
+    // Calculate how many full elements are necessary to fit the second bitset into the given type
+    auto space_in_tail = bits_per_T - dangling_bits;
+    auto elements_to_fit = second_bit_count - space_in_tail;
+    auto full_elements = frovedis::ceil_div(elements_to_fit, bits_per_T);
+    size_t out_dangling = elements_to_fit % bits_per_T;
+
+    std::cout << "[append_bitsets] second_bit_count=" << second_bit_count << std::endl;
+    std::cout << "[append_bitsets] dangling_bits=" << dangling_bits << std::endl;
+    std::cout << "[append_bitsets] space_in_tail=" << space_in_tail << std::endl;
+    std::cout << "[append_bitsets] elements_to_fit=" << elements_to_fit << std::endl;
+    std::cout << "[append_bitsets] full_elements=" << full_elements << std::endl;
+    std::cout << "[append_bitsets] out_dangling=" << out_dangling << std::endl;
+
+    auto t_steps = full_elements;
+    auto dangling_bytes = frovedis::ceil_div(out_dangling, bits_per_byte);
+    if (dangling_bytes < sizeof(T)) {
+      // Last step needs to be done byte-wise
+      t_steps -= 1;
+    }
+    std::cout << "[append_bitsets] dangling_bytes=" << dangling_bytes << std::endl;
+    std::cout << "[append_bitsets] t_steps=" << t_steps << std::endl;
+
+    // T steps
+#pragma _NEC vector
+#pragma _NEC ivdep
+    for (auto i = 0; i < t_steps; i++) {
+      first_tail[i + 1] = second[i] >> space_in_tail;
+      std::cout << "[append_bitsets] "<< first_tail[i + 1] << " = " << second[i] << " << " << space_in_tail << std::endl;
+    }
+
+#pragma _NEC vector
+#pragma _NEC ivdep
+    for (auto i = 0; i < t_steps; i++) {
+      std::cout << "[append_bitsets] "<< first_tail[i] << " |= " << second[i] << " >> " << dangling_bits;
+      first_tail[i] |= second[i] << dangling_bits;
+      std::cout << " = " << first_tail[i] << std::endl;
+    }
+
+    // Byte-steps, if necessary
+    if (t_steps != full_elements) {
+      std::cout << "[append_bitsets] byte-wise recursion" << std::endl;
+
+      char *byte_second = reinterpret_cast<char *>(&second[t_steps]);
+      char *byte_tail_start = reinterpret_cast<char *>(&first_tail[t_steps]);
+
+      size_t last_written_byte = frovedis::ceil_div(dangling_bits, bits_per_byte);
+      size_t dangling_byte_bits = dangling_bits % bits_per_byte;
+      char *byte_tail = &byte_tail_start[last_written_byte];
+
+      append_bitsets(byte_tail, dangling_byte_bits, byte_second, out_dangling);
+    }
+
+    return out_dangling;
+  }
 }
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))

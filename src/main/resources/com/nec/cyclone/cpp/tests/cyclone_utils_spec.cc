@@ -128,4 +128,81 @@ namespace cyclone::tests {
     CHECK(out_left == expected_left);
     CHECK(out_right == expected_right);
   }
+
+  TEST_CASE("Appending bitset to empty memory works") {
+    uint64_t b[3] = {32, 32 + 64, 128};
+
+    uint64_t* output = static_cast<uint64_t *>(malloc(3 * sizeof(uint64_t)));
+
+    cyclone::append_bitsets(output, 0, b, 8 * 3 * sizeof(uint64_t));
+
+    CHECK(output[0] == b[0]);
+    CHECK(output[1] == b[1]);
+    CHECK(output[2] == b[2]);
+  }
+
+  TEST_CASE("Merging two uint64_t aligned bitsets works") {
+     uint64_t a[2] = {128, 255};
+     uint64_t b[3] = {32, 32 + 64, 128};
+
+     uint64_t* output = static_cast<uint64_t *>(malloc(5 * sizeof(uint64_t)));
+
+     cyclone::append_bitsets(output, 0, a, 8 * 2 * sizeof(uint64_t));
+     cyclone::append_bitsets(&output[2], 0, b, 8 * 3 * sizeof(uint64_t));
+
+     CHECK(output[0] == a[0]);
+     CHECK(output[1] == a[1]);
+     CHECK(output[2] == b[0]);
+     CHECK(output[3] == b[1]);
+     CHECK(output[4] == b[2]);
+  }
+
+  TEST_CASE("Merging two byte aligned bitsets works"){
+    char a[2] = {128, 255};
+    char b[3] = {32, 32 + 64, 128};
+
+    char* output = static_cast<char *>(malloc(5 * sizeof(char)));
+
+    cyclone::append_bitsets(output, 0, a, 8 * 2 * sizeof(char));
+    cyclone::append_bitsets(&output[2], 0, b, 8 * 3 * sizeof(char));
+
+    CHECK(output[0] == a[0]);
+    CHECK(output[1] == a[1]);
+    CHECK(output[2] == b[0]);
+    CHECK(output[3] == b[1]);
+    CHECK(output[4] == b[2]);
+  }
+
+  TEST_CASE("Merging two unaligned bitsets works"){
+    char a[9] = {128, 255, 8, 16, 15, 7, 9, 0, 1};
+    uint64_t b[3] = {32, 32 + 64, 128};
+
+    size_t expected_dangling = 8;
+    size_t expected_free_tail = 64 - 8;
+
+    char expected_0[8]   = {128, 255, 8, 16, 15, 7, 9, 0};
+    char expected_1_0[8] = {1  ,   0, 0,  0,  0, 0, 0, 0};
+    uint64_t * expected_0_uint64 = reinterpret_cast<uint64_t *>(expected_0);
+    uint64_t * expected_1_1_uint64 = reinterpret_cast<uint64_t *>(expected_1_0);
+    uint64_t expected_1 = expected_1_1_uint64[0] | (b[0] << expected_dangling);
+    uint64_t expected_2 = (b[0] >> expected_free_tail) | (b[1] << expected_dangling);
+    uint64_t expected_3 = (b[1] >> expected_free_tail) | (b[2] << expected_dangling);
+    uint64_t expected_4 = (b[2] >> expected_free_tail);
+
+
+    uint64_t* output = reinterpret_cast<uint64_t *>(calloc(5 * sizeof(uint64_t), 1));
+
+    uint64_t* a_step_T = reinterpret_cast<uint64_t *>(a);
+
+    auto dangling = cyclone::append_bitsets(output, 0, a_step_T, 8 * 9 * sizeof(char));
+    auto final_dangling = cyclone::append_bitsets(&output[1], dangling, b, 8 * 3 * sizeof(uint64_t));
+
+    CHECK(dangling == expected_dangling);
+    CHECK(final_dangling == 8);
+    CHECK(output[0] == expected_0_uint64[0]);
+    CHECK(output[1] == expected_1);
+    CHECK(output[2] == expected_2);
+    CHECK(output[3] == expected_3);
+    CHECK(output[4] == expected_4);
+  }
 }
