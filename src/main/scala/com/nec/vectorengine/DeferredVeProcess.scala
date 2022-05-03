@@ -41,11 +41,11 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.put(buffer)
   }
 
-  def putAsync(buffer: BytePointer): Long = {
+  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId) = {
     underlying.putAsync(buffer)
   }
 
-  def putAsync(buffer: BytePointer, destination: Long): Long = {
+  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId = {
     underlying.putAsync(buffer, destination)
   }
 
@@ -53,16 +53,16 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.get(source, size)
   }
 
-  def getAsync(buffer: BytePointer, source: Long): Long = {
+  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId = {
     underlying.getAsync(buffer, source)
   }
 
-  def peekResult(requestId: Long): (Int, Long) = {
-    underlying.peekResult(requestId)
+  def peekResult(id: VeAsyncReqId): (Int, Long) = {
+    underlying.peekResult(id)
   }
 
-  def awaitResult(requestId: Long): Long = {
-    underlying.awaitResult(requestId)
+  def awaitResult(id: VeAsyncReqId): Long = {
+    underlying.awaitResult(id)
   }
 
   def load(path: Path): LibraryReference = {
@@ -77,8 +77,8 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.getSymbol(lib, symbol)
   }
 
-  def newArgsStack(arguments: Seq[CallStackArgument]): VeCallArgsStack = {
-    underlying.newArgsStack(arguments)
+  def newArgsStack(inputs: Seq[CallStackArgument]): VeCallArgsStack = {
+    underlying.newArgsStack(inputs)
   }
 
   def freeArgsStack(stack: VeCallArgsStack): Unit = {
@@ -89,7 +89,7 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.call(func, stack)
   }
 
-  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): Long = {
+  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     underlying.callAsync(func, stack)
   }
 

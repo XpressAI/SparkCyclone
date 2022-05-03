@@ -4,7 +4,7 @@ import com.nec.colvector.{VeColVectorSource => VeSource}
 import scala.util.Try
 import java.nio.file.Path
 import org.apache.spark.api.plugin.PluginContext
-import org.bytedeco.javacpp.{BytePointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 import com.typesafe.scalalogging.LazyLogging
@@ -13,15 +13,25 @@ final case class LibraryReference private[vectorengine] (path: Path, value: Long
 
 final case class LibrarySymbol private[vectorengine] (lib: LibraryReference, name: String, address: Long)
 
-final case class VeCallArgsStack private[vectorengine] (args: veo_args)
+final case class VeCallArgsStack private[vectorengine] (inputs: Seq[CallStackArgument], args: veo_args)
+
+sealed trait VeArgIntent
+
+object VeArgIntent {
+  final case object In extends VeArgIntent
+  final case object Out extends VeArgIntent
+  final case object InOut extends VeArgIntent
+}
 
 sealed trait CallStackArgument
 
-case class I32Arg(value: Int) extends CallStackArgument
+final case class I32Arg(value: Int) extends CallStackArgument
 
-case class U64Arg(value: Long) extends CallStackArgument
+final case class U64Arg(value: Long) extends CallStackArgument
 
-case class BuffArg(intent: Int, buffer: BytePointer, size: Long) extends CallStackArgument
+final case class BuffArg(intent: VeArgIntent, buffer: Pointer) extends CallStackArgument
+
+final case class VeAsyncReqId private[vectorengine] (value: Long)
 
 trait VeProcess {
   def node: Int
@@ -40,17 +50,21 @@ trait VeProcess {
 
   def put(buffer: BytePointer): Long
 
-  def putAsync(buffer: BytePointer): Long
+  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId)
 
-  def putAsync(buffer: BytePointer, destination: Long): Long
+  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId
 
   def get(source: Long, size: Long): BytePointer
 
-  def getAsync(buffer: BytePointer, source: Long): Long
+  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId
 
-  def peekResult(requestId: Long): (Int, Long)
+  /*
+    NOTE: `peek` here means "pick up a result from VE function if it has
+    finished", i.e. `peek and get`
+  */
+  def peekResult(id: VeAsyncReqId): (Int, Long)
 
-  def awaitResult(requestId: Long): Long
+  def awaitResult(id: VeAsyncReqId): Long
 
   def load(path: Path): LibraryReference
 
@@ -58,13 +72,13 @@ trait VeProcess {
 
   def getSymbol(lib: LibraryReference, symbol: String): LibrarySymbol
 
-  def newArgsStack(arguments: Seq[CallStackArgument]): VeCallArgsStack
+  def newArgsStack(inputs: Seq[CallStackArgument]): VeCallArgsStack
 
   def freeArgsStack(stack: VeCallArgsStack): Unit
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer
 
-  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): Long
+  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId
 
   def close: Unit
 }

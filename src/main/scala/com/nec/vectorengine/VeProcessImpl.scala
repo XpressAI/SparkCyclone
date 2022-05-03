@@ -69,18 +69,18 @@ final case class WrappingVeo private (val node: Int,
     location
   }
 
-  def putAsync(buffer: BytePointer): Long = {
+  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId) = {
     requireValidBuffer(buffer)
     val location = allocate(buffer.limit())
-    putAsync(buffer, location)
+    (location, putAsync(buffer, location))
   }
 
-  def putAsync(buffer: BytePointer, destination: Long): Long = {
+  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId = {
     requireValidBuffer(buffer)
     require(destination > 0L, s"Invalid VE memory address ${destination}")
     val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.limit())
     require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
-    id
+    VeAsyncReqId(id)
   }
 
   def get(source: Long, size: Long): BytePointer = {
@@ -92,28 +92,28 @@ final case class WrappingVeo private (val node: Int,
     buffer
   }
 
-  def getAsync(buffer: BytePointer, source: Long): Long = {
+  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId = {
     requireValidBuffer(buffer)
     require(source > 0L, s"Invalid VE memory address ${source}")
     val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.limit())
     require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
-    id
+    VeAsyncReqId(id)
   }
 
-  def peekResult(requestId: Long): (Int, Long) = {
+  def peekResult(id: VeAsyncReqId): (Int, Long) = {
     // Pre-initialize value to 0
     val retp = new LongPointer(0)
-    val res = veo.veo_call_peek_result(tcontext, requestId, retp)
+    val res = veo.veo_call_peek_result(tcontext, id.value, retp)
     val retval = retp.get
     require(retval >= 0L, s"Result should be >= 0, got ${retval}")
     retp.close
     (res, retval)
   }
 
-  def awaitResult(requestId: Long): Long = {
+  def awaitResult(id: VeAsyncReqId): Long = {
     // Pre-initialize value to 0
     val retp = new LongPointer(0)
-    val res = veo.veo_call_wait_result(tcontext, requestId, retp)
+    val res = veo.veo_call_wait_result(tcontext, id.value, retp)
     val retval = retp.get
     require(res == veo.VEO_COMMAND_OK, s"VE function returned value: ${res}")
     require(retval >= 0L, s"Result should be >= 0, got ${retval}")
@@ -140,25 +140,34 @@ final case class WrappingVeo private (val node: Int,
     LibrarySymbol(lib, name, result)
   }
 
-  def newArgsStack(arguments: Seq[CallStackArgument]): VeCallArgsStack = {
-    val stack = veo.veo_args_alloc
-    require(! stack.isNull,  s"Fail to allocate arguments stack")
+  def newArgsStack(inputs: Seq[CallStackArgument]): VeCallArgsStack = {
+    val args = veo.veo_args_alloc
+    require(! args.isNull,  s"Fail to allocate arguments stack")
 
-    arguments.zipWithIndex.foreach {
+    inputs.zipWithIndex.foreach {
       case (I32Arg(value), i) =>
-        val result = veo.veo_args_set_i32(stack, i, value)
+        val result = veo.veo_args_set_i32(args, i, value)
         require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
+        logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
       case (U64Arg(value), i) =>
-        val result = veo.veo_args_set_u64(stack, i, value)
+        val result = veo.veo_args_set_u64(args, i, value)
         require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
+        logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
-      case (BuffArg(intent, buffer, size), i) =>
-        val result = veo.veo_args_set_stack(stack, intent, i, buffer, size)
+      case (BuffArg(intent, buffer), i) =>
+        val icode = intent match {
+          case VeArgIntent.In     => veo.VEO_INTENT_IN
+          case VeArgIntent.Out    => veo.VEO_INTENT_OUT
+          case VeArgIntent.InOut  => veo.VEO_INTENT_INOUT
+        }
+        val nbytes = buffer.limit * buffer.sizeof
+        val result = veo.veo_args_set_stack(args, icode, i, new BytePointer(buffer), nbytes)
         require(result == 0, s"Failed to set arguments stack at position ${i} to: ${buffer}")
+        logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${nbytes} bytes)")
     }
 
-    VeCallArgsStack(stack)
+    VeCallArgsStack(inputs, args)
   }
 
   def freeArgsStack(stack: VeCallArgsStack): Unit = {
@@ -166,6 +175,8 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer = {
+    logger.trace(s"Sync call '${func.name}' with veo_args @ ${stack.args.address}; argument values: ${stack.inputs}")
+
     // Initialize to 1.  All cyclone functions should return 0 on successful completion
     val fnOutput = new LongPointer(1)
     val callResult = veo.veo_call_sync(handle, func.address, stack.args, fnOutput)
@@ -185,13 +196,15 @@ final case class WrappingVeo private (val node: Int,
     fnOutput
   }
 
-  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): Long = {
+  def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
+    logger.trace(s"Async call '${func.name}' with veo_args @ ${stack.args.address}")
+
     val id = veo.veo_call_async(tcontext, func.address, stack.args)
     require(
       id != veo.VEO_REQUEST_ID_INVALID,
       s"VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
     )
-    id
+    VeAsyncReqId(id)
   }
 
   def close: Unit = {
