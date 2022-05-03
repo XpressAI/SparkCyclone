@@ -4,7 +4,7 @@ import com.nec.colvector.{VeColVectorSource => VeSource}
 import scala.util.Try
 import java.nio.file.Path
 import org.apache.spark.api.plugin.PluginContext
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.javacpp.{LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 import com.typesafe.scalalogging.LazyLogging
@@ -48,23 +48,23 @@ trait VeProcess {
 
   def free(location: Long): Unit
 
-  def put(buffer: BytePointer): Long
+  def put(buffer: Pointer): Long
 
-  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId)
+  def putAsync(buffer: Pointer): (Long, VeAsyncReqId)
 
-  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId
+  def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId
 
-  def get(source: Long, size: Long): BytePointer
+  def get(buffer: Pointer, source: Long): Unit
 
-  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId
+  def getAsync(buffer: Pointer, source: Long): VeAsyncReqId
 
   /*
     NOTE: `peek` here means "pick up a result from VE function if it has
     finished", i.e. `peek and get`
   */
-  def peekResult(id: VeAsyncReqId): (Int, Long)
+  def peekResult(id: VeAsyncReqId): (Int, LongPointer)
 
-  def awaitResult(id: VeAsyncReqId): Long
+  def awaitResult(id: VeAsyncReqId): LongPointer
 
   def load(path: Path): LibraryReference
 
@@ -142,59 +142,6 @@ object VeProcess extends LazyLogging {
         throw new IllegalArgumentException(s"VE process could not be allocated for node ${venode}; either the node is offline or another VE process is running")
     }
   }
-
-  // def createFromContext(context: PluginContext): VeProcess = {
-  //   val resources = context.resources
-  //   logger.info(s"Executor has the following resources available => ${resources}")
-
-  //   val selectedNodeId = if (!resources.containsKey("ve")) {
-  //     val id = Try { System.getenv("VE_NODE_NUMBER").toInt }.getOrElse(DefaultVeNodeId)
-  //     logger.info(s"VE resources are not available from the PluginContext; will use '${id}' as the main resource.")
-  //     id
-
-  //   } else {
-  //     val veResources = resources.get("ve")
-
-  //     // Executor IDs start at 1
-  //     val executorId = Try { context.executorID.toInt - 1 }.getOrElse(0)
-  //     val veMultiple = executorId / MaxVeNodes
-
-  //     if (veMultiple > veResources.addresses.size) {
-  //       logger.warn("Not enough VE resources allocated for the number of executors specified.")
-  //     }
-
-  //     veResources.addresses(veMultiple % veResources.addresses.size).toInt
-  //   }
-
-  //   logger.info(s"Attemping to use VE node = ${selectedNodeId}")
-
-  //   var currentNodeId = selectedNodeId
-  //   var handle: veo_proc_handle = null
-  //   var tcontext: veo_thr_ctxt = null
-
-  //   while (handle == null && currentNodeId < MaxVeNodes) {
-  //     handle = veo.veo_proc_create(currentNodeId)
-  //     tcontext = veo.veo_context_open(handle)
-
-  //     if (handle == null) {
-  //       logger.warn(s"VE process could not be allocated for node ${currentNodeId}, trying next.")
-  //       currentNodeId += 1
-  //     }
-  //   }
-
-  //   require(
-  //     handle != null && handle.address > 0,
-  //     s"VE process could not be allocated; all nodes are either offline or occupied by another VE process"
-  //   )
-
-  //   require(
-  //     tcontext != null && tcontext.address > 0,
-  //     s"VEO asynchronous context could not be allocated for node ${currentNodeId}"
-  //   )
-
-  //   val identifier = s"VE Process @ ${handle.address}, Executor ${Try { context.executorID }}"
-  //   WrappingVeo(currentNodeId, identifier, handle, tcontext)
-  // }
 
   def createFromContext(context: PluginContext): VeProcess = {
     val resources = context.resources

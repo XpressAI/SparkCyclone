@@ -3,7 +3,7 @@ package com.nec.vectorengine
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import java.nio.file.Path
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.veo_proc_handle
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
@@ -37,31 +37,31 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.free(location)
   }
 
-  def put(buffer: BytePointer): Long = {
+  def put(buffer: Pointer): Long = {
     underlying.put(buffer)
   }
 
-  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId) = {
+  def putAsync(buffer: Pointer): (Long, VeAsyncReqId) = {
     underlying.putAsync(buffer)
   }
 
-  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId = {
+  def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId = {
     underlying.putAsync(buffer, destination)
   }
 
-  def get(source: Long, size: Long): BytePointer = {
-    underlying.get(source, size)
+  def get(buffer: Pointer, source: Long): Unit = {
+    underlying.get(buffer, source)
   }
 
-  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId = {
+  def getAsync(buffer: Pointer, source: Long): VeAsyncReqId = {
     underlying.getAsync(buffer, source)
   }
 
-  def peekResult(id: VeAsyncReqId): (Int, Long) = {
+  def peekResult(id: VeAsyncReqId): (Int, LongPointer) = {
     underlying.peekResult(id)
   }
 
-  def awaitResult(id: VeAsyncReqId): Long = {
+  def awaitResult(id: VeAsyncReqId): LongPointer = {
     underlying.awaitResult(id)
   }
 

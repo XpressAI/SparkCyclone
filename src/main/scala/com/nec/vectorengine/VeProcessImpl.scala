@@ -5,7 +5,7 @@ import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer}
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 
@@ -14,15 +14,22 @@ final case class WrappingVeo private (val node: Int,
                                       handle: veo_proc_handle,
                                       tcontext: veo_thr_ctxt)
                                       extends VeProcess with LazyLogging {
+
+  implicit class ExtendedPointer(buffer: Pointer) {
+    def nbytes: Long = {
+      buffer.limit * buffer.sizeof
+    }
+  }
+
   logger.info(s"Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
   logger.info(s"Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
-  logger.info(s"VEO version: ${version}; API version ${apiVersion}")
+  logger.info(s"VEO version ${version}; API version ${apiVersion}")
 
   private var opened = true
 
-  private[vectorengine] def requireValidBuffer(buffer: BytePointer): Unit = {
+  private[vectorengine] def requireValidBuffer(buffer: Pointer): Unit = {
     require(buffer.address > 0, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
-    require(buffer.limit() > 0, s"Buffer has a declared size of ${buffer.limit()}")
+    require(buffer.nbytes > 0, s"Buffer has a declared size of ${buffer.nbytes}")
   }
 
   def isOpen: Boolean = {
@@ -44,6 +51,7 @@ final case class WrappingVeo private (val node: Int,
 
   def allocate(size: Long): Long = {
     require(size > 0L, s"Requested size ${size} is invalid")
+    // Value is initialized to 0
     val ptr = new LongPointer(1)
     val result = veo.veo_alloc_mem(handle, ptr, size)
     val location = ptr.get
@@ -61,64 +69,56 @@ final case class WrappingVeo private (val node: Int,
     require(result == 0, s"Memory release failed with code: ${result}")
   }
 
-  def put(buffer: BytePointer): Long = {
+  def put(buffer: Pointer): Long = {
     requireValidBuffer(buffer)
-    val location = allocate(buffer.limit())
-    val result = veo.veo_write_mem(handle, location, buffer, buffer.limit())
+    val location = allocate(buffer.nbytes)
+    val result = veo.veo_write_mem(handle, location, buffer, buffer.nbytes)
     require(result == 0, s"veo_write_mem failed and returned ${result}")
     location
   }
 
-  def putAsync(buffer: BytePointer): (Long, VeAsyncReqId) = {
+  def putAsync(buffer: Pointer): (Long, VeAsyncReqId) = {
     requireValidBuffer(buffer)
-    val location = allocate(buffer.limit())
+    val location = allocate(buffer.nbytes)
     (location, putAsync(buffer, location))
   }
 
-  def putAsync(buffer: BytePointer, destination: Long): VeAsyncReqId = {
+  def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId = {
     requireValidBuffer(buffer)
     require(destination > 0L, s"Invalid VE memory address ${destination}")
-    val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.limit())
+    val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
     require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
     VeAsyncReqId(id)
   }
 
-  def get(source: Long, size: Long): BytePointer = {
-    require(source > 0L, s"Invalid VE memory address ${source}")
-    require(size > 0L, s"Requested size ${size} is invalid")
-    val buffer = new BytePointer(size)
-    val result = veo.veo_read_mem(handle, buffer, source, size)
-    require(result == 0, s"veo_read_mem failed and returned ${result}")
-    buffer
-  }
-
-  def getAsync(buffer: BytePointer, source: Long): VeAsyncReqId = {
+  def get(buffer: Pointer, source: Long): Unit = {
     requireValidBuffer(buffer)
     require(source > 0L, s"Invalid VE memory address ${source}")
-    val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.limit())
+    val result = veo.veo_read_mem(handle, buffer, source, buffer.nbytes)
+    require(result == 0, s"veo_read_mem failed and returned ${result}")
+  }
+
+  def getAsync(buffer: Pointer, source: Long): VeAsyncReqId = {
+    requireValidBuffer(buffer)
+    require(source > 0L, s"Invalid VE memory address ${source}")
+    val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
     require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
     VeAsyncReqId(id)
   }
 
-  def peekResult(id: VeAsyncReqId): (Int, Long) = {
-    // Pre-initialize value to 0
-    val retp = new LongPointer(0)
+  def peekResult(id: VeAsyncReqId): (Int, LongPointer) = {
+    val retp = new LongPointer(1)
+    retp.put(Long.MinValue)
     val res = veo.veo_call_peek_result(tcontext, id.value, retp)
-    val retval = retp.get
-    require(retval >= 0L, s"Result should be >= 0, got ${retval}")
-    retp.close
-    (res, retval)
+    (res, retp)
   }
 
-  def awaitResult(id: VeAsyncReqId): Long = {
-    // Pre-initialize value to 0
-    val retp = new LongPointer(0)
+  def awaitResult(id: VeAsyncReqId): LongPointer = {
+    val retp = new LongPointer(1)
+    retp.put(Long.MinValue)
     val res = veo.veo_call_wait_result(tcontext, id.value, retp)
-    val retval = retp.get
     require(res == veo.VEO_COMMAND_OK, s"VE function returned value: ${res}")
-    require(retval >= 0L, s"Result should be >= 0, got ${retval}")
-    retp.close
-    retval
+    retp
   }
 
   def load(path: Path): LibraryReference = {
@@ -135,6 +135,7 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def getSymbol(lib: LibraryReference, name: String): LibrarySymbol = {
+    require(name.trim.nonEmpty, "Symbol name is empty or contains only whitespaces")
     val result = veo.veo_get_sym(handle, lib.value, name)
     require(result > 0, s"Expected > 0, but got ${result} when looking up symbol '${name}' (library at: ${lib.path})")
     LibrarySymbol(lib, name, result)
@@ -143,6 +144,7 @@ final case class WrappingVeo private (val node: Int,
   def newArgsStack(inputs: Seq[CallStackArgument]): VeCallArgsStack = {
     val args = veo.veo_args_alloc
     require(! args.isNull,  s"Fail to allocate arguments stack")
+    logger.trace(s"Allocated veo_args @ ${args.address}")
 
     inputs.zipWithIndex.foreach {
       case (I32Arg(value), i) =>
@@ -161,25 +163,27 @@ final case class WrappingVeo private (val node: Int,
           case VeArgIntent.Out    => veo.VEO_INTENT_OUT
           case VeArgIntent.InOut  => veo.VEO_INTENT_INOUT
         }
-        val nbytes = buffer.limit * buffer.sizeof
-        val result = veo.veo_args_set_stack(args, icode, i, new BytePointer(buffer), nbytes)
+        val result = veo.veo_args_set_stack(args, icode, i, new BytePointer(buffer), buffer.nbytes)
         require(result == 0, s"Failed to set arguments stack at position ${i} to: ${buffer}")
-        logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${nbytes} bytes)")
+        logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${buffer.nbytes} bytes)")
     }
 
     VeCallArgsStack(inputs, args)
   }
 
   def freeArgsStack(stack: VeCallArgsStack): Unit = {
+    logger.trace(s"Releasing veo_args @ ${stack.args.address}")
     veo.veo_args_free(stack.args)
   }
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer = {
     logger.trace(s"Sync call '${func.name}' with veo_args @ ${stack.args.address}; argument values: ${stack.inputs}")
 
-    // Initialize to 1.  All cyclone functions should return 0 on successful completion
-    val fnOutput = new LongPointer(1)
-    val callResult = veo.veo_call_sync(handle, func.address, stack.args, fnOutput)
+    // Set the output buffer
+    val retp = new LongPointer(1)
+
+    // Call the function
+    val callResult = veo.veo_call_sync(handle, func.address, stack.args, retp)
 
     // The VE call to the function should succeed
     require(
@@ -187,13 +191,7 @@ final case class WrappingVeo private (val node: Int,
       s"VE call failed for function '${func.name}' (library at: ${func.lib.path}); got ${callResult}"
     )
 
-    // The function itself should return 0
-    require(
-      fnOutput.get() == 0L,
-      s"Expected 0 from function execution, got ${fnOutput.get()} instead."
-    )
-
-    fnOutput
+    retp
   }
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
@@ -204,14 +202,17 @@ final case class WrappingVeo private (val node: Int,
       id != veo.VEO_REQUEST_ID_INVALID,
       s"VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
     )
+
     VeAsyncReqId(id)
   }
 
   def close: Unit = {
     if (opened) {
       Try {
-        logger.info(s"Closing VE process (Node ${node}) @ ${handle.address}: ${handle}")
+        logger.info(s"Closing VEO asynchronous context @ ${tcontext.address}")
         veo.veo_context_close(tcontext)
+
+        logger.info(s"Closing VE process (Node ${node}) @ ${handle.address}")
         veo.veo_proc_destroy(handle)
       }
       opened = false
