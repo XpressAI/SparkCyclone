@@ -170,6 +170,10 @@ namespace cyclone {
    * *second* does not need to be allocated to fit T an integer amount of times.
    * The last bytes will always be handled in a byte-wise fashion.
    *
+   * Both *first_tail* and *second* must be aligned to sizeof(T), i.e. if
+   * T=uint64_t then they **must** be aligned to 8 bytes, otherwise a
+   * SIGBUS error will be thrown (signal 7).
+   *
    * @tparam T holding type
    * @param first_tail Pointer to last not yet full T of the first bitset
    * @param dangling_bits Count of bits already set in first_tail
@@ -248,8 +252,8 @@ namespace cyclone {
 
     //std::cout << "[append_bitsets] setting up additional containers " << std::endl;
     // T steps
-// Enabling vectorization dies with SIGBUS - likely due to missing alignment
-#pragma _NEC novector
+#pragma _NEC vector
+#pragma _NEC ivdep
     for (auto i = 0; i < additional_container_count; i++) {
       // Set the dangling bits of all follow up Ts
       first_tail[i + 1] = second[i] >> space_in_tail;
@@ -257,8 +261,8 @@ namespace cyclone {
     }
 
     //std::cout << "[append_bitsets] setting values " << std::endl;
-// Enabling vectorization dies with SIGBUS - likely due to missing alignment
-#pragma _NEC novector
+#pragma _NEC vector
+#pragma _NEC ivdep
     for (auto i = 0; i < big_step_count; i++) {
       // Fill the free space in the tail of all Ts
       //std::cout << "[append_bitsets] "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i]) << " |= " << std::bitset<sizeof(T)*CHAR_BIT>(second[i]) << " << " << dangling_bits;
