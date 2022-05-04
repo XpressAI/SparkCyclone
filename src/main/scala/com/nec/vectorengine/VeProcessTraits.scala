@@ -9,6 +9,20 @@ import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 import com.typesafe.scalalogging.LazyLogging
 
+final case class VeAllocation private[vectorengine] (address: Long, size: Long, trace: Seq[StackTraceElement]) {
+  def toThrowable: Throwable = {
+    new Throwable {
+      override def getMessage: String = {
+        s"Unreleased allocation @ ${address} (${size} bytes)"
+      }
+
+      override def getStackTrace: Array[StackTraceElement] = {
+        trace.toArray
+      }
+    }
+  }
+}
+
 final case class LibraryReference private[vectorengine] (path: Path, value: Long)
 
 final case class LibrarySymbol private[vectorengine] (lib: LibraryReference, name: String, address: Long)
@@ -44,13 +58,19 @@ trait VeProcess {
 
   def version: String
 
-  def allocate(size: Long): Long
+  def heapAllocations: Map[Long, VeAllocation]
 
-  def free(location: Long): Unit
+  def stackAllocations: Map[Long, VeCallArgsStack]
 
-  def put(buffer: Pointer): Long
+  def allocate(size: Long): VeAllocation
 
-  def putAsync(buffer: Pointer): (Long, VeAsyncReqId)
+  def free(address: Long): Unit
+
+  def freeAll: Unit
+
+  def put(buffer: Pointer): VeAllocation
+
+  def putAsync(buffer: Pointer): (VeAllocation, VeAsyncReqId)
 
   def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId
 
@@ -88,12 +108,6 @@ object VeProcess extends LazyLogging {
   final val MaxVeNodes = 8
 
   private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, veo_thr_ctxt)] = {
-    /*
-      If venode is -1, a VE process is created on the VE node specified by
-      environment variable VE_NODE_NUMBER. If venode is -1 and environment
-      variable VE_NODE_NUMBER is not set, a VE process is created on the VE
-      node #0.
-     */
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
 
@@ -133,6 +147,12 @@ object VeProcess extends LazyLogging {
     }
   }
 
+  /*
+    If venode is -1, a VE process is created on the VE node specified by
+    environment variable VE_NODE_NUMBER. If venode is -1 and environment
+    variable VE_NODE_NUMBER is not set, a VE process is created on the VE
+    node #0.
+  */
   def create(venode: Int, identifier: String): VeProcess = {
     createVeoTuple(venode) match {
       case Some((venode, handle, tcontext)) =>

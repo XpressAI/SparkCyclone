@@ -7,7 +7,12 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.veo_proc_handle
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
-  private lazy val underlying = newproc()
+  private lazy val underlying = {
+    logger.info("Creating the underlying VeProcess")
+    val proc = newproc()
+    logger.info(s"New underlying VeProcess created: ${proc.source}")
+    proc
+  }
 
   def node: Int = {
     underlying.node
@@ -29,19 +34,31 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.version
   }
 
-  def allocate(size: Long): Long = {
+  def heapAllocations: Map[Long, VeAllocation] = {
+    underlying.heapAllocations
+  }
+
+  def stackAllocations: Map[Long, VeCallArgsStack] = {
+    underlying.stackAllocations
+  }
+
+  def allocate(size: Long): VeAllocation = {
     underlying.allocate(size)
   }
 
-  def free(location: Long): Unit = {
-    underlying.free(location)
+  def free(address: Long): Unit = {
+    underlying.free(address)
   }
 
-  def put(buffer: Pointer): Long = {
+  def freeAll: Unit = {
+    underlying.freeAll
+  }
+
+  def put(buffer: Pointer): VeAllocation = {
     underlying.put(buffer)
   }
 
-  def putAsync(buffer: Pointer): (Long, VeAsyncReqId) = {
+  def putAsync(buffer: Pointer): (VeAllocation, VeAsyncReqId) = {
     underlying.putAsync(buffer)
   }
 

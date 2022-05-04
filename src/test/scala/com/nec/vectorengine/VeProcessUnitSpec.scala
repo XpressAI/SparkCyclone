@@ -30,11 +30,22 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
   }
 
   override def afterAll(): Unit = {
+    // Free all unreleased allocations and close the process
+    process.freeAll
     process.close
 
     // Calling close twice should not break
     noException should be thrownBy {
       process.close
+    }
+
+    // Allocation records should be deleted on close
+    process.heapAllocations shouldBe empty
+    process.stackAllocations shouldBe empty
+
+    // Attempting to do anything with a closed process should fail
+    intercept[IllegalArgumentException] {
+      process.allocate(Random.nextInt(10000) + 100)
     }
 
     // VE process should now be indicated as closed
@@ -59,24 +70,53 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
     }
 
     "correctly allocate and free memory" in {
-      val size = Random.nextInt(1000) + 100
+      val size = Random.nextInt(10000) + 100
 
+      // Tracker should be empty
+      process.heapAllocations shouldBe empty
+
+      val allocation = process.allocate(size)
+      allocation.address should be > 0L
+
+      // Tracker should now contain the record
+      process.heapAllocations should not be empty
+      process.heapAllocations.keys should be (Set(allocation.address))
+
+      // First call to `free()` should work
       noException should be thrownBy {
-        val location = process.allocate(size)
-        location should be > 0L
-        process.free(location)
+        process.free(allocation.address)
+      }
+
+      // Tracker should be back to empty
+      process.heapAllocations shouldBe empty
+
+      // Double `free()` should fail without crashing the JVM
+      intercept[IllegalArgumentException] {
+        process.free(allocation.address)
       }
     }
 
-    "handle the case where zero memory is requested for allocation" in {
+    "handle the case where an invalid memory size is requested for allocation" in {
+      // Zero requested allocation size
       intercept[IllegalArgumentException] {
         process.allocate(0L)
+      }
+
+      // Negative requested allocation size
+      intercept[IllegalArgumentException] {
+        process.allocate(- Random.nextInt(10000).toLong)
       }
     }
 
     "handle the case where an invalid VE address is requested to be freed" in {
+      // VE memory address is invalid
       intercept[IllegalArgumentException] {
-        process.free(- Random.nextInt(1000).toLong)
+        process.free(- Random.nextInt(10000).toLong)
+      }
+
+      // VE memory address is valid but has never been allocated before
+      intercept[IllegalArgumentException] {
+        process.free(Random.nextInt(10000).toLong)
       }
     }
 
@@ -93,12 +133,12 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         buffer1.put(bytes1, 0, bytes1.size)
 
         // Move from VH to VE
-        val location = process.put(buffer1)
-        location should be > 0L
+        val allocation = process.put(buffer1)
+        allocation.address should be > 0L
 
         // Move from VE to VH
         val buffer2 = new BytePointer(bytes2.size)
-        process.get(buffer2, location)
+        process.get(buffer2, allocation.address)
 
         // Move from VH to JVM
         buffer2.get(bytes2)
@@ -121,12 +161,12 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         buffer1.put(array1, 0, array1.size)
 
         // Move from VH to VE
-        val location = process.put(buffer1)
-        location should be > 0L
+        val allocation = process.put(buffer1)
+        allocation.address should be > 0L
 
         // Move from VE to VH
         val buffer2 = new DoublePointer(array2.size)
-        process.get(buffer2, location)
+        process.get(buffer2, allocation.address)
 
         // Move from VH to JVM
         buffer2.get(array2)
@@ -187,8 +227,8 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         buffer1.put(bytes1, 0, bytes1.size)
 
         // Move from VH to VE (async)
-        val (location, id1) = process.putAsync(buffer1)
-        location should be > 0L
+        val (allocation, id1) = process.putAsync(buffer1)
+        allocation.address should be > 0L
 
         // Fetch the async transfer result using `peek`
         eventually {
@@ -199,7 +239,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
         // Move from VE to VH (async)
         val buffer2 = new BytePointer(bytes2.size)
-        val id2 = process.getAsync(buffer2, location)
+        val id2 = process.getAsync(buffer2, allocation.address)
 
         // Fetch the async transfer result using `await`
         process.awaitResult(id2).get should be (0L)
@@ -266,12 +306,22 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
           BuffArg(VeArgIntent.Out, buffer)
         )
 
+        // Tracker should be empty
+        process.stackAllocations shouldBe empty
+
         // Create the args stack with the veo_args
         val stack = process.newArgsStack(inputs)
         stack.inputs should be (inputs)
 
+        // Tracker should now be be non-empty
+        process.stackAllocations should not be empty
+        process.stackAllocations.keys should be (Set(stack.args.address))
+
         // Free the args stack
         process.freeArgsStack(stack)
+
+        // Tracker should be back to empty
+        process.stackAllocations shouldBe empty
       }
     }
 
