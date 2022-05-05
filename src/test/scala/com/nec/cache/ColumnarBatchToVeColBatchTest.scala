@@ -1,7 +1,6 @@
 package com.nec.cache
 
 import com.nec.colvector.ArrowVectorConversions._
-import com.nec.cache.{ArrowEncodingSettings, ColumnarBatchToVeColBatch}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.WithVeProcess

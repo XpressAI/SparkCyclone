@@ -42,6 +42,11 @@ object InputSamples {
     } else if (klass == classOf[String]) {
       0.until(size).map(_ => Random.nextString(Random.nextInt(30) + 1)).asInstanceOf[Seq[T]]
 
+    } else if (klass == classOf[Byte]) {
+      val bytes = Array.ofDim[Byte](size.abs)
+      Random.nextBytes(bytes)
+      bytes.toSeq.asInstanceOf[Seq[T]]
+
     } else {
       throw new NotImplementedError(s"Type not supported: ${klass}")
     }
