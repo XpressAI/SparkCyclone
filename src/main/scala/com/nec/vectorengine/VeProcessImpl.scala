@@ -1,7 +1,7 @@
 package com.nec.vectorengine
 
 import com.nec.colvector.{VeColVectorSource => VeSource}
-import scala.collection.mutable.{Map => MMap}
+import scala.collection.concurrent.{TrieMap => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -89,6 +89,15 @@ final case class WrappingVeo private (val node: Int,
       val allocation = VeAllocation(address, size, new Exception().getStackTrace)
       heapRecords.put(address, allocation)
       allocation
+    }
+  }
+
+  def unsafeFree(address: Long): Unit = {
+    withVeoProc {
+      require(address > 0L, s"Invalid VE memory address ${address}")
+      logger.warn(s"Releasing VE memory @ ${address} without safety checks")
+      val result = veo.veo_free_mem(handle, address)
+      require(result == 0, s"Memory release failed with code: ${result}")
     }
   }
 

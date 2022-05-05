@@ -64,6 +64,14 @@ trait VeProcess {
 
   def allocate(size: Long): VeAllocation
 
+  /*
+    Unlike `free()`, this method does not check for existing allocations prior
+    to calling `veo_free_mem()`, and is made available only for releasing memory
+    allocated from the VE side inside function calls (i.e. not allocated from
+    the VH side through the `VeProcess` abstraction).
+  */
+  def unsafeFree(address: Long): Unit
+
   def free(address: Long): Unit
 
   def freeAll: Unit

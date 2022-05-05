@@ -46,6 +46,10 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.allocate(size)
   }
 
+  def unsafeFree(address: Long): Unit = {
+    underlying.unsafeFree(address)
+  }
+
   def free(address: Long): Unit = {
     underlying.free(address)
   }
