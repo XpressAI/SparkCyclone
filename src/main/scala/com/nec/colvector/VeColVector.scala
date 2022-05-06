@@ -3,7 +3,8 @@ package com.nec.colvector
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.ve.{VeAsyncResult => OldVeAsyncResult, VeProcess => OldVeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeProcess, VeAsyncResult}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.veoffload.global.veo
@@ -25,8 +26,8 @@ final case class VeColVector private[colvector] (
     Seq(container) ++ buffers
   }
 
-  def toBytes(implicit process: VeProcess,
-                metrics: VeProcessMetrics): Array[Byte] = {
+  def toBytes(implicit process: OldVeProcess,
+              metrics: VeProcessMetrics): Array[Byte] = {
     val bytes = metrics.measureRunningTime {
       // toBytePointerColVector.toByteArrayColVector.serialize
       toBytePointerColVector.toBytes
@@ -40,12 +41,12 @@ final case class VeColVector private[colvector] (
     bytes
   }
 
-  def toBytePointersAsync()(implicit process: VeProcess): Seq[VeAsyncResult[BytePointer]] = {
+  def toBytePointersAsync()(implicit process: OldVeProcess): Seq[OldVeAsyncResult[BytePointer]] = {
     import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
     buffers.zip(bufferSizes).map { case (start, size) =>
       val bp = new BytePointer(size)
       val handle = process.getAsync(bp, start, size)
-      VeAsyncResult(handle){() => bp}
+      OldVeAsyncResult(handle){() => bp}
     }
   }
 
@@ -53,7 +54,7 @@ final case class VeColVector private[colvector] (
     new VeColColumnarVector(Left(this), veType.toSparkType)
   }
 
-  def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
+  def toBytePointerColVector(implicit process: OldVeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
       val ptr = new BytePointer(size)
       val handle = process.getAsync(ptr, location, size)
@@ -62,6 +63,26 @@ final case class VeColVector private[colvector] (
       require(process.waitResult(handle)(null)._1 == veo.VEO_COMMAND_OK)
       ptr
     }
+
+    BytePointerColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      nbuffers
+    )
+  }
+
+  def toBytePointerColVector2(implicit process: VeProcess): BytePointerColVector = {
+    val nbuffers = buffers.zip(bufferSizes)
+      .map { case (location, size) =>
+        val buffer = new BytePointer(size)
+        (buffer, process.getAsync(buffer, location))
+      }
+      .map{ case (buffer, handle) =>
+        require(process.awaitResult(handle).get == veo.VEO_COMMAND_OK)
+        buffer
+      }
 
     BytePointerColVector(
       source,
@@ -83,7 +104,7 @@ final case class VeColVector private[colvector] (
   }
 
   def free()(implicit dsource: VeColVectorSource,
-             process: VeProcess,
+             process: OldVeProcess,
              context: OriginalCallingContext): Unit = {
     if (memoryFreed) {
       logger.warn(s"[VE MEMORY ${container}] double free called!")
@@ -91,6 +112,17 @@ final case class VeColVector private[colvector] (
     } else {
       require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
       allocations.foreach(process.free)
+      memoryFreed = true
+    }
+  }
+
+  def free2(implicit process: VeProcess): Unit = {
+    if (memoryFreed) {
+      logger.warn(s"[VE MEMORY ${container}] double free called!")
+
+    } else {
+      require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
+      allocations.foreach(process.free(_))
       memoryFreed = true
     }
   }

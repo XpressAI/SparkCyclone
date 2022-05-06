@@ -7,8 +7,16 @@ import scala.reflect.ClassTag
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
 
-class VectorEngine(process: VeProcess,
-                   metrics: VectorEngineMetrics) extends LazyLogging {
+trait VectorEngine {
+  def execute(lib: LibraryReference,
+              fnName: String,
+              inputs: Seq[VeColVector],
+              outputs: Seq[CVector])(implicit context: CallContext): Seq[VeColVector]
+}
+
+class VectorEngineImpl(process: VeProcess,
+                       metrics: VectorEngineMetrics)
+                       extends VectorEngine with LazyLogging {
   require(process.isOpen, s"VE process is closed: ${process.source}")
 
   private implicit val p = process
@@ -108,13 +116,13 @@ class VectorEngine(process: VeProcess,
 
   def execute(lib: LibraryReference,
               fnName: String,
-              columns: Seq[VeColVector],
+              inputs: Seq[VeColVector],
               outputs: Seq[CVector])(implicit context: CallContext): Seq[VeColVector] = {
     // Validate columns
-    validateVectors(columns)
+    validateVectors(inputs)
 
     // Set up the input buffer args
-    val inbuffers = columns.map { vec =>
+    val inbuffers = inputs.map { vec =>
       BuffArg(VeArgIntent.In, new LongPointer(1).put(vec.container))
     }
 
@@ -131,16 +139,16 @@ class VectorEngine(process: VeProcess,
   /** Return multiple datasets - e.g. for sorting/exchanges */
   def executeMulti(lib: LibraryReference,
                    fnName: String,
-                   columns: Seq[VeColVector],
+                   inputs: Seq[VeColVector],
                    outputs: List[CVector])
                   (implicit context: CallContext): Seq[(Int, Seq[VeColVector])] = {
     val MaxSetsCount = 64
 
     // Validate columns
-    validateVectors(columns)
+    validateVectors(inputs)
 
     // Set up the input buffer args
-    val inbuffers = columns.map { vec =>
+    val inbuffers = inputs.map { vec =>
       BuffArg(VeArgIntent.In, new LongPointer(1).put(vec.container))
     }
 
@@ -157,7 +165,7 @@ class VectorEngine(process: VeProcess,
     val counts = countsp.get
     require(
       counts >= 0 && counts <= MaxSetsCount,
-      s"Expected 0 to ${MaxSetsCount} counts; got ${counts} instead. Input args are ${columns}, outputs are ${outputs}"
+      s"Expected 0 to ${MaxSetsCount} counts; got ${counts} instead. Input args are ${inputs}, outputs are ${outputs}"
     )
 
     (0 until counts)

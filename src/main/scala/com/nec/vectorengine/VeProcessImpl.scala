@@ -97,15 +97,6 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  // def unsafeFree(address: Long): Unit = {
-  //   withVeoProc {
-  //     require(address > 0L, s"Invalid VE memory address ${address}")
-  //     logger.warn(s"Releasing VE memory @ ${address} without safety checks")
-  //     val result = veo.veo_free_mem(handle, address)
-  //     require(result == 0, s"Memory release failed with code: ${result}")
-  //   }
-  // }
-
   def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
       require(address > 0L, s"Invalid VE memory address ${address}")

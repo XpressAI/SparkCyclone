@@ -7,10 +7,13 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.veo_proc_handle
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
+  private var instantiated = false
+
   private lazy val underlying = {
     logger.info("Creating the underlying VeProcess")
     val proc = newproc()
     logger.info(s"New underlying VeProcess created: ${proc.source}")
+    instantiated = true
     proc
   }
 
@@ -49,10 +52,6 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   def allocate(size: Long): VeAllocation = {
     underlying.allocate(size)
   }
-
-  // def unsafeFree(address: Long): Unit = {
-  //   underlying.unsafeFree(address)
-  // }
 
   def free(address: Long, unsafe: Boolean): Unit = {
     underlying.free(address, unsafe)
@@ -119,6 +118,9 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def close: Unit = {
-    underlying.close
+    // Don't instantiate an underlying VeProcess instance just for closing
+    if (instantiated) {
+      underlying.close
+    }
   }
 }

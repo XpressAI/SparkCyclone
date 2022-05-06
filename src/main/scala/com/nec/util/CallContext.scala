@@ -11,9 +11,9 @@ final case class CallContext(file: File,
 }
 
 object CallContextOps {
-  implicit def make(implicit file: File,
-                    line: Line,
-                    fullName: FullName): CallContext = {
+  implicit def newContext(implicit file: File,
+                          line: Line,
+                          fullName: FullName): CallContext = {
     CallContext(file, line, fullName)
   }
 }

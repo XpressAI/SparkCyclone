@@ -1,8 +1,10 @@
 package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
+import com.nec.util.CallContext
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.ve.{VeAsyncResult => OldVeAsyncResult, VeProcess => OldVeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeProcess, VeAsyncResult}
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColVector private[colvector] (
@@ -43,9 +45,9 @@ final case class BytePointerColVector private[colvector] (
   }
 
   def asyncToVeColVector(implicit source: VeColVectorSource,
-                         process: VeProcess,
+                         process: OldVeProcess,
                          context: OriginalCallingContext,
-                         metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
+                         metrics: VeProcessMetrics): () => OldVeAsyncResult[VeColVector] = {
     val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate)
     val structPtr = veType match {
       case stype: VeScalarType =>
@@ -93,18 +95,76 @@ final case class BytePointerColVector private[colvector] (
       val handles = (Seq(structPtr) ++ buffers).zipWithIndex.map{case (ptr, idx) =>
         process.putAsync(ptr, veMemoryPositions(idx))
       }
-      VeAsyncResult(handles){ () =>
+      OldVeAsyncResult(handles){ () =>
         structPtr.close()
         vector
       }
     }
   }
 
+  def asyncToVeColVector2(implicit process: VeProcess): () => VeAsyncResult[VeColVector] = {
+    // Allocate the buffers on the VE
+    val veLocations = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit()))
+      .map(process.allocate)
+      .map(_.address)
+
+    // Create the nullable_T_vector struct on VH
+    val struct = veType match {
+      case stype: VeScalarType =>
+        require(buffers.size == 2, s"Exactly 2 VE buffer pointers are required to construct container for ${stype}")
+
+        // The layout of `nullable_T_vector` is the same for all T = primitive
+        // Assign the data, validity, and count values
+        new BytePointer(stype.containerSize.toLong)
+          .putLong(0, veLocations(1))
+          .putLong(8, veLocations(2))
+          .putInt(16, numItems.abs)
+
+      case VeString =>
+        require(buffers.size == 4, s"Exactly 4 VE buffer pointers are required to construct container for ${VeString}")
+        require(dataSize.nonEmpty, s"dataSize is required to construct container for ${VeString}")
+        val Some(actualDataSize) = dataSize
+
+        // Assign the data, validity, starts, lens, and count values
+        new BytePointer(VeString.containerSize.toLong)
+          .putLong(0,  veLocations(1))
+          .putLong(8,  veLocations(2))
+          .putLong(16, veLocations(3))
+          .putLong(24, veLocations(4))
+          .putInt(32,  actualDataSize.abs)
+          .putInt(36,  numItems.abs)
+    }
+
+    val vector = VeColVector(
+      process.source,
+      name,
+      veType,
+      numItems,
+      veLocations.tail,
+      dataSize,
+      veLocations.head
+    )
+
+    () => {
+      val handles = (Seq(struct) ++ buffers).zipWithIndex.map { case (ptr, idx) =>
+        process.putAsync(ptr, veLocations(idx))
+      }
+      VeAsyncResult(handles: _*) { () =>
+        struct.close
+        vector
+      }
+    }
+  }
+
   def toVeColVector(implicit source: VeColVectorSource,
-                    process: VeProcess,
+                    process: OldVeProcess,
                     context: OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
     asyncToVeColVector.apply().get()
+  }
+
+  def toVeColVector2(implicit process: VeProcess): VeColVector = {
+    asyncToVeColVector2.apply.get
   }
 
   def toByteArrayColVector: ByteArrayColVector = {

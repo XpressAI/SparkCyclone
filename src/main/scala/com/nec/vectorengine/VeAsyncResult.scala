@@ -1,11 +1,8 @@
 package com.nec.vectorengine
 
-import com.nec.util.CallContext
-
 final class VeAsyncResult[T](handles: Seq[VeAsyncReqId],
                              thunk: () => T)
-                            (implicit process: VeProcess,
-                             context: CallContext) {
+                            (implicit process: VeProcess) {
   // Only fetch once, since calling await twice will return error from the VE
   private lazy val result: T = {
     handles.foreach { id =>
@@ -38,11 +35,11 @@ final class VeAsyncResult[T](handles: Seq[VeAsyncReqId],
 object VeAsyncResult {
   def apply[T](handles: VeAsyncReqId*)
               (thunk: () => T)
-              (implicit process: VeProcess, context: CallContext): VeAsyncResult[T] = {
+              (implicit process: VeProcess): VeAsyncResult[T] = {
     new VeAsyncResult[T](handles, thunk)
   }
 
-  def empty(implicit process: VeProcess, context: CallContext): VeAsyncResult[Unit] = {
+  def empty(implicit process: VeProcess): VeAsyncResult[Unit] = {
     new VeAsyncResult[Unit](Nil, { () => })
   }
 }

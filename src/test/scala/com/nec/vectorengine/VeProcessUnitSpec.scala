@@ -389,7 +389,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         | #include <stdlib.h>
         |
         | extern "C" long ${fnName} (double *inputs, size_t size, double **outputs) {
-        |   *outputs = static_cast<T *>(malloc(sizeof(double) * size));
+        |   *outputs = static_cast<double *>(malloc(sizeof(double) * size));
         |
         |   for (auto i = 0; i < size; i++) {
         |     (*outputs)[i] = inputs[i] * 2;
@@ -439,7 +439,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         // Output values should be the input values doubled
         output.toSeq should be (input.toSeq.map(_ * 2))
 
-        // Delete the memory allocated inside the VE function call
+        // Perform "unsafe free" on the memory allocated inside the VE function call - should not fail or crash the JVM
         noException should be thrownBy {
           process.free(outptr.get, unsafe = true)
         }
