@@ -42,16 +42,20 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.stackAllocations
   }
 
+  def loadedLibraries: Map[String, LibraryReference] = {
+    underlying.loadedLibraries
+  }
+
   def allocate(size: Long): VeAllocation = {
     underlying.allocate(size)
   }
 
-  def unsafeFree(address: Long): Unit = {
-    underlying.unsafeFree(address)
-  }
+  // def unsafeFree(address: Long): Unit = {
+  //   underlying.unsafeFree(address)
+  // }
 
-  def free(address: Long): Unit = {
-    underlying.free(address)
+  def free(address: Long, unsafe: Boolean): Unit = {
+    underlying.free(address, unsafe)
   }
 
   def freeAll: Unit = {

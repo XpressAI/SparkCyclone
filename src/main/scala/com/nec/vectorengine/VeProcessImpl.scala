@@ -26,6 +26,7 @@ final case class WrappingVeo private (val node: Int,
   private var opened = true
   private var heapRecords = MMap.empty[Long, VeAllocation]
   private var stackRecords = MMap.empty[Long, VeCallArgsStack]
+  private var loadedLibRecords = MMap.empty[String, LibraryReference]
 
   logger.info(s"Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
   logger.info(s"Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
@@ -70,6 +71,10 @@ final case class WrappingVeo private (val node: Int,
     stackRecords.toMap
   }
 
+  def loadedLibraries: Map[String, LibraryReference] = {
+    loadedLibRecords.toMap
+  }
+
   def allocate(size: Long): VeAllocation = {
     withVeoProc {
       require(size > 0L, s"Requested size ${size} is invalid")
@@ -92,16 +97,16 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  def unsafeFree(address: Long): Unit = {
-    withVeoProc {
-      require(address > 0L, s"Invalid VE memory address ${address}")
-      logger.warn(s"Releasing VE memory @ ${address} without safety checks")
-      val result = veo.veo_free_mem(handle, address)
-      require(result == 0, s"Memory release failed with code: ${result}")
-    }
-  }
+  // def unsafeFree(address: Long): Unit = {
+  //   withVeoProc {
+  //     require(address > 0L, s"Invalid VE memory address ${address}")
+  //     logger.warn(s"Releasing VE memory @ ${address} without safety checks")
+  //     val result = veo.veo_free_mem(handle, address)
+  //     require(result == 0, s"Memory release failed with code: ${result}")
+  //   }
+  // }
 
-  def free(address: Long): Unit = {
+  def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
       require(address > 0L, s"Invalid VE memory address ${address}")
 
@@ -113,6 +118,11 @@ final case class WrappingVeo private (val node: Int,
           // Remove only after the free() was successful
           heapRecords.remove(address)
 
+        case None if unsafe =>
+          logger.warn(s"Releasing VE memory @ ${address} without safety checks!")
+          val result = veo.veo_free_mem(handle, address)
+          require(result == 0, s"Memory release failed with code: ${result}")
+
         case None =>
           throw new IllegalArgumentException(s"VE memory address does not correspond to a tracked allocation: ${address}")
       }
@@ -122,7 +132,7 @@ final case class WrappingVeo private (val node: Int,
   def freeAll: Unit = {
     withVeoProc {
       logger.debug(s"Releasing all ${heapRecords.size} heap allocations held by the process")
-      heapRecords.keys.foreach(free)
+      heapRecords.keys.foreach(free(_))
 
       logger.debug(s"Releasing all ${heapRecords.size} veo_args allocations held by the process")
       stackRecords.values.foreach(freeArgsStack)
@@ -197,18 +207,40 @@ final case class WrappingVeo private (val node: Int,
 
   def load(path: Path): LibraryReference = {
     withVeoProc {
-      require(Files.exists(path), s"Path does not correspond to an existing file: ${path}")
-      logger.info(s"Loading from path as .SO: ${path}...")
-      val result = veo.veo_load_library(handle, path.toString)
-      require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${path})")
-      LibraryReference(path, result)
+      val npath = path.normalize
+      loadedLibRecords.get(npath.toString) match {
+        case Some(lib) =>
+          logger.debug(s"Library .SO has already been loaded: ${npath}")
+          lib
+
+        case None =>
+          require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
+          logger.info(s"Loading from path as .SO: ${npath}...")
+          val result = veo.veo_load_library(handle, npath.toString)
+          require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
+
+          // Create a library load record to track
+          val lib = LibraryReference(npath, result)
+          loadedLibRecords.put(npath.toString, lib)
+          lib
+      }
     }
   }
 
   def unload(lib: LibraryReference): Unit = {
     withVeoProc {
-      val result = veo.veo_unload_library(handle, lib.value)
-      require(result == 0, s"Failed to unload library reference, got ${result} (library at: ${lib.path})")
+      val npath = lib.path.normalize
+      loadedLibRecords.get(npath.toString) match {
+        case Some(lib) =>
+          logger.info(s"Unloading library from the VE process: ${npath}...")
+          val result = veo.veo_unload_library(handle, lib.value)
+          require(result == 0, s"Failed to unload library from the VE process, got ${result} (library at: ${npath})")
+          // Remove only after the veo_unload_library() was successful
+          loadedLibRecords.remove(npath.toString)
+
+        case None =>
+          throw new IllegalArgumentException(s"VE process does not have library loaded; nothing to unload: ${npath}")
+      }
     }
   }
 
@@ -334,11 +366,14 @@ final case class WrappingVeo private (val node: Int,
         logger.info(s"Closing VE process (Node ${node}) @ ${handle.address}")
         veo.veo_proc_destroy(handle)
 
-        logger.info(s"Clearing the VE process' allocation records")
+        logger.info(s"Clearing allocation records held by the VE process")
         heapRecords.clear
 
-        logger.info(s"Clearing the VE process' veo_args allocations records")
+        logger.info(s"Clearing veo_args allocations records held by the VE process")
         stackRecords.clear
+
+        logger.info(s"Clearing loaded libraries records held by the VE process")
+        loadedLibRecords.clear
       }
 
       opened = false

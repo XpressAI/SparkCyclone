@@ -11,7 +11,7 @@ class VectorEngine(process: VeProcess,
                    metrics: VectorEngineMetrics) extends LazyLogging {
   require(process.isOpen, s"VE process is closed: ${process.source}")
 
-  private lazy val p = process
+  private implicit val p = process
 
   private[vectorengine] var calls = 0
   private[vectorengine] var veSeconds = 0.0
@@ -66,12 +66,12 @@ class VectorEngine(process: VeProcess,
 
         buffer.close()
         vector
-      } (process, context)
+      }
     }
   }
 
   private def readVectors(pointers: Seq[(Long, CVector)])
-                          (implicit context: CallContext): Seq[VeColVector] = {
+                         (implicit context: CallContext): Seq[VeColVector] = {
     readVectorsAsync(pointers).map(_.get)
   }
 
@@ -256,79 +256,79 @@ class VectorEngine(process: VeProcess,
     readVectors(outptrs.map(_.get).zip(outputs))
   }
 
-  def executeGrouping[K: ClassTag](lib: LibraryReference,
-                                   fnName: String,
-                                   inputs: VeBatchOfBatches,
-                                   outputs: Seq[CVector])
-                                  (implicit context: CallContext): Seq[(K, Seq[VeColVector])] = {
-    // Validate columns
-    inputs.batches.foreach(batch => validateVectors(batch.columns))
+  // def executeGrouping[K: ClassTag](lib: LibraryReference,
+  //                                  fnName: String,
+  //                                  inputs: VeBatchOfBatches,
+  //                                  outputs: Seq[CVector])
+  //                                 (implicit context: CallContext): Seq[(K, Seq[VeColVector])] = {
+  //   // Validate columns
+  //   inputs.batches.foreach(batch => validateVectors(batch.columns))
 
-    // Set up the input count args
-    val countargs = Seq(
-      // Total batches count for input pointers
-      U64Arg(inputs.batches.size)
-    )
+  //   // Set up the input count args
+  //   val countargs = Seq(
+  //     // Total batches count for input pointers
+  //     U64Arg(inputs.batches.size)
+  //   )
 
-    // Set up the groups output arg
-    val groupsp = new LongPointer(1L).put(-919)
+  //   // Set up the groups output arg
+  //   val groupsp = new LongPointer(1L).put(-919)
 
-    // Set up the input buffer args
-    val inbuffers = inputs.groupedColumns.map { group =>
-      // For each group, create an array of pointers
-      val array = group.columns.zipWithIndex
-        .foldLeft(new LongPointer(group.columns.size.toLong)) { case (accum, (col, i)) =>
-          accum.put(i.toLong, col.container)
-        }
-      BuffArg(VeArgIntent.In, array)
-    }
+  //   // Set up the input buffer args
+  //   val inbuffers = inputs.groupedColumns.map { group =>
+  //     // For each group, create an array of pointers
+  //     val array = group.columns.zipWithIndex
+  //       .foldLeft(new LongPointer(group.columns.size.toLong)) { case (accum, (col, i)) =>
+  //         accum.put(i.toLong, col.container)
+  //       }
+  //     BuffArg(VeArgIntent.In, array)
+  //   }
 
-    // Set up the output buffer args
-    val outptrs = outputs.map { _ => new LongPointer(1).put(-118) }
+  //   // Set up the output buffer args
+  //   val outptrs = outputs.map { _ => new LongPointer(1).put(-118) }
 
-    // Execute the function
-    execFn(lib, fnName, countargs ++ Seq(BuffArg(VeArgIntent.Out, groupsp)) ++ inbuffers ++ outptrs.map(BuffArg(VeArgIntent.Out, _)))
+  //   // Execute the function
+  //   execFn(lib, fnName, countargs ++ Seq(BuffArg(VeArgIntent.Out, groupsp)) ++ inbuffers ++ outptrs.map(BuffArg(VeArgIntent.Out, _)))
 
-    // Ensure that groups output pointer is properly set by the function
-    require(groupsp.get >= 0, s"Groups address is invalid: ${groupsp.get}")
+  //   // Ensure that groups output pointer is properly set by the function
+  //   require(groupsp.get >= 0, s"Groups address is invalid: ${groupsp.get}")
 
-    // Fetch the groups
-    val groups = VeColBatch(readVectors(Seq((groupsp.get, outputs.head))))
+  //   // Fetch the groups
+  //   val groups = VeColBatch(readVectors(Seq((groupsp.get, outputs.head))))
 
-    val ngroups = groups.numRows
-    // FIX
-    val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
+  //   val ngroups = groups.numRows
+  //   // FIX
+  //   val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
 
-    // Declare pointer scope
-    val scope = new PointerScope()
+  //   // Declare pointer scope
+  //   val scope = new PointerScope()
 
-    // Each of the output buffers is an array of pointers to nullable_t_vector's
-    // so we dereference them first
-    val actualOutPointers = outptrs.map(_.get)
-      .map { source =>
-        val buffer = new LongPointer(ngroups.toLong)
-        (buffer, process.getAsync(buffer, source))
-      }
-      .map { case (buffer, handle) =>
-        process.awaitResult(handle)
-        buffer
-      }
+  //   // Each of the output buffers is an array of pointers to nullable_t_vector's
+  //   // so we dereference them first
+  //   val actualOutPointers = outptrs.map(_.get)
+  //     .map { source =>
+  //       val buffer = new LongPointer(ngroups.toLong)
+  //       (buffer, process.getAsync(buffer, source))
+  //     }
+  //     .map { case (buffer, handle) =>
+  //       process.awaitResult(handle)
+  //       buffer
+  //     }
 
-    val results = (0 until ngroups)
-      // Read the Nth pointer of each actualOutPointers, and fetch them all to VeColVectors
-      .map { set => readVectorsAsync(actualOutPointers.map(_.get(set)).zip(outputs)) }
-      // Await each batch fetch
-      .map(_.map(_.get))
-      // Return with batch indices
-      .zip(groupKeys).map(_.swap).toSeq
+  //   val results = (0 until ngroups)
+  //     // Read the Nth pointer of each actualOutPointers, and fetch them all to VeColVectors
+  //     .map { set => readVectorsAsync(actualOutPointers.map(_.get(set)).zip(outputs)) }
+  //     // Await each batch fetch
+  //     .map(_.map(_.get))
+  //     // Return with batch indices
+  //     .zip(groupKeys).map(_.swap).toSeq
 
-    // Free the referenced nullable_t_vector's created from the function call
-    outptrs.foreach(p => process.unsafeFree(p.get))
+  //   // Free the referenced nullable_t_vector's created from the function call
+  //   outptrs.foreach(p => process.unsafeFree(p.get))
 
-    // Close scope and return results
-    scope.close
-    results
-  }
+  //   // Close scope and return results
+  //   scope.close
+  //   results
+  // }
 }
 
 import scala.concurrent.duration._

@@ -39,9 +39,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.close
     }
 
-    // Allocation records should be deleted on close
+    // Allocation and library records should be deleted on close
     process.heapAllocations shouldBe empty
     process.stackAllocations shouldBe empty
+    process.loadedLibraries shouldBe empty
 
     // Attempting to do anything with a closed process should fail
     intercept[IllegalArgumentException] {
@@ -347,8 +348,14 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         """.stripMargin
 
       withCompiled(code) { path =>
+        // Libraries tracker should be empty
+        process.loadedLibraries shouldBe empty
+
         // Load the library
         val library = process.load(path)
+
+        // Libraries tracker should now contain the record
+        process.loadedLibraries should be (Map(path.normalize.toString -> library))
 
         // Symbol with only whitespaces
         intercept[IllegalArgumentException] {
@@ -367,6 +374,9 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
         // Unload the library
         process.unload(library)
+
+        // Libraries tracker should be back to empty
+        process.loadedLibraries shouldBe empty
       }
     }
 
@@ -376,10 +386,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
       // Define a function that multplies the input values by 2
       val code = s"""
-        | #include <stddef.h>
+        | #include <stdlib.h>
         |
         | extern "C" long ${fnName} (double *inputs, size_t size, double **outputs) {
-        |   *outputs = new double[size];
+        |   *outputs = static_cast<T *>(malloc(sizeof(double) * size));
         |
         |   for (auto i = 0; i < size; i++) {
         |     (*outputs)[i] = inputs[i] * 2;
@@ -428,6 +438,11 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
         // Output values should be the input values doubled
         output.toSeq should be (input.toSeq.map(_ * 2))
+
+        // Delete the memory allocated inside the VE function call
+        noException should be thrownBy {
+          process.free(outptr.get, unsafe = true)
+        }
 
         // Unload the library
         process.unload(library)

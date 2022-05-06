@@ -62,6 +62,8 @@ trait VeProcess {
 
   def stackAllocations: Map[Long, VeCallArgsStack]
 
+  def loadedLibraries: Map[String, LibraryReference]
+
   def allocate(size: Long): VeAllocation
 
   /*
@@ -70,9 +72,9 @@ trait VeProcess {
     allocated from the VE side inside function calls (i.e. not allocated from
     the VH side through the `VeProcess` abstraction).
   */
-  def unsafeFree(address: Long): Unit
+  // def unsafeFree(address: Long): Unit
 
-  def free(address: Long): Unit
+  def free(address: Long, unsafe: Boolean = false): Unit
 
   def freeAll: Unit
 
