@@ -4,7 +4,8 @@ import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.{VeProcess => OldVeProcess, VeProcessMetrics}
+import com.nec.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -15,7 +16,7 @@ import scala.reflect.runtime.universe._
 import scala.util.Try
 
 final case class VeColBatch(columns: Seq[VeColVector]) {
-  def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
+  def toCPUSeq[T: TypeTag](implicit process: OldVeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
       case Nil =>
@@ -57,8 +58,12 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     }
   }
 
-  def toArray[T: ClassTag](idx: Int)(implicit process: VeProcess): Array[T] = {
+  def toArray[T: ClassTag](idx: Int)(implicit process: OldVeProcess): Array[T] = {
     columns(idx).toBytePointerColVector.toArray[T]
+  }
+
+  def toArray2[T: ClassTag](idx: Int)(implicit process: VeProcess): Array[T] = {
+    columns(idx).toBytePointerColVector2.toArray[T]
   }
 
   def streamedSize: Int = {
@@ -67,7 +72,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     }
   }.sum
 
-  def toStream(stream: DataOutputStream)(implicit process: VeProcess,
+  def toStream(stream: DataOutputStream)(implicit process: OldVeProcess,
                                          metrics: VeProcessMetrics): Unit = {
     val hostBuffersAsync = columns.map(_.toBytePointersAsync())
     val channel = Channels.newChannel(stream)
@@ -90,7 +95,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     }
   }
 
-  def toBytes(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
+  def toBytes(implicit process: OldVeProcess, metrics: VeProcessMetrics): Array[Byte] = {
     val stream = new ByteArrayOutputStream()
     val writer = new ObjectOutputStream(stream)
     writer.writeObject(toUnit)
@@ -115,13 +120,13 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   }
 
   def free()(implicit source: VeColVectorSource,
-             process: VeProcess,
+             process: OldVeProcess,
              context: OriginalCallingContext): Unit = {
     columns.foreach(_.free)
   }
 
   def toArrowColumnarBatch(implicit allocator: BufferAllocator,
-                           process: VeProcess): ColumnarBatch = {
+                           process: OldVeProcess): ColumnarBatch = {
     val vecs = columns.map(_.toBytePointerColVector.toArrowVector)
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(numRows)
@@ -152,7 +157,7 @@ object VeColBatch {
   }
 
   def fromStream(din: DataInputStream)(implicit
-    veProcess: VeProcess,
+    veProcess: OldVeProcess,
     source: VeColVectorSource,
     originalCallingContext: OriginalCallingContext
   ): VeColBatch = {
@@ -187,7 +192,7 @@ object VeColBatch {
   }
 
   def fromBytes(data: Array[Byte])(implicit source: VeColVectorSource,
-                                   process: VeProcess,
+                                   process: OldVeProcess,
                                    context: OriginalCallingContext,
                                    metrics: VeProcessMetrics): VeColBatch = {
     val stream = new ByteArrayInputStream(data)
@@ -201,7 +206,7 @@ object VeColBatch {
   }
 
   def fromArrowColumnarBatch(batch: ColumnarBatch)(implicit source: VeColVectorSource,
-                                                   process: VeProcess,
+                                                   process: OldVeProcess,
                                                    context: OriginalCallingContext,
                                                    metrics: VeProcessMetrics): VeColBatch = {
     VeColBatch(

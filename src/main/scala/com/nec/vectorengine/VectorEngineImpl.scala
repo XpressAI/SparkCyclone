@@ -8,10 +8,40 @@ import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
 
 trait VectorEngine {
+  /** Return a single dataset - e.g. for maps and filters */
   def execute(lib: LibraryReference,
               fnName: String,
               inputs: Seq[VeColVector],
-              outputs: Seq[CVector])(implicit context: CallContext): Seq[VeColVector]
+              outputs: Seq[CVector])
+             (implicit context: CallContext): Seq[VeColVector]
+
+  /** Return multiple datasets - e.g. for sorting/exchanges */
+  def executeMulti(lib: LibraryReference,
+                   fnName: String,
+                   inputs: Seq[VeColVector],
+                   outputs: Seq[CVector])
+                  (implicit context: CallContext): Seq[(Int, Seq[VeColVector])]
+
+  /** Takes in multiple datasets - e.g. for merges */
+  def executeMultiIn(lib: LibraryReference,
+                     fnName: String,
+                     inputs: VeBatchOfBatches,
+                     outputs: Seq[CVector])
+                    (implicit context: CallContext): Seq[VeColVector]
+
+  /** Takes in multiple batches and returns multiple batches */
+  def executeJoin(lib: LibraryReference,
+                  fnName: String,
+                  left: VeBatchOfBatches,
+                  right: VeBatchOfBatches,
+                  outputs: Seq[CVector])
+                 (implicit context: CallContext): Seq[VeColVector]
+
+  def executeGrouping[K: ClassTag](lib: LibraryReference,
+                                   fnName: String,
+                                   inputs: VeBatchOfBatches,
+                                   outputs: Seq[CVector])
+                                  (implicit context: CallContext): Seq[(K, Seq[VeColVector])]
 }
 
 class VectorEngineImpl(process: VeProcess,
@@ -117,7 +147,8 @@ class VectorEngineImpl(process: VeProcess,
   def execute(lib: LibraryReference,
               fnName: String,
               inputs: Seq[VeColVector],
-              outputs: Seq[CVector])(implicit context: CallContext): Seq[VeColVector] = {
+              outputs: Seq[CVector])
+             (implicit context: CallContext): Seq[VeColVector] = {
     // Validate columns
     validateVectors(inputs)
 
@@ -136,11 +167,10 @@ class VectorEngineImpl(process: VeProcess,
     readVectors(outptrs.map(_.get).zip(outputs))
   }
 
-  /** Return multiple datasets - e.g. for sorting/exchanges */
   def executeMulti(lib: LibraryReference,
                    fnName: String,
                    inputs: Seq[VeColVector],
-                   outputs: List[CVector])
+                   outputs: Seq[CVector])
                   (implicit context: CallContext): Seq[(Int, Seq[VeColVector])] = {
     val MaxSetsCount = 64
 
@@ -177,11 +207,10 @@ class VectorEngineImpl(process: VeProcess,
       .zipWithIndex.map(_.swap).toSeq
   }
 
-  /** Takes in multiple datasets */
   def executeMultiIn(lib: LibraryReference,
                      fnName: String,
                      inputs: VeBatchOfBatches,
-                     outputs: List[CVector])
+                     outputs: Seq[CVector])
                     (implicit context: CallContext): Seq[VeColVector] = {
     // Validate columns
     inputs.batches.foreach(batch => validateVectors(batch.columns))
@@ -264,79 +293,79 @@ class VectorEngineImpl(process: VeProcess,
     readVectors(outptrs.map(_.get).zip(outputs))
   }
 
-  // def executeGrouping[K: ClassTag](lib: LibraryReference,
-  //                                  fnName: String,
-  //                                  inputs: VeBatchOfBatches,
-  //                                  outputs: Seq[CVector])
-  //                                 (implicit context: CallContext): Seq[(K, Seq[VeColVector])] = {
-  //   // Validate columns
-  //   inputs.batches.foreach(batch => validateVectors(batch.columns))
+  def executeGrouping[K: ClassTag](lib: LibraryReference,
+                                   fnName: String,
+                                   inputs: VeBatchOfBatches,
+                                   outputs: Seq[CVector])
+                                  (implicit context: CallContext): Seq[(K, Seq[VeColVector])] = {
+    // Validate columns
+    inputs.batches.foreach(batch => validateVectors(batch.columns))
 
-  //   // Set up the input count args
-  //   val countargs = Seq(
-  //     // Total batches count for input pointers
-  //     U64Arg(inputs.batches.size)
-  //   )
+    // Set up the input count args
+    val countargs = Seq(
+      // Total batches count for input pointers
+      U64Arg(inputs.batches.size)
+    )
 
-  //   // Set up the groups output arg
-  //   val groupsp = new LongPointer(1L).put(-919)
+    // Set up the groups output arg
+    val groupsp = new LongPointer(1L).put(-919)
 
-  //   // Set up the input buffer args
-  //   val inbuffers = inputs.groupedColumns.map { group =>
-  //     // For each group, create an array of pointers
-  //     val array = group.columns.zipWithIndex
-  //       .foldLeft(new LongPointer(group.columns.size.toLong)) { case (accum, (col, i)) =>
-  //         accum.put(i.toLong, col.container)
-  //       }
-  //     BuffArg(VeArgIntent.In, array)
-  //   }
+    // Set up the input buffer args
+    val inbuffers = inputs.groupedColumns.map { group =>
+      // For each group, create an array of pointers
+      val array = group.columns.zipWithIndex
+        .foldLeft(new LongPointer(group.columns.size.toLong)) { case (accum, (col, i)) =>
+          accum.put(i.toLong, col.container)
+        }
+      BuffArg(VeArgIntent.In, array)
+    }
 
-  //   // Set up the output buffer args
-  //   val outptrs = outputs.map { _ => new LongPointer(1).put(-118) }
+    // Set up the output buffer args
+    val outptrs = outputs.map { _ => new LongPointer(1).put(-118) }
 
-  //   // Execute the function
-  //   execFn(lib, fnName, countargs ++ Seq(BuffArg(VeArgIntent.Out, groupsp)) ++ inbuffers ++ outptrs.map(BuffArg(VeArgIntent.Out, _)))
+    // Execute the function
+    execFn(lib, fnName, countargs ++ Seq(BuffArg(VeArgIntent.Out, groupsp)) ++ inbuffers ++ outptrs.map(BuffArg(VeArgIntent.Out, _)))
 
-  //   // Ensure that groups output pointer is properly set by the function
-  //   require(groupsp.get >= 0, s"Groups address is invalid: ${groupsp.get}")
+    // Ensure that groups output pointer is properly set by the function
+    require(groupsp.get >= 0, s"Groups address is invalid: ${groupsp.get}")
 
-  //   // Fetch the groups
-  //   val groups = VeColBatch(readVectors(Seq((groupsp.get, outputs.head))))
+    // Fetch the groups
+    val groups = VeColBatch(readVectors(Seq((groupsp.get, outputs.head))))
+    val ngroups = groups.numRows
 
-  //   val ngroups = groups.numRows
-  //   // FIX
-  //   val groupKeys = groups.toArray(0)(implicitly[ClassTag[K]], this)
+    // Fetch the group keys
+    val groupKeys = groups.toArray2[K](0)
 
-  //   // Declare pointer scope
-  //   val scope = new PointerScope()
+    // Declare pointer scope
+    val scope = new PointerScope
 
-  //   // Each of the output buffers is an array of pointers to nullable_t_vector's
-  //   // so we dereference them first
-  //   val actualOutPointers = outptrs.map(_.get)
-  //     .map { source =>
-  //       val buffer = new LongPointer(ngroups.toLong)
-  //       (buffer, process.getAsync(buffer, source))
-  //     }
-  //     .map { case (buffer, handle) =>
-  //       process.awaitResult(handle)
-  //       buffer
-  //     }
+    // Each of the output buffers is an array of pointers to nullable_t_vector's
+    // so we dereference them first
+    val actualOutPointers = outptrs.map(_.get)
+      .map { source =>
+        val buffer = new LongPointer(ngroups.toLong)
+        (buffer, process.getAsync(buffer, source))
+      }
+      .map { case (buffer, handle) =>
+        process.awaitResult(handle)
+        buffer
+      }
 
-  //   val results = (0 until ngroups)
-  //     // Read the Nth pointer of each actualOutPointers, and fetch them all to VeColVectors
-  //     .map { set => readVectorsAsync(actualOutPointers.map(_.get(set)).zip(outputs)) }
-  //     // Await each batch fetch
-  //     .map(_.map(_.get))
-  //     // Return with batch indices
-  //     .zip(groupKeys).map(_.swap).toSeq
+    val results = (0 until ngroups)
+      // Read the Nth pointer of each actualOutPointers, and fetch them all to VeColVectors
+      .map { set => readVectorsAsync(actualOutPointers.map(_.get(set)).zip(outputs)) }
+      // Await each batch fetch
+      .map(_.map(_.get))
+      // Return with batch indices
+      .zip(groupKeys).map(_.swap).toSeq
 
-  //   // Free the referenced nullable_t_vector's created from the function call
-  //   outptrs.foreach(p => process.unsafeFree(p.get))
+    // Free the referenced nullable_t_vector's created from the function call
+    outptrs.foreach(p => process.free(p.get, unsafe = true))
 
-  //   // Close scope and return results
-  //   scope.close
-  //   results
-  // }
+    // Close scope and return results
+    scope.close
+    results
+  }
 }
 
 import scala.concurrent.duration._

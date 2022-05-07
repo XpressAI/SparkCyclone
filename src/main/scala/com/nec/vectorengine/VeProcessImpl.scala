@@ -32,9 +32,18 @@ final case class WrappingVeo private (val node: Int,
   logger.info(s"Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
   logger.info(s"VEO version ${version}; API version ${apiVersion}")
 
-  private[vectorengine] def requireValidBuffer(buffer: Pointer): Unit = {
-    require(buffer.address > 0, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
-    require(buffer.nbytes > 0, s"Buffer has a declared size of ${buffer.nbytes}")
+  private[vectorengine] def requireValidBufferForPut(buffer: Pointer): Unit = {
+    require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
+    require(buffer.nbytes > 0L, s"Buffer has a declared size of ${buffer.nbytes}; nothing to put to VE memory")
+  }
+
+  private[vectorengine] def requireValidBufferForGet(buffer: Pointer): Unit = {
+    /*
+      For `get()`s, there are situations where a 0-sized buffer is fetched,
+      (e.g. the output of a filter on a column vector can be column vector of
+      size 0), and so we don't require `buffer.nbytes` to be > 0L
+    */
+    require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
   }
 
   private[vectorengine] def withVeoProc[T](thunk: => T): T = {
@@ -132,7 +141,7 @@ final case class WrappingVeo private (val node: Int,
 
   def put(buffer: Pointer): VeAllocation = {
     withVeoProc {
-      requireValidBuffer(buffer)
+      requireValidBufferForPut(buffer)
       val allocation = allocate(buffer.nbytes)
       val result = veo.veo_write_mem(handle, allocation.address, buffer, buffer.nbytes)
       require(result == 0, s"veo_write_mem failed and returned ${result}")
@@ -142,7 +151,7 @@ final case class WrappingVeo private (val node: Int,
 
   def putAsync(buffer: Pointer): (VeAllocation, VeAsyncReqId) = {
     withVeoProc {
-      requireValidBuffer(buffer)
+      requireValidBufferForPut(buffer)
       val allocation = allocate(buffer.nbytes)
       (allocation, putAsync(buffer, allocation.address))
     }
@@ -150,7 +159,7 @@ final case class WrappingVeo private (val node: Int,
 
   def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId = {
     withVeoProc {
-      requireValidBuffer(buffer)
+      requireValidBufferForPut(buffer)
       require(destination > 0L, s"Invalid VE memory address ${destination}")
       val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
@@ -160,7 +169,7 @@ final case class WrappingVeo private (val node: Int,
 
   def get(buffer: Pointer, source: Long): Unit = {
     withVeoProc {
-      requireValidBuffer(buffer)
+      requireValidBufferForGet(buffer)
       require(source > 0L, s"Invalid VE memory address ${source}")
       val result = veo.veo_read_mem(handle, buffer, source, buffer.nbytes)
       require(result == 0, s"veo_read_mem failed and returned ${result}")
@@ -169,7 +178,7 @@ final case class WrappingVeo private (val node: Int,
 
   def getAsync(buffer: Pointer, source: Long): VeAsyncReqId = {
     withVeoProc {
-      requireValidBuffer(buffer)
+      requireValidBufferForGet(buffer)
       require(source > 0L, s"Invalid VE memory address ${source}")
       val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
