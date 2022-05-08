@@ -3,8 +3,8 @@ package com.nec.colvector
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.util.CallContext
 import com.nec.ve.VeProcess.OriginalCallingContext
-import com.nec.ve.{VeAsyncResult => OldVeAsyncResult, VeProcess => OldVeProcess, VeProcessMetrics}
-import com.nec.vectorengine.{VeProcess, VeAsyncResult}
+import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeProcess => NewVeProcess, VeAsyncResult => NewVeAsyncResult}
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColVector private[colvector] (
@@ -45,9 +45,9 @@ final case class BytePointerColVector private[colvector] (
   }
 
   def asyncToVeColVector(implicit source: VeColVectorSource,
-                         process: OldVeProcess,
+                         process: VeProcess,
                          context: OriginalCallingContext,
-                         metrics: VeProcessMetrics): () => OldVeAsyncResult[VeColVector] = {
+                         metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate)
     val structPtr = veType match {
       case stype: VeScalarType =>
@@ -90,14 +90,14 @@ final case class BytePointerColVector private[colvector] (
       val handles = (Seq(structPtr) ++ buffers).zipWithIndex.map{case (ptr, idx) =>
         process.putAsync(ptr, veMemoryPositions(idx))
       }
-      OldVeAsyncResult(handles){ () =>
+      VeAsyncResult(handles){ () =>
         structPtr.close()
         vector
       }
     }
   }
 
-  def asyncToVeColVector2(implicit process: VeProcess): () => VeAsyncResult[VeColVector] = {
+  def asyncToVeColVector2(implicit process: NewVeProcess): () => NewVeAsyncResult[VeColVector] = {
     // Allocate the buffers on the VE
     val veLocations = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit()))
       .map(process.allocate)
@@ -144,7 +144,7 @@ final case class BytePointerColVector private[colvector] (
       val handles = (Seq(struct) ++ buffers).zipWithIndex.map { case (ptr, idx) =>
         process.putAsync(ptr, veLocations(idx))
       }
-      VeAsyncResult(handles: _*) { () =>
+      NewVeAsyncResult(handles: _*) { () =>
         struct.close
         vector
       }
@@ -152,13 +152,13 @@ final case class BytePointerColVector private[colvector] (
   }
 
   def toVeColVector(implicit source: VeColVectorSource,
-                    process: OldVeProcess,
+                    process: VeProcess,
                     context: OriginalCallingContext,
                     metrics: VeProcessMetrics): VeColVector = {
     asyncToVeColVector.apply().get()
   }
 
-  def toVeColVector2(implicit process: VeProcess): VeColVector = {
+  def toVeColVector2(implicit process: NewVeProcess): VeColVector = {
     asyncToVeColVector2.apply.get
   }
 

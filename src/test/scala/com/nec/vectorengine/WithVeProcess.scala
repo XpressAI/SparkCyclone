@@ -6,7 +6,6 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
   implicit val metrics = VeProcessMetrics.noOp
-  implicit val source = VeSource(getClass.getName)
 
   /*
     Initialization is explicitly deferred to avoid creation of VeProcess when
@@ -16,7 +15,17 @@ trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
   implicit val process: VeProcess = DeferredVeProcess { () =>
     VeProcess.create(getClass.getName)
   }
-  implicit val engine: VectorEngine = new VectorEngineImpl(process, new VectorEngineMetrics {})
+
+  implicit def source: VeSource = {
+    process.source
+  }
+
+  implicit var engine: VectorEngine = _
+
+  override def beforeAll: Unit = {
+    super.beforeAll
+    engine = new VectorEngineImpl(process, new VectorEngineMetrics {})
+  }
 
   override def afterAll: Unit = {
     // Free all memory held by the process and close

@@ -168,8 +168,6 @@ object CppTranspiler {
   }
 
   private def groupByCode(groupByType: Type, signature: VeSignature, predicateCode: String) = {
-    val resultType: String = signature.outputs.head.veType.cVectorType
-
     val debug = false
     val mark = (m: String) => debugPrint(m,debug)
     val sout = (m: String, v: String) => debugPrint(m,v,debug)

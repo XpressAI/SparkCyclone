@@ -4,16 +4,27 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
 import com.nec.ve.WithVeProcess
-import org.scalatest.matchers.should.Matchers._
-import org.scalatest.wordspec.AnyWordSpec
-
+import scala.util.Random
 import java.io._
 import java.util.UUID
-import scala.util.Random
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
   import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+
+  def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
+    val colvec1 = input.toVeColVector
+    val bytes = colvec1.toBytes
+    val colvec2 = colvec1.toUnitColVector.withData(bytes).apply().get()
+
+    colvec1.container should not be (colvec2.container)
+    colvec1.buffers should not be (colvec2.buffers)
+    colvec2.toBytes.toSeq should be (bytes.toSeq)
+
+    colvec2.toBytePointerColVector
+  }
 
   "UnitColVector" should {
     "correctly enforce input requirements on construction" in {
@@ -36,20 +47,34 @@ final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
       }
     }
 
-    s"correctly construct ${classOf[VeColVector].getSimpleName} from Array[Byte] (Int)" in {
+    "correctly serialize to and deserialize from Array[Byte] (Int)" in {
       val input = InputSamples.seqOpt[Int]
-      val colvec1 = input.toBytePointerColVector("_").toVeColVector
-      val colvec2 = colvec1.toUnitColVector.withData(colvec1.toBytes).apply().get()
-
-      colvec2.toBytePointerColVector.toSeqOpt[Int] should be (input)
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
     }
 
-    s"correctly construct ${classOf[VeColVector].getSimpleName} from Array[Byte] (String)" in {
-      val input = InputSamples.seqOpt[String]
-      val colvec1 = input.toBytePointerColVector("_").toVeColVector
-      val colvec2 = colvec1.toUnitColVector.withData(colvec1.toBytes).apply().get()
+    "correctly serialize to and deserialize from Array[Byte] (Short)" in {
+      val input = InputSamples.seqOpt[Short]
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
+    }
 
-      colvec2.toBytePointerColVector.toSeqOpt[String] should be (input)
+    "correctly serialize to and deserialize from Array[Byte] (Long)" in {
+      val input = InputSamples.seqOpt[Long]
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
+    }
+
+    "correctly serialize to and deserialize from Array[Byte] (Float)" in {
+      val input = InputSamples.seqOpt[Float]
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
+    }
+
+    "correctly serialize to and deserialize from Array[Byte] (Double)" in {
+      val input = InputSamples.seqOpt[Double]
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
+    }
+
+    "correctly serialize to and deserialize from Array[Byte] (String)" in {
+      val input = InputSamples.seqOpt[String]
+      runSerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
     }
 
     "correctly serialize to java.io.OutputStream and deserialize from java.io.InputStream" in {
