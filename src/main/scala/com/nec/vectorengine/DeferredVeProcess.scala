@@ -54,11 +54,17 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def free(address: Long, unsafe: Boolean): Unit = {
-    underlying.free(address, unsafe)
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.free(address, unsafe)
+    }
   }
 
   def freeAll: Unit = {
-    underlying.freeAll
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.freeAll
+    }
   }
 
   def put(buffer: Pointer): VeAllocation = {
@@ -94,7 +100,10 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def unload(lib: LibraryReference): Unit = {
-    underlying.unload(lib)
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.unload(lib)
+    }
   }
 
   def getSymbol(lib: LibraryReference, symbol: String): LibrarySymbol = {

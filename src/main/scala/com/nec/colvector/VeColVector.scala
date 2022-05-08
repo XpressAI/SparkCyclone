@@ -1,7 +1,7 @@
 package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.core.VeType
+import com.nec.spark.agile.core._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeAsyncResult => OldVeAsyncResult, VeProcess => OldVeProcess, VeProcessMetrics}
 import com.nec.vectorengine.{VeProcess, VeAsyncResult}
@@ -124,6 +124,45 @@ final case class VeColVector private[colvector] (
       require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
       allocations.foreach(process.free(_))
       memoryFreed = true
+    }
+  }
+}
+
+
+object VeColVector {
+  def fromBuffer(buffer: BytePointer,
+                 velocation: Long,
+                 descriptor: CVector)(implicit source: VeColVectorSource): VeColVector = {
+    descriptor match {
+      case CVarChar(name) =>
+        VeColVector(
+          source,
+          name,
+          VeString,
+          buffer.getInt(36),
+          Seq(
+            buffer.getLong(0),
+            buffer.getLong(8),
+            buffer.getLong(16),
+            buffer.getLong(24)
+          ),
+          Some(buffer.getInt(32)),
+          velocation
+        )
+
+    case CScalarVector(name, stype) =>
+      VeColVector(
+        source,
+        name,
+        stype,
+        buffer.getInt(16),
+        Seq(
+          buffer.getLong(0),
+          buffer.getLong(8)
+        ),
+        None,
+        velocation
+      )
     }
   }
 }

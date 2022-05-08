@@ -7,48 +7,12 @@ import scala.reflect.ClassTag
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
 
-trait VectorEngine {
-  /** Return a single dataset - e.g. for maps and filters */
-  def execute(lib: LibraryReference,
-              fnName: String,
-              inputs: Seq[VeColVector],
-              outputs: Seq[CVector])
-             (implicit context: CallContext): Seq[VeColVector]
-
-  /** Return multiple datasets - e.g. for sorting/exchanges */
-  def executeMulti(lib: LibraryReference,
-                   fnName: String,
-                   inputs: Seq[VeColVector],
-                   outputs: Seq[CVector])
-                  (implicit context: CallContext): Seq[(Int, Seq[VeColVector])]
-
-  /** Takes in multiple datasets - e.g. for merges */
-  def executeMultiIn(lib: LibraryReference,
-                     fnName: String,
-                     inputs: VeBatchOfBatches,
-                     outputs: Seq[CVector])
-                    (implicit context: CallContext): Seq[VeColVector]
-
-  /** Takes in multiple batches and returns multiple batches */
-  def executeJoin(lib: LibraryReference,
-                  fnName: String,
-                  left: VeBatchOfBatches,
-                  right: VeBatchOfBatches,
-                  outputs: Seq[CVector])
-                 (implicit context: CallContext): Seq[VeColVector]
-
-  def executeGrouping[K: ClassTag](lib: LibraryReference,
-                                   fnName: String,
-                                   inputs: VeBatchOfBatches,
-                                   outputs: Seq[CVector])
-                                  (implicit context: CallContext): Seq[(K, Seq[VeColVector])]
-}
-
-class VectorEngineImpl(process: VeProcess,
+class VectorEngineImpl(val process: VeProcess,
                        metrics: VectorEngineMetrics)
                        extends VectorEngine with LazyLogging {
   require(process.isOpen, s"VE process is closed: ${process.source}")
 
+  // Declare implicit for use with VeAsyncResult contexts
   private implicit val p = process
 
   private[vectorengine] var calls = 0
@@ -63,59 +27,30 @@ class VectorEngineImpl(process: VeProcess,
     }
   }
 
-  private def readVectorsAsync(pointers: Seq[(Long, CVector)])
-                              (implicit context: CallContext): Seq[VeAsyncResult[VeColVector]] = {
-    pointers.map { case (location, cvec) =>
-      require(location > 0, s"Expected container location to be > 0, got ${location}")
-      val buffer = new BytePointer(cvec.veType.containerSize)
+  private[vectorengine] def readVectorsAsync(pointers: Seq[(Long, CVector)])
+                                            (implicit context: CallContext): Seq[VeAsyncResult[VeColVector]] = {
+    pointers.map { case (location, descriptor) =>
+      require(location > 0, s"Expected nullable_t_struct container location to be > 0L, got ${location}")
+      val buffer = new BytePointer(descriptor.veType.containerSize)
 
+      // Copy the nullable_t_struct to VH memory and wait before creating the VeColVector
       VeAsyncResult(process.getAsync(buffer, location)) { () =>
-        val vector = cvec match {
-          case CVarChar(name) =>
-            VeColVector(
-              process.source,
-              name,
-              VeString,
-              buffer.getInt(36),
-              Seq(
-                buffer.getLong(0),
-                buffer.getLong(8),
-                buffer.getLong(16),
-                buffer.getLong(24)
-              ),
-              Some(buffer.getInt(32)),
-              location
-            )
-
-          case CScalarVector(name, stype) =>
-            VeColVector(
-              process.source,
-              name,
-              stype,
-              buffer.getInt(16),
-              Seq(
-                buffer.getLong(0),
-                buffer.getLong(8)
-              ),
-              None,
-              location
-            )
-        }
-
-        buffer.close()
+        val vector = VeColVector.fromBuffer(buffer, location, descriptor)(process.source)
+        buffer.close
         vector
       }
     }
   }
 
-  private def readVectors(pointers: Seq[(Long, CVector)])
-                         (implicit context: CallContext): Seq[VeColVector] = {
+  private[vectorengine] def readVectors(pointers: Seq[(Long, CVector)])
+                                       (implicit context: CallContext): Seq[VeColVector] = {
     readVectorsAsync(pointers).map(_.get)
   }
 
-  final def execFn(lib: LibraryReference,
-                   fnName: String,
-                   args: Seq[CallStackArgument]): Unit = {
+  private[vectorengine] final def execFn(lib: LibraryReference,
+                                         fnName: String,
+                                         args: Seq[CallStackArgument])
+                                        (implicit context: CallContext): Unit = {
     // Load function symbol
     val func = process.getSymbol(lib, fnName)
 
@@ -365,18 +300,5 @@ class VectorEngineImpl(process: VeProcess,
     // Close scope and return results
     scope.close
     results
-  }
-}
-
-import scala.concurrent.duration._
-
-trait VectorEngineMetrics {
-  def measureTime[T](collect: FiniteDuration => Unit)(thunk: => T): (T, FiniteDuration) = {
-    val start = System.nanoTime
-    val result = thunk
-    val duration = (System.nanoTime - start).nanoseconds
-
-    collect(duration)
-    (result, duration)
   }
 }
