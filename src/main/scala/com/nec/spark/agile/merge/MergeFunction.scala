@@ -4,17 +4,17 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.core._
 
 case class MergeFunction(name: String,
-                         columns: List[VeType]) extends FunctionTemplateTrait {
+                         columns: Seq[VeType]) extends FunctionTemplateTrait {
   require(columns.nonEmpty, "Expected Merge to have at least one data column")
 
   private[merge] lazy val inputs: List[CVector] = {
-    columns.zipWithIndex.map { case (veType, idx) =>
+    columns.toList.zipWithIndex.map { case (veType, idx) =>
       veType.makeCVector(s"input_${idx}_g")
     }
   }
 
   lazy val outputs: List[CVector] = {
-    columns.zipWithIndex.map { case (veType, idx) =>
+    columns.toList.zipWithIndex.map { case (veType, idx) =>
       veType.makeCVector(s"output_${idx}_g")
     }
   }

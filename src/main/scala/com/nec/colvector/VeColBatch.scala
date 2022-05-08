@@ -3,6 +3,7 @@ package com.nec.colvector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess => OldVeProcess, VeProcessMetrics}
 import com.nec.vectorengine.VeProcess
@@ -105,6 +106,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     writer.close
     stream.flush
     stream.toByteArray
+  }
+
+  def veTypes: Seq[VeType] = {
+    columns.map(_.veType)
   }
 
   def nonEmpty: Boolean = {
