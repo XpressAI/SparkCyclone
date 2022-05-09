@@ -23,9 +23,14 @@
 #include <iostream>
 #include <tuple>
 #include <vector>
+#include <bitset>
+#include <climits>
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 #include "frovedis/dataframe/join.hpp"
+
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 namespace cyclone {
   inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
@@ -153,7 +158,141 @@ namespace cyclone {
   void print_vec(const std::string &name, const std::vector<T> &vec) {
     std::cout << name <<  " = " << vec << std::endl;
   }
-}
 
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+  /**
+   * Append two bitsets using T as the holding type. T must be an unsigned
+   * integer type.
+   *
+   * *first_tail* needs to be allocated such that T fits into it an integer
+   * number of times.
+   *
+   * *second* does not need to be allocated to fit T an integer amount of times.
+   * The last bytes will always be handled in a byte-wise fashion.
+   *
+   * Both *first_tail* and *second* must be aligned to sizeof(T), i.e. if
+   * T=uint64_t then they **must** be aligned to 8 bytes, otherwise a
+   * SIGBUS error will be thrown (signal 7).
+   *
+   * @tparam T holding type
+   * @param first_tail Pointer to last not yet full T of the first bitset
+   * @param dangling_bits Count of bits already set in first_tail
+   * @param second Pointer to the to-be-appended bitset
+   * @param second_bit_count Count of bits in second
+   * @return Count of bits set in the last T after appending
+   */
+  template<typename T>
+  inline size_t append_bitsets(T* first_tail, size_t dangling_bits, T* second, size_t second_bit_count) {
+    size_t bits_per_byte = CHAR_BIT;
+    auto bits_per_T = sizeof(T) * bits_per_byte;
+    //std::cout << "[append_bitsets] bits_per_T=" << bits_per_T << std::endl;
+
+    // Simplest case: No dangling bits means we can straight copy the to be appended second bitset unto the tail of the
+    // first bitset, as we have byte-granularity anyway
+    if (dangling_bits == 0) {
+      //std::cout << "[append_bitsets] byte-wise copy" << std::endl;
+
+      auto bytes = frovedis::ceil_div(second_bit_count, bits_per_byte);
+      //std::cout << "[append_bitsets] bytes=" << bytes << std::endl;
+      //std::cout << "[append_bitsets] &first_tail=" << uintptr_t(first_tail) << std::endl;
+      //std::cout << "[append_bitsets] &first_tail[bytes]=" << uintptr_t(first_tail) + bytes << std::endl;
+      std::memcpy(first_tail, second, bytes);
+
+      size_t out_dangling = second_bit_count % bits_per_T;
+      //std::cout << "[append_bitsets] out_dangling=" << out_dangling << std::endl;
+      //std::cout << "[append_bitsets] Done Copy " << std::endl;
+      return out_dangling;
+    }
+
+    // Calculate how many full elements are necessary to fit the second bitset into the given type
+    auto is_big_steps = sizeof(T) > 1;
+
+    // How many elements *can* be fit into the tail
+    auto space_in_tail = bits_per_T - dangling_bits;
+
+    // How many elements *can not* fit into the tail
+    auto additional_elements_to_fit = space_in_tail > second_bit_count ? 0 : second_bit_count - space_in_tail;
+
+    // How many additional containers are necessary to fit the spill-over
+    auto additional_container_count = additional_elements_to_fit / bits_per_T;
+
+    // How many steps *can* be done using the current T size?
+    auto big_step_count = second_bit_count / bits_per_T;
+
+    // How many elements need to be done with a byte step count?
+    auto small_step_element_count = second_bit_count % bits_per_T;
+
+    // Special case: We are already doing byte steps = small steps
+    if(!is_big_steps){
+      big_step_count += small_step_element_count > 0 ? 1 : 0;
+      additional_container_count += additional_elements_to_fit > 0 ? 1 : 0;
+      small_step_element_count = 0;
+    }
+
+    size_t out_dangling = (second_bit_count + dangling_bits) % bits_per_T;
+
+    //std::cout << "[append_bitsets] second_bit_count=" << second_bit_count << std::endl;
+    //std::cout << "[append_bitsets] dangling_bits=" << dangling_bits << std::endl;
+    //std::cout << "[append_bitsets] is_big_steps=" << is_big_steps << std::endl;
+    //std::cout << "[append_bitsets] space_in_tail=" << space_in_tail << std::endl;
+    //std::cout << "[append_bitsets] additional_elements_to_fit=" << additional_elements_to_fit << std::endl;
+    //std::cout << "[append_bitsets] additional_container_count=" << additional_container_count << std::endl;
+    //std::cout << "[append_bitsets] big_step_count=" << big_step_count << std::endl;
+    //std::cout << "[append_bitsets] small_step_element_count=" << small_step_element_count << std::endl;
+
+    // Ensure space_in_tail is actually all empty and not some random crap
+    // Building mask in a single step results in a signed shift, which we don't want
+    T mask = 0;
+    mask = (~mask) >> space_in_tail;
+
+    //std::cout << "[append_bitsets] first_tail[0] = "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[0]) << std::endl;
+    //std::cout << "[append_bitsets] mask = "<< std::bitset<sizeof(T)*CHAR_BIT>(mask) << std::endl;
+    first_tail[0] &= mask;
+    //std::cout << "[append_bitsets] first_tail[0] & mask = "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[0]) << std::endl;
+
+    //std::cout << "[append_bitsets] setting up additional containers " << std::endl;
+    // T steps
+#pragma _NEC vector
+#pragma _NEC ivdep
+    for (auto i = 0; i < additional_container_count; i++) {
+      // Set the dangling bits of all follow up Ts
+      first_tail[i + 1] = second[i] >> space_in_tail;
+      //std::cout << "[append_bitsets] "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i + 1]) << " = " << std::bitset<sizeof(T)*CHAR_BIT>(second[i]) << " >> " << space_in_tail << std::endl;
+    }
+
+    //std::cout << "[append_bitsets] setting values " << std::endl;
+#pragma _NEC vector
+#pragma _NEC ivdep
+    for (auto i = 0; i < big_step_count; i++) {
+      // Fill the free space in the tail of all Ts
+      //std::cout << "[append_bitsets] "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i]) << " |= " << std::bitset<sizeof(T)*CHAR_BIT>(second[i]) << " << " << dangling_bits;
+      first_tail[i] |= second[i] << dangling_bits;
+      //std::cout << " = " << std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i]) << std::endl;
+    }
+
+    // Byte-steps, if necessary
+    if (small_step_element_count > 0) {
+      //std::cout << "[append_bitsets] byte-wise recursion" << std::endl;
+
+      //std::cout << "[append_bitsets] &first_tail=" << uintptr_t(first_tail) << std::endl;
+
+      uint8_t *byte_second = reinterpret_cast<uint8_t *>(&second[big_step_count]);
+      uint8_t *byte_tail_start = reinterpret_cast<uint8_t *>(&first_tail[big_step_count]);
+      //std::cout << "[append_bitsets] &byte_second=" << uintptr_t(byte_second) << std::endl;
+      //std::cout << "[append_bitsets] &byte_tail_start=" << uintptr_t(byte_tail_start) << std::endl;
+
+
+      size_t first_non_full_byte = dangling_bits / bits_per_byte;
+      //std::cout << "[append_bitsets] first_non_full_byte=" << first_non_full_byte << std::endl;
+      uint8_t *byte_tail = &byte_tail_start[first_non_full_byte];
+      //std::cout << "[append_bitsets] &byte_tail=" << uintptr_t(byte_tail) << std::endl;
+
+      size_t dangling_byte_bits = dangling_bits % bits_per_byte;
+
+      append_bitsets(byte_tail, dangling_byte_bits, byte_second, small_step_element_count);
+    }
+
+    //std::cout << "[append_bitsets] Done T = "<< sizeof(T) << std::endl;
+    return out_dangling;
+  }
+}

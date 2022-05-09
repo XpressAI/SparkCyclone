@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.cache.TransferDescriptor
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
@@ -95,6 +96,11 @@ trait VeProcess {
     inputs: VeBatchOfBatches,
     results: List[CVector]
   )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])]
+
+  def executeTransfer(
+    libraryReference: LibraryReference,
+    transferDescriptor: TransferDescriptor
+  )(implicit context: OriginalCallingContext): VeColBatch
 }
 
 object VeProcess {
@@ -187,6 +193,8 @@ object VeProcess {
 
     override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().waitResult(handle)
 
+    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: OriginalCallingContext): VeColBatch = f().executeTransfer(libraryReference, transferDescriptor)
+
   }
 
   final case class WrappingVeo(
@@ -198,7 +206,9 @@ object VeProcess {
     with LazyLogging {
     override def allocate(size: Long)(implicit context: OriginalCallingContext): Long = {
       val veInputPointer = new LongPointer(1)
-      veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
+      val allocResult = veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
+      require(allocResult == 0, s"Could not allocate ${size} bytes of memory. Result: ${allocResult}")
+
       val ptr = veInputPointer.get()
       logger.trace(
         s"Allocating ${size} bytes ==> ${ptr} in ${context.fullName.value}#${context.line.value}"
@@ -300,20 +310,22 @@ object VeProcess {
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
-      SparkCycloneExecutorPlugin.libsPerProcess
-        .getOrElseUpdate(
-          veo_proc_handle,
-          scala.collection.mutable.Map.empty[String, LibraryReference]
-        )
-        .getOrElseUpdate(
-          path.toString, {
-            logger.info(s"Loading library from path ${path}...")
-            val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
-            require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
-            logger.info(s"Loaded library from ${path} as $libRe")
-            LibraryReference(libRe)
-          }
-        )
+      this.synchronized {
+        SparkCycloneExecutorPlugin.libsPerProcess
+          .getOrElseUpdate(
+            veo_proc_handle,
+            scala.collection.mutable.Map.empty[String, LibraryReference]
+          )
+          .getOrElseUpdate(
+            path.toString, {
+              logger.info(s"Loading library from path ${path}...")
+              val libRe = veo.veo_load_library(veo_proc_handle, path.toString)
+              require(libRe > 0, s"Expected lib ref to be > 0, got ${libRe} (library at: ${path})")
+              logger.info(s"Loaded library from ${path} as $libRe")
+              LibraryReference(libRe)
+            }
+          )
+      }
     }
 
     /** Return multiple datasets - eg for sorting/exchanges */
@@ -719,6 +731,74 @@ object VeProcess {
       requireOk(retVal.toInt)
       retp.close()
       (res, retVal)
+    }
+
+    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: OriginalCallingContext): VeColBatch = {
+      require(transferDescriptor.nonEmpty)
+
+      val transferBufferSize = transferDescriptor.buffer.limit()
+      logger.debug(s"[executeTransfer] Allocating $transferBufferSize bytes on VE")
+      // No need to register this allocation, as it is going to be freed on the VE during transfer handling
+      val veInputPointer = new LongPointer(1)
+      val allocResult = veo.veo_alloc_mem(veo_proc_handle, veInputPointer, transferBufferSize)
+      val transferBufferPtr = veInputPointer.get()
+      require(
+        allocResult == 0,
+        s"[executeTransfer] Memory allocation for transfer unsuccessful. Result = $allocResult; Ptr: $transferBufferPtr"
+      )
+
+      logger.debug("[executeTransfer] Transferring to VE...")
+      // Sync transfer, because there is nothing to do but wait until it is done
+      val transferStart = System.nanoTime()
+      veo.veo_write_mem(veo_proc_handle, transferBufferPtr, transferDescriptor.buffer, transferBufferSize)
+      val transferEnd = System.nanoTime()
+      val transferDuration = (transferEnd - transferStart).asInstanceOf[Double] / 1e6
+      val transferThroughput = (transferBufferSize / 1024 / 1024) / (transferDuration / 1e3)
+      logger.debug(s"[executeTransfer] Transfer of $transferBufferSize bytes took $transferDuration ms = ${transferThroughput} MB/s")
+
+      // Free transfer buffer, as it has been transferred to the VE now.
+      transferDescriptor.closeTransferBuffer()
+
+      logger.debug("[executeTransfer] Calling handle_transfer")
+      val our_args = veo.veo_args_alloc()
+      veo.veo_args_set_stack(our_args, veo.VEO_INTENT_IN, 0, new BytePointer(veInputPointer), veInputPointer.sizeof())
+      veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, 1, transferDescriptor.outputBuffer, transferDescriptor.outputBuffer.limit())
+
+      val fnCallResult = new LongPointer(1)
+      val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, "handle_transfer")
+
+      require(
+        functionAddr > 0,
+        s"[executeTransfer] Expected > 0, but got ${functionAddr} when looking up function 'handle_transfer' in $libraryReference"
+      )
+
+      logger.debug("[executeTransfer] Calling handle_transfer")
+      val start = System.nanoTime()
+      val callRes = veProcessMetrics.measureRunningTime(
+        veo.veo_call_sync(veo_proc_handle, functionAddr, our_args, fnCallResult)
+      )(veProcessMetrics.registerVeCall)
+      val end = System.nanoTime()
+      VeProcess.veSeconds += (end - start) / 1e9
+      VeProcess.calls += 1
+      logger.debug(
+        s"[executeTransfer] Finished handle_transfer Calls: ${VeProcess.calls} VeSeconds: (${VeProcess.veSeconds} s)"
+      )
+
+      require(
+        callRes == 0,
+        s"[executeTransfer] Expected 0, got $callRes; means transfer handling failed during execution"
+      )
+
+      require(fnCallResult.get() == 0L, s"[executeTransfer] Expected 0, got ${fnCallResult.get()} back instead.")
+
+      veo.veo_args_free(our_args);
+
+      val colBatch = transferDescriptor.outputBufferToColBatch()
+      transferDescriptor.closeOutputBuffer()
+
+      colBatch.columns.foreach(_.register())
+
+      colBatch
     }
   }
 

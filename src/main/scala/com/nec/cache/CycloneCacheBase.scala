@@ -2,7 +2,6 @@ package com.nec.cache
 
 import com.nec.cache.DualMode.cachedBatchesToDualModeInternalRows
 import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -60,7 +59,7 @@ abstract class CycloneCacheBase extends org.apache.spark.sql.columnar.CachedBatc
 }
 object CycloneCacheBase {
 
-  def makaArrowSchema(
+  def makeArrowSchema(
     schema: Seq[Attribute]
   )(implicit arrowEncodingSettings: ArrowEncodingSettings): Schema =
     ArrowUtilsExposed.toArrowSchema(

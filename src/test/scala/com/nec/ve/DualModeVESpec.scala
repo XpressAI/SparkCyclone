@@ -89,7 +89,7 @@ final class DualModeVESpec
         unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =
-            CycloneCacheBase.makaArrowSchema(Seq(AttributeReference("test", IntegerType)()))
+            CycloneCacheBase.makeArrowSchema(Seq(AttributeReference("test", IntegerType)()))
         )
       }
       .mapPartitions { veColBatches =>

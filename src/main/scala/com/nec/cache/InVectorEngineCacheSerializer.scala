@@ -70,7 +70,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
           rowIterator = internalRows,
-          arrowSchema = CycloneCacheBase.makaArrowSchema(schema)
+          arrowSchema = CycloneCacheBase.makeArrowSchema(schema)
         )
     }
   }

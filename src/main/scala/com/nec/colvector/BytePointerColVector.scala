@@ -78,6 +78,7 @@ final case class BytePointerColVector private[colvector] (
         ptr
     }
 
+    // TODO: Register this vector's allocation.
     val vector = VeColVector(
       source,
       name,
