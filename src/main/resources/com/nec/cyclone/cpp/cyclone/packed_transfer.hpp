@@ -22,6 +22,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define VECTOR_ALIGNED(n) ((n + (7UL)) & ~(7UL))
+
 extern "C" int handle_transfer(char** td, uintptr_t* od);
 
 void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, char* lengths, char* offsets, uintptr_t* od, size_t &output_pos);

@@ -30,8 +30,6 @@
 #include <type_traits>
 #include <iostream>
 
-#define VECTOR_ALIGNED(n) ((n + (7UL)) & ~(7UL))
-
 void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;
   size_t cur_col_pos = 0;
