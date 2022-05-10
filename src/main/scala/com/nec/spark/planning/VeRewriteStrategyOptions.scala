@@ -66,11 +66,11 @@ object VeRewriteStrategyOptions {
 
   val default: VeRewriteStrategyOptions =
     VeRewriteStrategyOptions(
-      enableVeSorting = true,
+      enableVeSorting = false,
       projectOnVe = false,
       filterOnVe = true,
       aggregateOnVe = true,
-      exchangeOnVe = true,
+      exchangeOnVe = false,
       passThroughProject = false,
       failFast = false,
       joinOnVe = true,

@@ -71,18 +71,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
             val arrowSchema = CycloneCacheBase.makeArrowSchema(child.output)
 
             val transferDescriptor = withInvocationMetrics("Conversion"){
-              println("Preparing VH -> VE Transfer")
               collectBatchMetrics(INPUT, columnarBatches).zipWithIndex.map { case (columnarBatch, idx) =>
-                println(s"Batch $idx")
                 (0 until columnarBatch.numCols())
                   .map { i =>
-                    println(s"Col $i")
                     columnarBatch.column(i).getOptionalArrowValueVector match {
                       case Some(acv) =>
-                        println(s"Some($acv): ${acv.getValueCount}, ${acv.getNullCount}")
                         acv.toBytePointerColVector
                       case None =>
-                        println(s"None: ${columnarBatch.numRows()}")
                         val field = arrowSchema.getFields.get(i)
                         columnarBatch.column(i)
                           .toBytePointerColVector(field.getName, columnarBatch.numRows)
