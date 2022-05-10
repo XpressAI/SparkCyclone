@@ -15,6 +15,11 @@ case class TransferDescriptor(
   lazy val buffer: BytePointer = {
     require(nonEmpty, "Can not create transfer buffer for empty TransferDescriptor!")
 
+    val batchCount: Long = batches.size
+    val columnCount: Long = batches.head.size
+
+    logger.debug(s"Preparing transfer buffer for ${batchCount} batches of ${columnCount} columns")
+
     val sizeOfSizeT = 8
 
     // Columns are arranged such that the first column of all batches comes first, then the second one of all batches
@@ -30,8 +35,6 @@ case class TransferDescriptor(
     }.toList
     // As startingPositions starts after the header, its cum-sum reflects the total number of elements in the header
     val totalHeaderSize: Long = startingPositions.last * sizeOfSizeT
-    val batchCount: Long = batches.size
-    val columnCount: Long = batches.head.size
 
     val dataSize = batches.flatten.flatMap(_.buffers).map(it => vectorAlignedSize(it.limit())).sum
 
