@@ -41,6 +41,7 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
   size_t cur_out_validity_data_pos = 0;
   size_t dangling_bits = 0;
 
+  size_t i = 0;
   for(auto b = 0; b < batch_count; b++){
     cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     varchar_col_in* col_in = reinterpret_cast<varchar_col_in *>(&col_header[cur_col_pos]);
@@ -83,14 +84,16 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
     cur_out_lengths_pos += col_in->lengths_size;
 
     //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-    cur_out_validity_data_pos += frovedis::ceil_div(col_in->element_count, size_t(64));
-    if(dangling_bits > 0){
-      // last part is not entirely filled yet
-      cur_out_validity_data_pos -= 1;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
     cur_data_pos += col_in->validity_buffer_size;
@@ -124,6 +127,7 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
   size_t cur_out_validity_data_pos = 0;
   size_t dangling_bits = 0;
 
+  size_t i = 0;
   for(auto b = 0; b < batch_count; b++){
     cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     scalar_col_in* col_in = reinterpret_cast<scalar_col_in *>(&col_header[cur_col_pos]);
@@ -135,14 +139,16 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
     cur_out_data_pos += col_in->data_size;
 
     //std::cout << "merge_scalar_transfer: copy validity" << std::endl;
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-    cur_out_validity_data_pos += frovedis::ceil_div(col_in->element_count, size_t(64));
-    if(dangling_bits > 0){
-      // last part is not entirely filled yet
-      cur_out_validity_data_pos -= 1;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
     cur_data_pos += col_in->validity_buffer_size;
