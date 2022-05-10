@@ -68,12 +68,12 @@ object VeRewriteStrategyOptions {
     VeRewriteStrategyOptions(
       enableVeSorting = false,
       projectOnVe = false,
-      filterOnVe = true,
+      filterOnVe = false,
       aggregateOnVe = true,
       exchangeOnVe = false,
       passThroughProject = false,
       failFast = false,
-      joinOnVe = true,
+      joinOnVe = false,
       amplifyBatches = true,
       rewriteEnabled = true
     )
