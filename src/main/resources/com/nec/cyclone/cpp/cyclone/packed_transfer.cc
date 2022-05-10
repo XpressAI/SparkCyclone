@@ -216,7 +216,8 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
  * - *column type* specifies which type the buffer is
  * - *element count* specifies how many elements there are in this particular
  *   column
- * - *buffer size* specifies how large each buffer for that column is
+ * - *buffer size* specifies how large each buffer (including alignment padding!)
+ *   for that column is
  *
  * The number of *buffer size* definitions that follow the first two fields
  * depends entirely on the column type.
