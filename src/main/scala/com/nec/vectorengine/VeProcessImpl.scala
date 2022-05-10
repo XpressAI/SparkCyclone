@@ -5,6 +5,8 @@ import scala.collection.concurrent.{TrieMap => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.time.Duration
+import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
@@ -13,7 +15,8 @@ import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
                                       handle: veo_proc_handle,
-                                      tcontext: veo_thr_ctxt)
+                                      tcontext: veo_thr_ctxt,
+                                      val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
 
   implicit class ExtendedPointer(buffer: Pointer) {
@@ -24,9 +27,39 @@ final case class WrappingVeo private (val node: Int,
 
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
+
+  // Internal allocation and library records for tracking
   private var heapRecords = MMap.empty[Long, VeAllocation]
   private var stackRecords = MMap.empty[Long, VeCallArgsStack]
   private var loadedLibRecords = MMap.empty[String, LibraryReference]
+
+  // Internal process metrics
+  private var syncFnCalls = 0L
+  private var syncFnCallDurations = 0L  // In nanoseconds
+  private val syncFnCallTimer = new Timer
+  private val allocTimer = new Timer
+  private val freeTimer = new Timer
+
+  // Register the metrics with the MetricRegistry
+  metrics.register(VeProcess.VeAllocDurationsMetric, allocTimer)
+  metrics.register(VeProcess.VeFreeDurationsMetric, freeTimer)
+  metrics.register(VeProcess.VeSyncFnCallDurationsMetric, syncFnCallTimer)
+  metrics.register(VeProcess.NumAllocationsMetric, new Gauge[Long] {
+      def getValue: Long = heapRecords.size
+    }
+  )
+  metrics.register(VeProcess.BytesAllocatedMetric, new Gauge[Long] {
+      def getValue: Long = heapRecords.valuesIterator.foldLeft(0L)(_ + _.size)
+    }
+  )
+  metrics.register(VeProcess.VeSyncFnCallsCountMetric, new Gauge[Long] {
+      def getValue: Long = syncFnCalls
+    }
+  )
+  metrics.register(VeProcess.VeSyncFnCallTimesMetric, new Gauge[Double] {
+      def getValue: Double = syncFnCallDurations / 1e6  // In milliseconds
+    }
+  )
 
   logger.info(s"Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
   logger.info(s"Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
@@ -49,6 +82,12 @@ final case class WrappingVeo private (val node: Int,
   private[vectorengine] def withVeoProc[T](thunk: => T): T = {
     require(opened, "VE process is closed")
     thunk
+  }
+
+  private[vectorengine] def measureTime[T](thunk: => T): (T, Long) = {
+    val start = System.nanoTime
+    val result = thunk
+    (result, System.nanoTime - start)
   }
 
   def isOpen: Boolean = {
@@ -90,7 +129,7 @@ final case class WrappingVeo private (val node: Int,
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
-      val result = veo.veo_alloc_mem(handle, ptr, size)
+      val (result, duration) = measureTime { veo.veo_alloc_mem(handle, ptr, size) }
 
       // Ensure memory is properly allocated
       val address = ptr.get
@@ -98,6 +137,9 @@ final case class WrappingVeo private (val node: Int,
       require(address > 0, s"Memory allocation returned an invalid address: ${ptr.get}")
       logger.trace(s"Allocated ${size} bytes ==> ${ptr}")
       ptr.close
+
+      // Record metric
+      allocTimer.update(Duration.ofNanos(duration))
 
       // Create an allocation record to track the allocation
       val allocation = VeAllocation(address, size, new Exception().getStackTrace)
@@ -113,15 +155,17 @@ final case class WrappingVeo private (val node: Int,
       heapRecords.get(address) match {
         case Some(allocation) =>
           logger.trace(s"Deallocating pointer @ ${address}")
-          val result = veo.veo_free_mem(handle, address)
+          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
           require(result == 0, s"Memory release failed with code: ${result}")
           // Remove only after the free() was successful
           heapRecords.remove(address)
+          freeTimer.update(Duration.ofNanos(duration))
 
         case None if unsafe =>
           logger.warn(s"Releasing VE memory @ ${address} without safety checks!")
-          val result = veo.veo_free_mem(handle, address)
+          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
           require(result == 0, s"Memory release failed with code: ${result}")
+          freeTimer.update(Duration.ofNanos(duration))
 
         case None =>
           throw new IllegalArgumentException(s"VE memory address does not correspond to a tracked allocation: ${address}")
@@ -311,12 +355,21 @@ final case class WrappingVeo private (val node: Int,
       val retp = new LongPointer(1)
 
       // Call the function
-      val callResult = veo.veo_call_sync(handle, func.address, stack.args, retp)
+      val (result, duration) = measureTime { veo.veo_call_sync(handle, func.address, stack.args, retp) }
 
       // The VE call to the function should succeed
       require(
-        callResult == 0,
-        s"VE call failed for function '${func.name}' (library at: ${func.lib.path}); got ${callResult}"
+        result == 0,
+        s"VE call failed for function '${func.name}' (library at: ${func.lib.path}); got ${result}"
+      )
+
+      // Record metrics
+      syncFnCalls += 1
+      syncFnCallDurations += duration
+      syncFnCallTimer.update(Duration.ofNanos(duration))
+
+      logger.debug(
+        s"Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
       )
 
       retp

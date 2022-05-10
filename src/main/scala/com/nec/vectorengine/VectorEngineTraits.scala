@@ -5,24 +5,13 @@ import com.nec.spark.agile.core.CVector
 import com.nec.util.CallContext
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
-
-/*
-  NOTE: This is s work in progress
-*/
-trait VectorEngineMetrics {
-  def measureTime[T](collect: FiniteDuration => Unit)(thunk: => T): (T, FiniteDuration) = {
-    val start = System.nanoTime
-    val result = thunk
-    val duration = (System.nanoTime - start).nanoseconds
-
-    collect(duration)
-    (result, duration)
-  }
-}
+import com.codahale.metrics.MetricRegistry
 
 trait VectorEngine {
   /** The VE process handle that the VectorEngine has access to */
   def process: VeProcess
+
+  def metrics: MetricRegistry
 
   /** Return a single dataset - e.g. for maps and filters */
   def execute(lib: LibraryReference,
@@ -58,4 +47,9 @@ trait VectorEngine {
                                    inputs: VeBatchOfBatches,
                                    outputs: Seq[CVector])
                                   (implicit context: CallContext): Seq[(K, Seq[VeColVector])]
+}
+
+object VectorEngine {
+  final val ExecCallDurationsMetric = "ve.durations.exec"
+  final val MaxSetsCount = 64
 }
