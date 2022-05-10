@@ -27,7 +27,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
   with PlanCallsVeFunction
   with PlanMetrics {
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT) ++ invocationMetrics("Conversion")
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT) ++ invocationMetrics("Conversion") ++ batchMetrics("byte")
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
 
@@ -41,8 +41,8 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
-
     initializeMetrics()
+    val byteTotalBatchRowCount = longMetric(s"byteTotalBatchRowCount")
 
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
@@ -70,21 +70,24 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
 
             val arrowSchema = CycloneCacheBase.makeArrowSchema(child.output)
 
-            val batches = collectBatchMetrics(INPUT, columnarBatches).toList
-            logger.debug(s"Creating Transfer descriptor for ${batches.size} batches of ${batches.headOption.map{ b => s"${b.numCols()} Columns"}}")
             val transferDescriptor = withInvocationMetrics("Conversion"){
-              batches.map { columnarBatch =>
+              println("Preparing VH -> VE Transfer")
+              collectBatchMetrics(INPUT, columnarBatches).zipWithIndex.map { case (columnarBatch, idx) =>
+                println(s"Batch $idx")
                 (0 until columnarBatch.numCols())
-                  .map(i =>
+                  .map { i =>
+                    println(s"Col $i")
                     columnarBatch.column(i).getOptionalArrowValueVector match {
                       case Some(acv) =>
+                        println(s"Some($acv): ${acv.getValueCount}, ${acv.getNullCount}")
                         acv.toBytePointerColVector
                       case None =>
+                        println(s"None: ${columnarBatch.numRows()}")
                         val field = arrowSchema.getFields.get(i)
                         columnarBatch.column(i)
                           .toBytePointerColVector(field.getName, columnarBatch.numRows)
                     }
-                  )
+                  }
               }.foldLeft(new TransferDescriptor.Builder()){ case (builder, batch) =>
                 builder.newBatch().addColumns(batch)
               }.build()

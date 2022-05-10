@@ -140,8 +140,8 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val col2_merged = Array[String]("a", "b", "c", "d", "e", "f", "g", "h").toBytePointerColVector("expected_col2").toBytes
 
 
-      col1.toBytePointerColVector.toBytes should be(col1_merged)
-      col2.toBytePointerColVector.toBytes should be(col2_merged)
+      col1.toBytePointerColVector.toBytes should equal(col1_merged)
+      col2.toBytePointerColVector.toBytes should equal(col2_merged)
     }
   }
 }
