@@ -285,6 +285,7 @@ extern "C" int handle_transfer(
         size_t total_element_count = 0;
         size_t total_data_size = 0;
         size_t total_validity_buffer_size = 0;
+        size_t aligned_data_size = 0;
         for(auto b = 0; b < header->batch_count; b++){
           size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
           input_pos += sizeof(column_type);
@@ -305,6 +306,7 @@ extern "C" int handle_transfer(
           total_element_count += col_in->element_count;
           total_data_size += col_in->data_size;
           total_validity_buffer_size += col_in->validity_buffer_size;
+          aligned_data_size += VECTOR_ALIGNED(col_in->data_size) + VECTOR_ALIGNED(col_in->validity_buffer_size);
         }
 
         char* data = static_cast<char *>(malloc(total_data_size));
@@ -333,7 +335,7 @@ extern "C" int handle_transfer(
             // Should be impossible to reach at this point!
             return -99;
         }
-        input_data_pos += total_data_size + total_validity_buffer_size;
+        input_data_pos += aligned_data_size;
       }
         break;
       case COL_TYPE_VARCHAR: {
@@ -342,7 +344,7 @@ extern "C" int handle_transfer(
         size_t total_offsets_size = 0;
         size_t total_lengths_size = 0;
         size_t total_validity_buffer_size = 0;
-
+        size_t aligned_data_size = 0;
 
         for(auto b = 0; b < header->batch_count; b++){
           size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
@@ -368,6 +370,7 @@ extern "C" int handle_transfer(
           total_offsets_size += col_in->offsets_size;
           total_lengths_size += col_in->lengths_size;
           total_validity_buffer_size += col_in->validity_buffer_size;
+          aligned_data_size += VECTOR_ALIGNED(col_in->data_size) + VECTOR_ALIGNED(col_in->offsets_size) + VECTOR_ALIGNED(col_in->lengths_size) + VECTOR_ALIGNED(col_in->validity_buffer_size);
         }
 
         char* data = static_cast<char *>(malloc(total_data_size));
@@ -378,7 +381,7 @@ extern "C" int handle_transfer(
         uint64_t* validity_buffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
         merge_varchar_transfer(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, lengths, offsets, od, output_pos);
-        input_data_pos += total_data_size + total_validity_buffer_size + total_offsets_size + total_lengths_size;
+        input_data_pos += aligned_data_size;
       }
         break;
       default:
