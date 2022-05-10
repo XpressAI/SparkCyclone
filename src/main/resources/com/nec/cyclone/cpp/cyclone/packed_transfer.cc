@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <iostream>
 
+#define VECTOR_ALIGNED(n) ((n + (7UL)) & ~(7UL))
 
 void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;
@@ -57,7 +58,7 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
 
     size_t start_out_data_pos = cur_out_data_pos;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
-    cur_data_pos += col_in->data_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->data_size);
     cur_out_data_pos += col_in->data_size;
 
     //std::cout << "merge_varchar_transfer: copy offsets" << std::endl;
@@ -75,12 +76,12 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
         offsets_int[oi] += offset_correction;
       }
     }
-    cur_data_pos += col_in->offsets_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->offsets_size);
     cur_out_offsets_pos += col_in->offsets_size;
 
     //std::cout << "merge_varchar_transfer: copy lengths" << std::endl;
     std::memcpy(&out_lengths[cur_out_lengths_pos], &input_data[cur_data_pos], col_in->lengths_size);
-    cur_data_pos += col_in->lengths_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->lengths_size);
     cur_out_lengths_pos += col_in->lengths_size;
 
     //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
@@ -96,7 +97,7 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
       }
     }
 
-    cur_data_pos += col_in->validity_buffer_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
 
   //std::cout << "merge_varchar_transfer: allocate vector" << std::endl;
@@ -135,7 +136,7 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
 
     //std::cout << "merge_scalar_transfer: copy data" << std::endl;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
-    cur_data_pos += col_in->data_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->data_size);
     cur_out_data_pos += col_in->data_size;
 
     //std::cout << "merge_scalar_transfer: copy validity" << std::endl;
@@ -151,7 +152,7 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
       }
     }
 
-    cur_data_pos += col_in->validity_buffer_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
 
   //std::cout << "merge_scalar_transfer: allocate vector" << std::endl;

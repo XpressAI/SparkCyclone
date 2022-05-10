@@ -68,13 +68,13 @@ case class TransferDescriptor(
 
       header.put(startPos, columnType)
       header.put(startPos + 1, column.numItems)
-      header.put(startPos + 2, vectorAlignedSize(buffers(0).limit()))
+      header.put(startPos + 2, buffers(0).limit())
       if(column.veType.isString){
-        header.put(startPos + 3, vectorAlignedSize(buffers(1).limit()))
-        header.put(startPos + 4, vectorAlignedSize(buffers(2).limit()))
-        header.put(startPos + 5, vectorAlignedSize(buffers(3).limit()))
+        header.put(startPos + 3, buffers(1).limit())
+        header.put(startPos + 4, buffers(2).limit())
+        header.put(startPos + 5, buffers(3).limit())
       }else{
-        header.put(startPos + 3, vectorAlignedSize(buffers(1).limit()))
+        header.put(startPos + 3, buffers(1).limit())
       }
     }
 
