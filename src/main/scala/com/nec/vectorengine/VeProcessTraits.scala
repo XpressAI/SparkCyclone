@@ -3,6 +3,7 @@ package com.nec.vectorengine
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import scala.util.Try
 import java.nio.file.Path
+import com.codahale.metrics.MetricRegistry
 import org.apache.spark.api.plugin.PluginContext
 import org.bytedeco.javacpp.{LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
@@ -49,6 +50,8 @@ final case class VeAsyncReqId private[vectorengine] (value: Long)
 
 trait VeProcess {
   def node: Int
+
+  def metrics: MetricRegistry
 
   def source: VeSource
 
@@ -116,6 +119,14 @@ object VeProcess extends LazyLogging {
   final val DefaultVeNodeId = 0
   final val MaxVeNodes = 8
 
+  final val NumAllocationsMetric = "ve.allocations.count"
+  final val BytesAllocatedMetric = "ve.allocations.bytes"
+  final val VeSyncFnCallsCountMetric = "ve.calls.sync.count"
+  final val VeSyncFnCallTimesMetric = "ve.calls.sync.time"
+  final val VeSyncFnCallDurationsMetric = "ve.durations.calls.sync"
+  final val VeAllocDurationsMetric = "ve.durations.alloc"
+  final val VeFreeDurationsMetric = "ve.durations.free"
+
   private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, veo_thr_ctxt)] = {
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
@@ -142,6 +153,10 @@ object VeProcess extends LazyLogging {
   }
 
   def create(identifier: String): VeProcess = {
+    create(identifier, new MetricRegistry)
+  }
+
+  def create(identifier: String, metrics: MetricRegistry): VeProcess = {
     val tupleO = 0.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, veo_thr_ctxt)]) {
       case (Some(tuple), venode)  => Some(tuple)
       case (None, venode)         => createVeoTuple(venode)
@@ -149,11 +164,15 @@ object VeProcess extends LazyLogging {
 
     tupleO match {
       case Some((venode, handle, tcontext)) =>
-        WrappingVeo(venode, identifier, handle, tcontext)
+        WrappingVeo(venode, identifier, handle, tcontext, metrics)
 
       case None =>
         throw new IllegalArgumentException(s"VE process could not be allocated; all nodes are either offline or occupied by another VE process")
     }
+  }
+
+  def create(venode: Int, identifier: String): VeProcess = {
+    create(venode, identifier, new MetricRegistry)
   }
 
   /*
@@ -162,10 +181,10 @@ object VeProcess extends LazyLogging {
     variable VE_NODE_NUMBER is not set, a VE process is created on the VE
     node #0.
   */
-  def create(venode: Int, identifier: String): VeProcess = {
+  def create(venode: Int, identifier: String, metrics: MetricRegistry): VeProcess = {
     createVeoTuple(venode) match {
       case Some((venode, handle, tcontext)) =>
-        WrappingVeo(venode, identifier, handle, tcontext)
+        WrappingVeo(venode, identifier, handle, tcontext, metrics)
 
       case None =>
         throw new IllegalArgumentException(s"VE process could not be allocated for node ${venode}; either the node is offline or another VE process is running")
@@ -205,7 +224,7 @@ object VeProcess extends LazyLogging {
     tupleO match {
       case Some((venode, handle, tcontext)) =>
         val identifier = s"VE Process @ ${handle.address}, Executor ${Try { context.executorID }}"
-        WrappingVeo(venode, identifier, handle, tcontext)
+        WrappingVeo(venode, identifier, handle, tcontext, context.metricRegistry)
 
       case None =>
         throw new IllegalArgumentException(s"VE process could not be allocated; all nodes are either offline or occupied by another VE process")
