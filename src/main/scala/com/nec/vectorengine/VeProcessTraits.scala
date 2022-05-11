@@ -62,9 +62,18 @@ trait VeProcess {
 
   def stackAllocations: Map[Long, VeCallArgsStack]
 
+  def loadedLibraries: Map[String, LibraryReference]
+
   def allocate(size: Long): VeAllocation
 
-  def free(address: Long): Unit
+  /*
+    If `unsafe` is set to true, then the method will attempt to free the memory
+    location even if it's not recorded in the VeProcess' internal allocations
+    tracker.  This option is made available only for the purpose of releasing
+    memory allocated from the VE side inside function calls (i.e. not allocated
+    from the VH side through the `VeProcess` abstraction).
+  */
+  def free(address: Long, unsafe: Boolean = false): Unit
 
   def freeAll: Unit
 
@@ -80,7 +89,7 @@ trait VeProcess {
 
   /*
     NOTE: `peek` here means "pick up a result from VE function if it has
-    finished", i.e. `peek and get`
+    finished", i.e. `peek and get` as opposed to `just peek`
   */
   def peekResult(id: VeAsyncReqId): (Int, LongPointer)
 

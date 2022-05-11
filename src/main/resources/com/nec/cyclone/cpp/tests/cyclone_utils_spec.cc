@@ -159,9 +159,9 @@ namespace cyclone::tests {
      free(output);
   }
 
-  TEST_CASE("Merging two byte aligned bitsets works"){
-    char a[2] = {128, 255};
-    char b[3] = {32, 32 + 64, 128};
+  TEST_CASE("Merging two byte aligned bitsets works") {
+    char a[2] = {char(128), char(255)};
+    char b[3] = {32, 32 + 64, char(128)};
 
     char* output = static_cast<char *>(malloc(5 * sizeof(char)));
 
@@ -176,15 +176,15 @@ namespace cyclone::tests {
     free(output);
   }
 
-  TEST_CASE("Merging two unaligned bitsets works"){
-    char a[9] = {128, 255, 8, 16, 15, 7, 9, 0, 1};
+  TEST_CASE("Merging two unaligned bitsets works") {
+    char a[9] = {char(128), char(255), 8, 16, 15, 7, 9, 0, 1};
     uint64_t b[3] = {32, 32 + 64, 128};
 
     size_t expected_dangling = 8;
     size_t expected_free_tail = 64 - 8;
 
-    char expected_0[8]   = {128, 255, 8, 16, 15, 7, 9, 0};
-    char expected_1_0[8] = {1  ,   0, 0,  0,  0, 0, 0, 0};
+    char expected_0[8]   = {char(128), char(255), 8, 16, 15, 7, 9, 0};
+    char expected_1_0[8] = {1, 0, 0,  0, 0, 0, 0, 0};
     uint64_t * expected_0_uint64 = reinterpret_cast<uint64_t *>(expected_0);
     uint64_t * expected_1_1_uint64 = reinterpret_cast<uint64_t *>(expected_1_0);
     uint64_t expected_1 = expected_1_1_uint64[0] | (b[0] << expected_dangling);
@@ -210,15 +210,15 @@ namespace cyclone::tests {
     free(output);
   }
 
-  TEST_CASE("Merging fully into tail works"){
-    char a[9] = {128, 255, 8, 16, 15, 7, 9, 0, 1};
-    char b[2] = {31, 128};
+  TEST_CASE("Merging fully into tail works") {
+    char a[9] = {char(128), char(255), 8, 16, 15, 7, 9, 0, 1};
+    char b[2] = {31, char(128)};
 
     size_t expected_dangling = 8;
     size_t expected_free_tail = 64 - 8;
 
-    char expected_0[8] = {128, 255,   8, 16, 15, 7, 9, 0};
-    char expected_1[8] = {1  ,  31, 128,  0,  0, 0, 0, 0};
+    char expected_0[8] = {char(128), char(255), 8, 16, 15, 7, 9, 0};
+    char expected_1[8] = {1  ,  31, char(128),  0,  0, 0, 0, 0};
     uint64_t * expected_0_uint64 = reinterpret_cast<uint64_t *>(expected_0);
     uint64_t * expected_1_uint64 = reinterpret_cast<uint64_t *>(expected_1);
 
@@ -237,14 +237,14 @@ namespace cyclone::tests {
     free(output);
   }
 
-  TEST_CASE("Merging fully into tail works even when unaligned"){
-    char a[9] = {128, 255, 8, 16, 15, 7, 9, 0, 1};
+  TEST_CASE("Merging fully into tail works even when unaligned") {
+    char a[9] = {char(128), char(255), 8, 16, 15, 7, 9, 0, 1};
     char b[2] = {31, 1};
 
     size_t expected_dangling = 1;
     size_t expected_free_tail = 64 - 8;
 
-    char expected_0[8] = {128, 255,   8, 16, 15, 7, 9, 0};
+    char expected_0[8] = {char(128), char(255), 8, 16, 15, 7, 9, 0};
     // 63 = 31 << 1 + 1; 2 = 1 << 1
     char expected_1[8] = {63,  2,  0,  0, 0, 0, 0};
     uint64_t * expected_0_uint64 = reinterpret_cast<uint64_t *>(expected_0);
@@ -270,7 +270,7 @@ namespace cyclone::tests {
     free(output);
   }
 
-  TEST_CASE("Merging into tail works after several big steps landing on full byte"){
+  TEST_CASE("Merging into tail works after several big steps landing on full byte") {
     uint64_t a[3] = {64, 128, 255};
     uint64_t b[3] = {32, 32 + 64, 128};
 
@@ -296,7 +296,7 @@ namespace cyclone::tests {
     // TODO: Add actual checks on the last elements
   }
 
-  TEST_CASE("Merging into tail works after several big steps landing on non-full byte"){
+  TEST_CASE("Merging into tail works after several big steps landing on non-full byte") {
     uint64_t a[3] = {64, 128, 255};
     uint64_t b[3] = {32, 32 + 64, 128};
 

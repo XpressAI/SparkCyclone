@@ -19,6 +19,10 @@ final case class ColumnGroup(columns: Seq[VeColVector]) {
 }
 
 final case class VeBatchOfBatches(batches: Seq[VeColBatch]) {
+  def veTypes: Seq[VeType] = {
+    batches.headOption.toSeq.flatMap(_.veTypes)
+  }
+
   def numColumns: Int = {
     batches.head.columns.size
   }

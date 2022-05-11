@@ -1,71 +1,108 @@
 package com.nec.colvector
 
-import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.colvector.SeqOptTConversions._
+import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.WithVeProcess
-import org.scalatest.matchers.should.Matchers._
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.nec.vectorengine.{WithVeProcess => WithNewVeProcess}
+import scala.reflect.ClassTag
 import scala.util.Random
+import java.util.UUID
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers._
 
 @VectorEngineTest
 final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import OriginalCallingContext.Automatic._
 
-  def runByteArraySerializationTest(input: BytePointerColVector): BytePointerColVector = {
-    val colvec1 = input.toVeColVector
-    val bytes = colvec1.toBytes
-    val colvec2 = colvec1.toUnitColVector.withData(bytes).apply().get()
+  def runTransferTest(input: BytePointerColVector): BytePointerColVector = {
+    val colvec = input.toVeColVector
 
-    colvec1.container should not be (colvec2.container)
-    colvec1.buffers should not be (colvec2.buffers)
-    colvec2.toBytes.toSeq should be (bytes.toSeq)
+    colvec.veType should be (input.veType)
+    colvec.name should be (input.name)
+    colvec.source should be (input.source)
+    colvec.numItems should be (input.numItems)
 
-    colvec2.toBytePointerColVector
+    colvec.toBytePointerColVector
   }
 
   "VeColVector" should {
-    "correctly serialize to and deserialize from Array[Byte] (Int)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (Int)" in {
       val input = InputSamples.seqOpt[Int]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
     }
 
-    "correctly serialize to and deserialize from Array[Byte] (Short)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (Short)" in {
       val input = InputSamples.seqOpt[Short]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
     }
 
-    "correctly serialize to and deserialize from Array[Byte] (Long)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (Long)" in {
       val input = InputSamples.seqOpt[Long]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
     }
 
-    "correctly serialize to and deserialize from Array[Byte] (Float)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (Float)" in {
       val input = InputSamples.seqOpt[Float]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
     }
 
-    "correctly serialize to and deserialize from Array[Byte] (Double)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (Double)" in {
       val input = InputSamples.seqOpt[Double]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
     }
 
-    "correctly serialize to and deserialize from Array[Byte] (String)" in {
+    "correctly transfer data from Host Off-Heap to VE and back (String)" in {
       val input = InputSamples.seqOpt[String]
-      runByteArraySerializationTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
+    }
+  }
+}
+
+@VectorEngineTest
+final class NewVeColVectorUnitSpec extends AnyWordSpec with WithNewVeProcess {
+  import OriginalCallingContext.Automatic._
+
+  def runTransferTest(input: BytePointerColVector): BytePointerColVector = {
+    val colvec = input.toVeColVector2
+
+    colvec.veType should be (input.veType)
+    colvec.name should be (input.name)
+    colvec.source should be (input.source)
+    colvec.numItems should be (input.numItems)
+
+    colvec.toBytePointerColVector2
+  }
+
+  "VeColVector" should {
+    "correctly transfer data from Host Off-Heap to VE and back (Int)" in {
+      val input = InputSamples.seqOpt[Int]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Int] should be (input)
     }
 
-    "NOT crash if a double-free were called" in {
-      val colvec1 = InputSamples.seqOpt[Int].toBytePointerColVector("_").toVeColVector
-      val colvec2 = InputSamples.seqOpt[Double].toBytePointerColVector("_").toVeColVector
-      val colvec3 = InputSamples.seqOpt[String].toBytePointerColVector("_").toVeColVector
+    "correctly transfer data from Host Off-Heap to VE and back (Short)" in {
+      val input = InputSamples.seqOpt[Short]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Short] should be (input)
+    }
 
-      noException should be thrownBy {
-        // Should call at least twice
-        0.to(Random.nextInt(3) + 1).foreach(_ => colvec1.free)
-        0.to(Random.nextInt(3) + 1).foreach(_ => colvec2.free)
-        0.to(Random.nextInt(3) + 1).foreach(_ => colvec3.free)
-      }
+    "correctly transfer data from Host Off-Heap to VE and back (Long)" in {
+      val input = InputSamples.seqOpt[Long]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Long] should be (input)
+    }
+
+    "correctly transfer data from Host Off-Heap to VE and back (Float)" in {
+      val input = InputSamples.seqOpt[Float]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Float] should be (input)
+    }
+
+    "correctly transfer data from Host Off-Heap to VE and back (Double)" in {
+      val input = InputSamples.seqOpt[Double]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[Double] should be (input)
+    }
+
+    "correctly transfer data from Host Off-Heap to VE and back (String)" in {
+      val input = InputSamples.seqOpt[String]
+      runTransferTest(input.toBytePointerColVector("_")).toSeqOpt[String] should be (input)
     }
   }
 }

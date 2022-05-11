@@ -1,9 +1,10 @@
 package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
-import com.nec.spark.agile.core.VeType
+import com.nec.spark.agile.core._
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.veoffload.global.veo
@@ -26,7 +27,7 @@ final case class VeColVector private[colvector] (
   }
 
   def toBytes(implicit process: VeProcess,
-                metrics: VeProcessMetrics): Array[Byte] = {
+              metrics: VeProcessMetrics): Array[Byte] = {
     val bytes = metrics.measureRunningTime {
       // toBytePointerColVector.toByteArrayColVector.serialize
       toBytePointerColVector.toBytes
@@ -72,6 +73,26 @@ final case class VeColVector private[colvector] (
     )
   }
 
+  def toBytePointerColVector2(implicit process: NewVeProcess): BytePointerColVector = {
+    val nbuffers = buffers.zip(bufferSizes)
+      .map { case (location, size) =>
+        val buffer = new BytePointer(size)
+        (buffer, process.getAsync(buffer, location))
+      }
+      .map{ case (buffer, handle) =>
+        require(process.awaitResult(handle).get == veo.VEO_COMMAND_OK)
+        buffer
+      }
+
+    BytePointerColVector(
+      source,
+      name,
+      veType,
+      numItems,
+      nbuffers
+    )
+  }
+
   def toUnitColVector: UnitColVector = {
     UnitColVector(
       source,
@@ -92,6 +113,56 @@ final case class VeColVector private[colvector] (
       require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
       allocations.foreach(process.free)
       memoryFreed = true
+    }
+  }
+
+  def free2(implicit process: NewVeProcess): Unit = {
+    if (memoryFreed) {
+      logger.warn(s"[VE MEMORY ${container}] double free called!")
+
+    } else {
+      require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
+      allocations.foreach(process.free(_))
+      memoryFreed = true
+    }
+  }
+}
+
+
+object VeColVector {
+  def fromBuffer(buffer: BytePointer,
+                 velocation: Long,
+                 descriptor: CVector)(implicit source: VeColVectorSource): VeColVector = {
+    descriptor match {
+      case CVarChar(name) =>
+        VeColVector(
+          source,
+          name,
+          VeString,
+          buffer.getInt(36),
+          Seq(
+            buffer.getLong(0),
+            buffer.getLong(8),
+            buffer.getLong(16),
+            buffer.getLong(24)
+          ),
+          Some(buffer.getInt(32)),
+          velocation
+        )
+
+    case CScalarVector(name, stype) =>
+      VeColVector(
+        source,
+        name,
+        stype,
+        buffer.getInt(16),
+        Seq(
+          buffer.getLong(0),
+          buffer.getLong(8)
+        ),
+        None,
+        velocation
+      )
     }
   }
 }

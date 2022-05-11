@@ -3,8 +3,10 @@ package com.nec.colvector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
+import com.nec.spark.agile.core.VeType
 import com.nec.ve.VeProcess.OriginalCallingContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -61,6 +63,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns(idx).toBytePointerColVector.toArray[T]
   }
 
+  def toArray2[T: ClassTag](idx: Int)(implicit process: NewVeProcess): Array[T] = {
+    columns(idx).toBytePointerColVector2.toArray[T]
+  }
+
   def streamedSize: Int = {
     Seq(4, 4) ++ columns.flatMap { col =>
       Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
@@ -100,6 +106,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     writer.close
     stream.flush
     stream.toByteArray
+  }
+
+  def veTypes: Seq[VeType] = {
+    columns.map(_.veType)
   }
 
   def nonEmpty: Boolean = {

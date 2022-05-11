@@ -5,8 +5,8 @@ import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines, VeType}
 
 case class SimpleEquiJoinFunction(
   name: String,
-  leftColumns: List[VeType],
-  rightColunms: List[VeType]){
+  leftColumns: Seq[VeType],
+  rightColunms: Seq[VeType]){
   val leftInputs: Seq[CVector] = leftColumns.zipWithIndex.map{ case (veType, idx) =>
     veType.makeCVector(s"left_input_$idx")
   }

@@ -664,46 +664,15 @@ object VeProcess {
     private def readAllVeColVectorsAsync(pointerVecs: List[(Long, CVector)])(implicit
                                                                           context: OriginalCallingContext
     ): List[VeAsyncResult[VeColVector]] = {
-      pointerVecs.map {
-        case (outContainerLocation, cvec) =>
-          require(
-            outContainerLocation > 0,
-            s"Expected container location to be > 0, got ${outContainerLocation}"
-          )
+      pointerVecs.map { case (location, descriptor) =>
+        require(location > 0, s"Expected nullable_t_struct container location to be > 0L, got ${location}")
 
-          val bytePointer = new BytePointer(cvec.veType.containerSize)
-          val handle = getAsync(bytePointer, outContainerLocation, cvec.veType.containerSize)
-          VeAsyncResult(handle){ () =>
-            val veColVector = cvec match {
-              case CVarChar(name) =>
-                VeColVector(
-                  source = source,
-                  numItems = bytePointer.getInt(36),
-                  name = name,
-                  veType = VeString,
-                  container = outContainerLocation,
-                  buffers = Seq(
-                    bytePointer.getLong(0),
-                    bytePointer.getLong(8),
-                    bytePointer.getLong(16),
-                    bytePointer.getLong(24)
-                  ),
-                  dataSize = Some(bytePointer.getInt(32))
-                ).register()
-              case CScalarVector(name, r) =>
-                VeColVector(
-                  source = source,
-                  numItems = bytePointer.getInt(16),
-                  name = name,
-                  veType = r,
-                  container = outContainerLocation,
-                  buffers = Seq(bytePointer.getLong(0), bytePointer.getLong(8)),
-                  dataSize = None
-                ).register()
-            }
-            bytePointer.close()
-            veColVector
-          }(this, context)
+        val buffer = new BytePointer(descriptor.veType.containerSize)
+        VeAsyncResult(getAsync(buffer, location, buffer.limit())){ () =>
+          val vector = VeColVector.fromBuffer(buffer, location, descriptor)(source).register()
+          buffer.close()
+          vector
+        }(this, context)
       }
     }
 

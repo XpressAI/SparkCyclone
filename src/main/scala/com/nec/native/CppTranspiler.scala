@@ -97,9 +97,9 @@ object CppTranspiler {
 
   def evalGroupBy(fun: Function, signature: VeSignature): String = {
     fun.body match {
-      case ident @ Ident(TermName(name)) => groupByCode(signature, name)
-      case apply @ Apply(fun, args) => groupByCode(signature, evalApply(apply))
-      case select @ Select(tree, name) => groupByCode(signature, evalSelect(select))
+      case ident @ Ident(TermName(name)) => groupByCode(ident.tpe, signature, name)
+      case apply @ Apply(fun, args) => groupByCode(apply.tpe, signature, evalApply(apply))
+      case select @ Select(tree, name) => groupByCode(select.tpe, signature, evalSelect(select))
       case unknown => showRaw(unknown)
     }
   }
@@ -167,9 +167,7 @@ object CppTranspiler {
     codelines.indented.cCode
   }
 
-  private def groupByCode(signature: VeSignature, predicateCode: String) = {
-    val resultType: String = signature.outputs.head.veType.cVectorType
-
+  private def groupByCode(groupByType: Type, signature: VeSignature, predicateCode: String) = {
     val debug = false
     val mark = (m: String) => debugPrint(m,debug)
     val sout = (m: String, v: String) => debugPrint(m,v,debug)
@@ -200,7 +198,7 @@ object CppTranspiler {
       debugPrint("separate_to_groups", debug),
       s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, grouping_keys);",
       s"""auto group_count = grouping_keys.size();""",
-      s"""*groups_out = ${resultType}::allocate();""",
+      s"""*groups_out = ${groupByType.toVeType.cVectorType}::allocate();""",
       s"""groups_out[0]->resize(group_count);""",
       CodeLines.forLoop("i", "group_count"){
         CodeLines.from(
@@ -211,7 +209,7 @@ object CppTranspiler {
       s"""// cyclone::print_vec("grouping_keys", grouping_keys);""",
       mark("malloc(group_count)"),
       signature.outputs.map{ output => CodeLines.from(
-        s"*${output.name} = static_cast<${resultType} **>(malloc(sizeof(nullptr) * group_count));",
+        s"*${output.name} = static_cast<${output.veType.cVectorType} **>(malloc(sizeof(nullptr) * group_count));",
       )},
       signature.outputs.zip(signature.inputs).map{case (out, in) => CodeLines.forLoop("i", "group_count"){
           CodeLines.from(

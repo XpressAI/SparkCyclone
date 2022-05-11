@@ -7,10 +7,13 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.veo_proc_handle
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
+  private var instantiated = false
+
   private lazy val underlying = {
     logger.info("Creating the underlying VeProcess")
     val proc = newproc()
     logger.info(s"New underlying VeProcess created: ${proc.source}")
+    instantiated = true
     proc
   }
 
@@ -42,16 +45,26 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.stackAllocations
   }
 
+  def loadedLibraries: Map[String, LibraryReference] = {
+    underlying.loadedLibraries
+  }
+
   def allocate(size: Long): VeAllocation = {
     underlying.allocate(size)
   }
 
-  def free(address: Long): Unit = {
-    underlying.free(address)
+  def free(address: Long, unsafe: Boolean): Unit = {
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.free(address, unsafe)
+    }
   }
 
   def freeAll: Unit = {
-    underlying.freeAll
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.freeAll
+    }
   }
 
   def put(buffer: Pointer): VeAllocation = {
@@ -87,7 +100,10 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def unload(lib: LibraryReference): Unit = {
-    underlying.unload(lib)
+    // If the VeProcess is not even instantiated yet, skip
+    if (instantiated) {
+      underlying.unload(lib)
+    }
   }
 
   def getSymbol(lib: LibraryReference, symbol: String): LibrarySymbol = {
@@ -111,6 +127,9 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def close: Unit = {
-    underlying.close
+    // Don't instantiate an underlying VeProcess instance just for closing
+    if (instantiated) {
+      underlying.close
+    }
   }
 }
