@@ -18,6 +18,14 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
+  "VeProcess" should {
+    "be able to load the Cyclone C++ Library" in {
+      noException should be thrownBy {
+        val lib = process.load(LibCyclonePath)
+      }
+    }
+  }
+
   "VectorEngine" should {
     "correctly execute a basic VE function [1] (single input, single output)" in {
       val func = SampleVeFunctions.DoublingFunction
@@ -28,12 +36,18 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val inputs = InputSamples.seqOpt[Double](Random.nextInt(20) + 10)
         val colvec = inputs.toBytePointerColVector("_").toVeColVector2
 
+        // Metrics should be empty
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}") should be (null)
+
         val outputs = engine.execute(
           lib,
           func.name,
           inputs = Seq(colvec),
           outputs = Seq(VeNullableDouble.makeCVector("output"))
         )
+
+        // Metrics should be non-empty
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}").getCount should be (1L)
 
         val expected = inputs.map(_.map(_ * 2))
         outputs.map(_.toBytePointerColVector2.toSeqOpt[Double]) should be (Seq(expected))
@@ -79,12 +93,16 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val lib = process.load(path)
         val colvec = Seq[Double](95, 99, 105, 500, 501).map(Some(_)).toBytePointerColVector("_").toVeColVector2
 
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}") should be (null)
+
         val outputs = engine.executeMulti(
           lib,
           func.name,
           inputs = Seq(colvec),
           outputs = Seq(VeNullableDouble.makeCVector("output"))
         )
+
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}").getCount should be (1L)
 
         val results: Seq[(Int, Option[Double])] = outputs.map { case (index, vecs) =>
           index -> {
@@ -124,6 +142,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val colvec2 = Seq[Double](9, 8, 7).map(Some(_)).toBytePointerColVector("_").toVeColVector2
         val colvecS = Seq("a", "b", lastString).map(Some(_)).toBytePointerColVector("_").toVeColVector2
 
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupingFn.name}") should be (null)
+
         val outputs = engine.executeMulti(
           lib,
           groupingFn.name,
@@ -131,6 +151,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
           outputs = Seq(VeNullableDouble, VeString, VeNullableDouble).zipWithIndex
             .map { case (vt, i) => vt.makeCVector(s"out_${i}") }
         )
+
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupingFn.name}").getCount should be (1L)
 
         val results: Seq[(Int, Seq[(Double, String, Double)])] = outputs.map { case (index, vecs) =>
           index -> (
@@ -160,6 +182,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val colbatch2 = VeColBatch(Seq(colvec2, svec2))
         val batches = VeBatchOfBatches(Seq(colbatch1, colbatch2))
 
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${mergeFn.name}") should be (null)
+
         val outputs = engine.executeMultiIn(
           lib,
           mergeFn.name,
@@ -167,6 +191,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
           outputs = colbatch1.columns.zipWithIndex
             .map { case (vcv, idx) => vcv.veType.makeCVector(s"o_${idx}") }
         )
+
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${mergeFn.name}").getCount should be (1L)
 
         outputs.size should be (2)
         outputs(0).toBytePointerColVector2.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
@@ -213,6 +239,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       compiledWithHeaders(joinFn.toCFunction) { path =>
         val lib = process.load(path)
 
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${joinFn.name}") should be (null)
+
         val outputs = engine.executeJoin(
           lib,
           joinFn.name,
@@ -220,6 +248,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
           right = rbatches,
           outputs = joinFn.outputs
         )
+
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${joinFn.name}").getCount should be (1L)
 
         // There should be 4 columns - one for the joining column, and three for the remaining
         outputs.size should be (4)
@@ -253,12 +283,16 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       compiledWithHeaders(groupFn.func) { path =>
         val lib = process.load(path)
 
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupFn.func.name}") should be (null)
+
         val outputs = engine.executeGrouping[Long](
           lib,
           groupFn.func.name,
           inputs = batches,
           outputs = groupFn.outputs
         )
+
+        engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupFn.func.name}").getCount should be (1L)
 
         // Given the example input above, there are no values where a._2 % 7 == 6
         outputs.size should be (6)

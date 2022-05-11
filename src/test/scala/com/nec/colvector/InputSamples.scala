@@ -10,7 +10,7 @@ object InputSamples {
   }
 
   def seqOpt[T: ClassTag]: Seq[Option[T]] = {
-    seqOpt[T](Random.nextInt(100))
+    seqOpt[T](Random.nextInt(100) + 1)
   }
 
   def array[T: ClassTag](size: Int): Array[T] = {
@@ -18,7 +18,7 @@ object InputSamples {
   }
 
   def array[T: ClassTag]: Array[T] = {
-    seq[T](Random.nextInt(100)).toArray
+    seq[T](Random.nextInt(100) + 1).toArray
   }
 
   def seq[T: ClassTag](size: Int): Seq[T] = {
