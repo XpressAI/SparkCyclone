@@ -3,11 +3,13 @@ package com.nec.colvector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.VeScalarType
-import scala.reflect.ClassTag
-import scala.util.Random
-import java.util.UUID
+import com.nec.util.FixedBitSet
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.util.UUID
+import scala.reflect.ClassTag
+import scala.util.Random
 
 final class ArrayTConversionsUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Array[T]): Unit = {
@@ -28,8 +30,9 @@ final class ArrayTConversionsUnitSpec extends AnyWordSpec {
     // Check validity buffer
     val validityBuffer = colvec.buffers(1)
     validityBuffer.capacity() should be ((input.size / 64.0).ceil.toLong * 8)
-    for (i <- 0 until validityBuffer.capacity().toInt) {
-      validityBuffer.get(i) should be (-1.toByte)
+    val validityBitSet = FixedBitSet.from(validityBuffer)
+    for (i <- input.indices) {
+      validityBitSet.get(i) should be (true)
     }
 
     // Check conversion

@@ -242,8 +242,8 @@ namespace cyclone {
 
     // Ensure space_in_tail is actually all empty and not some random crap
     // Building mask in a single step results in a signed shift, which we don't want
-    T mask = 0;
-    mask = (~mask) >> space_in_tail;
+    T mask = ~0;
+    mask = mask >> space_in_tail;
 
     //std::cout << "[append_bitsets] first_tail[0] = "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[0]) << std::endl;
     //std::cout << "[append_bitsets] mask = "<< std::bitset<sizeof(T)*CHAR_BIT>(mask) << std::endl;
