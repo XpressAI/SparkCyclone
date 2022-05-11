@@ -30,7 +30,6 @@
 #include <type_traits>
 #include <iostream>
 
-
 void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;
   size_t cur_col_pos = 0;
@@ -41,6 +40,7 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
   size_t cur_out_validity_data_pos = 0;
   size_t dangling_bits = 0;
 
+  size_t i = 0;
   for(auto b = 0; b < batch_count; b++){
     cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     varchar_col_in* col_in = reinterpret_cast<varchar_col_in *>(&col_header[cur_col_pos]);
@@ -56,7 +56,7 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
 
     size_t start_out_data_pos = cur_out_data_pos;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
-    cur_data_pos += col_in->data_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->data_size);
     cur_out_data_pos += col_in->data_size;
 
     //std::cout << "merge_varchar_transfer: copy offsets" << std::endl;
@@ -74,26 +74,28 @@ void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char
         offsets_int[oi] += offset_correction;
       }
     }
-    cur_data_pos += col_in->offsets_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->offsets_size);
     cur_out_offsets_pos += col_in->offsets_size;
 
     //std::cout << "merge_varchar_transfer: copy lengths" << std::endl;
     std::memcpy(&out_lengths[cur_out_lengths_pos], &input_data[cur_data_pos], col_in->lengths_size);
-    cur_data_pos += col_in->lengths_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->lengths_size);
     cur_out_lengths_pos += col_in->lengths_size;
 
     //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-    cur_out_validity_data_pos += frovedis::ceil_div(col_in->element_count, size_t(64));
-    if(dangling_bits > 0){
-      // last part is not entirely filled yet
-      cur_out_validity_data_pos -= 1;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
-    cur_data_pos += col_in->validity_buffer_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
 
   //std::cout << "merge_varchar_transfer: allocate vector" << std::endl;
@@ -124,6 +126,7 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
   size_t cur_out_validity_data_pos = 0;
   size_t dangling_bits = 0;
 
+  size_t i = 0;
   for(auto b = 0; b < batch_count; b++){
     cur_col_pos += sizeof(column_type); // Don't care about column type anymore - it has been asserted to be correct previously
     scalar_col_in* col_in = reinterpret_cast<scalar_col_in *>(&col_header[cur_col_pos]);
@@ -131,21 +134,23 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
 
     //std::cout << "merge_scalar_transfer: copy data" << std::endl;
     std::memcpy(&out_data[cur_out_data_pos], &input_data[cur_data_pos], col_in->data_size);
-    cur_data_pos += col_in->data_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->data_size);
     cur_out_data_pos += col_in->data_size;
 
     //std::cout << "merge_scalar_transfer: copy validity" << std::endl;
-    uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-    cur_out_validity_data_pos += frovedis::ceil_div(col_in->element_count, size_t(64));
-    if(dangling_bits > 0){
-      // last part is not entirely filled yet
-      cur_out_validity_data_pos -= 1;
+    if(b == 0){
+      // just copy over the given validity buffer for the first batch
+      std::memcpy(out_validity_buffer, &input_data[cur_data_pos], col_in->validity_buffer_size);
+      i = col_in->element_count;
+    }else{
+      uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
+      #pragma _NEC novector
+      for(auto ci = 0; ci < col_in->element_count; ci++){
+        set_valid_bit(out_validity_buffer, i++, get_valid_bit(batch_validity_buffer, ci));
+      }
     }
 
-    cur_data_pos += col_in->validity_buffer_size;
+    cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
 
   //std::cout << "merge_scalar_transfer: allocate vector" << std::endl;
@@ -210,7 +215,8 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
  * - *column type* specifies which type the buffer is
  * - *element count* specifies how many elements there are in this particular
  *   column
- * - *buffer size* specifies how large each buffer for that column is
+ * - *buffer size* specifies how large each buffer (including alignment padding!)
+ *   for that column is
  *
  * The number of *buffer size* definitions that follow the first two fields
  * depends entirely on the column type.
@@ -279,6 +285,7 @@ extern "C" int handle_transfer(
         size_t total_element_count = 0;
         size_t total_data_size = 0;
         size_t total_validity_buffer_size = 0;
+        size_t aligned_data_size = 0;
         for(auto b = 0; b < header->batch_count; b++){
           size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
           input_pos += sizeof(column_type);
@@ -299,6 +306,7 @@ extern "C" int handle_transfer(
           total_element_count += col_in->element_count;
           total_data_size += col_in->data_size;
           total_validity_buffer_size += col_in->validity_buffer_size;
+          aligned_data_size += VECTOR_ALIGNED(col_in->data_size) + VECTOR_ALIGNED(col_in->validity_buffer_size);
         }
 
         char* data = static_cast<char *>(malloc(total_data_size));
@@ -327,7 +335,7 @@ extern "C" int handle_transfer(
             // Should be impossible to reach at this point!
             return -99;
         }
-        input_data_pos += total_data_size + total_validity_buffer_size;
+        input_data_pos += aligned_data_size;
       }
         break;
       case COL_TYPE_VARCHAR: {
@@ -336,7 +344,7 @@ extern "C" int handle_transfer(
         size_t total_offsets_size = 0;
         size_t total_lengths_size = 0;
         size_t total_validity_buffer_size = 0;
-
+        size_t aligned_data_size = 0;
 
         for(auto b = 0; b < header->batch_count; b++){
           size_t cur_col_type = (reinterpret_cast<column_type *>(&transfer[input_pos]))->type;
@@ -362,6 +370,7 @@ extern "C" int handle_transfer(
           total_offsets_size += col_in->offsets_size;
           total_lengths_size += col_in->lengths_size;
           total_validity_buffer_size += col_in->validity_buffer_size;
+          aligned_data_size += VECTOR_ALIGNED(col_in->data_size) + VECTOR_ALIGNED(col_in->offsets_size) + VECTOR_ALIGNED(col_in->lengths_size) + VECTOR_ALIGNED(col_in->validity_buffer_size);
         }
 
         char* data = static_cast<char *>(malloc(total_data_size));
@@ -372,7 +381,7 @@ extern "C" int handle_transfer(
         uint64_t* validity_buffer = static_cast<uint64_t *>(calloc(vbytes, 1));
 
         merge_varchar_transfer(header->batch_count, total_element_count, &transfer[col_start], &input_data[input_data_pos], data, validity_buffer, lengths, offsets, od, output_pos);
-        input_data_pos += total_data_size + total_validity_buffer_size + total_offsets_size + total_lengths_size;
+        input_data_pos += aligned_data_size;
       }
         break;
       default:
