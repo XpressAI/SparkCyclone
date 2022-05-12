@@ -271,54 +271,108 @@ namespace cyclone::tests {
   }
 
   TEST_CASE("Merging into tail works after several big steps landing on full byte") {
-    uint64_t a[3] = {64, 128, 255};
-    uint64_t b[3] = {32, 32 + 64, 128};
+    uint64_t a[3] = {
+      0b0000000000000000000000000000000000000000000000000000000001000000,
+      0b0000000000000000000000000000000000000000000000000000000010000000,
+      0b0000000000000000000000000000000000000000000000000000000011111111
+//              ^ valid until here
+    };
+
+    uint64_t b[3] = {
+        0b1110000000000000000000000000000000000000000000000000000001100001,
+        0b0000000000000000000000000000000000000000000000000000000011100001,
+        0b0000000000000000000000000000000000000000000000000000000000111101
+//                                                                  ^ valid until here
+    };
+
+    uint64_t expected[5] = {
+        0b0000000000000000000000000000000000000000000000000000000001000000,
+        0b0000000000000000000000000000000000000000000000000000000010000000,
+        0b1000010000000000000000000000000000000000000000000000000011111111,
+//    from b[0] ^ from a[3]
+        0b1000011110000000000000000000000000000000000000000000000000000001,
+//    from b[1] ^ from b[0]
+        0b1111010000000000000000000000000000000000000000000000000000000011
+//    from b[2] ^ from b[1]
+  };
 
     uint64_t* output = static_cast<uint64_t *>(malloc(5 * sizeof(uint64_t)));
 
     auto dangling = cyclone::append_bitsets(output, 0, a, 2 * 64 + 58);
     auto final_dangling = cyclone::append_bitsets(&output[2], dangling, b, 134);
 
-    std::cout << "output[0]  = " << std::bitset<64>(output[0]) << std::endl;
-    std::cout << "expected_0 = " << std::bitset<64>(a[0]) << std::endl;
-    std::cout << "output[1]  = " << std::bitset<64>(output[1]) << std::endl;
-    std::cout << "expected_1 = " << std::bitset<64>(a[1]) << std::endl;
-    std::cout << "output[2]  = " << std::bitset<64>(output[2]) << std::endl;
-    std::cout << "output[3]  = " << std::bitset<64>(output[3]) << std::endl;
-    std::cout << "output[4]  = " << std::bitset<64>(output[4]) << std::endl;
+    //std::cout << "output[0]  = " << std::bitset<64>(output[0]) << std::endl;
+    //std::cout << "expected_0 = " << std::bitset<64>(expected[0]) << std::endl;
+    //std::cout << "output[1]  = " << std::bitset<64>(output[1]) << std::endl;
+    //std::cout << "expected_1 = " << std::bitset<64>(expected[1]) << std::endl;
+    //std::cout << "output[2]  = " << std::bitset<64>(output[2]) << std::endl;
+    //std::cout << "expected_2 = " << std::bitset<64>(expected[2]) << std::endl;
+    //std::cout << "output[3]  = " << std::bitset<64>(output[3]) << std::endl;
+    //std::cout << "expected_3 = " << std::bitset<64>(expected[3]) << std::endl;
+    //std::cout << "output[4]  = " << std::bitset<64>(output[4]) << std::endl;
+    //std::cout << "expected_4 = " << std::bitset<64>(expected[4]) << std::endl;
 
     CHECK(dangling == 58);
     CHECK(final_dangling == 0);
-    CHECK(output[0] == a[0]);
-    CHECK(output[1] == a[1]);
+    CHECK(output[0] == expected[0]);
+    CHECK(output[1] == expected[1]);
+    CHECK(output[2] == expected[2]);
+    CHECK(output[3] == expected[3]);
+    CHECK(output[4] == expected[4]);
     free(output);
 
     // TODO: Add actual checks on the last elements
   }
 
   TEST_CASE("Merging into tail works after several big steps landing on non-full byte") {
-    uint64_t a[3] = {64, 128, 255};
-    uint64_t b[3] = {32, 32 + 64, 128};
+    uint64_t a[3] = {
+        0b0000000000000000000000000000000000000000000000000000000001000000,
+        0b0000000000000000000000000000000000000000000000000000000010000000,
+        0b0000000000000000000000000000000000000000000000000000000011111111
+//              ^ valid until here
+    };
+    uint64_t b[3] = {
+        0b1110000000000000000000000000000000000000000000000000000001100001,
+        0b0000000000000000000000000000000000000000000000000000000011100001,
+        0b0000000000000000000000000000000000000000000000000000000000001101
+//                                                                    ^ valid until here
+    };
+
+    uint64_t expected[5] = {
+        0b0000000000000000000000000000000000000000000000000000000001000000,
+        0b0000000000000000000000000000000000000000000000000000000010000000,
+        0b1000010000000000000000000000000000000000000000000000000011111111,
+//    from b[0] ^ from a[3]
+        0b1000011110000000000000000000000000000000000000000000000000000001,
+//    from b[1] ^ from b[0]
+//        vv empty
+        0b0011010000000000000000000000000000000000000000000000000000000011
+//    from b[2] ^ from b[1]
+    };
 
     uint64_t* output = static_cast<uint64_t *>(malloc(5 * sizeof(uint64_t)));
 
     auto dangling = cyclone::append_bitsets(output, 0, a, 2 * 64 + 58);
     auto final_dangling = cyclone::append_bitsets(&output[2], dangling, b, 132);
 
-    std::cout << "output[0]  = " << std::bitset<64>(output[0]) << std::endl;
-    std::cout << "expected_0 = " << std::bitset<64>(a[0]) << std::endl;
-    std::cout << "output[1]  = " << std::bitset<64>(output[1]) << std::endl;
-    std::cout << "expected_1 = " << std::bitset<64>(a[1]) << std::endl;
-    std::cout << "output[2]  = " << std::bitset<64>(output[2]) << std::endl;
-    std::cout << "output[3]  = " << std::bitset<64>(output[3]) << std::endl;
-    std::cout << "output[4]  = " << std::bitset<64>(output[4]) << std::endl;
+    //std::cout << "output[0]  = " << std::bitset<64>(output[0]) << std::endl;
+    //std::cout << "expected_0 = " << std::bitset<64>(expected[0]) << std::endl;
+    //std::cout << "output[1]  = " << std::bitset<64>(output[1]) << std::endl;
+    //std::cout << "expected_1 = " << std::bitset<64>(expected[1]) << std::endl;
+    //std::cout << "output[2]  = " << std::bitset<64>(output[2]) << std::endl;
+    //std::cout << "expected_2 = " << std::bitset<64>(expected[2]) << std::endl;
+    //std::cout << "output[3]  = " << std::bitset<64>(output[3]) << std::endl;
+    //std::cout << "expected_3 = " << std::bitset<64>(expected[3]) << std::endl;
+    //std::cout << "output[4]  = " << std::bitset<64>(output[4]) << std::endl;
+    //std::cout << "expected_4 = " << std::bitset<64>(expected[4]) << std::endl;
 
     CHECK(dangling == 58);
     CHECK(final_dangling == 62);
-    CHECK(output[0] == a[0]);
-    CHECK(output[1] == a[1]);
+    CHECK(output[0] == expected[0]);
+    CHECK(output[1] == expected[1]);
+    CHECK(output[2] == expected[2]);
+    CHECK(output[3] == expected[3]);
+    CHECK(output[4] == expected[4]);
     free(output);
-
-    // TODO: Add actual checks on the last elements
   }
 }

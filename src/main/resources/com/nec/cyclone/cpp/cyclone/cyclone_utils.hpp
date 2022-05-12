@@ -214,7 +214,7 @@ namespace cyclone {
     auto additional_elements_to_fit = space_in_tail > second_bit_count ? 0 : second_bit_count - space_in_tail;
 
     // How many additional containers are necessary to fit the spill-over
-    auto additional_container_count = additional_elements_to_fit / bits_per_T;
+    auto additional_container_count = frovedis::ceil_div(additional_elements_to_fit, bits_per_T);
 
     // How many steps *can* be done using the current T size?
     auto big_step_count = second_bit_count / bits_per_T;
@@ -254,7 +254,7 @@ namespace cyclone {
     // T steps
 #pragma _NEC vector
 #pragma _NEC ivdep
-    for (auto i = 0; i < additional_container_count; i++) {
+    for (size_t i = 0; i < additional_container_count; i++) {
       // Set the dangling bits of all follow up Ts
       first_tail[i + 1] = second[i] >> space_in_tail;
       //std::cout << "[append_bitsets] "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i + 1]) << " = " << std::bitset<sizeof(T)*CHAR_BIT>(second[i]) << " >> " << space_in_tail << std::endl;
@@ -263,7 +263,7 @@ namespace cyclone {
     //std::cout << "[append_bitsets] setting values " << std::endl;
 #pragma _NEC vector
 #pragma _NEC ivdep
-    for (auto i = 0; i < big_step_count; i++) {
+    for (size_t i = 0; i < big_step_count; i++) {
       // Fill the free space in the tail of all Ts
       //std::cout << "[append_bitsets] "<< std::bitset<sizeof(T)*CHAR_BIT>(first_tail[i]) << " |= " << std::bitset<sizeof(T)*CHAR_BIT>(second[i]) << " << " << dangling_bits;
       first_tail[i] |= second[i] << dangling_bits;
