@@ -2,8 +2,9 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import scala.reflect.ClassTag
 import org.bytedeco.javacpp._
+
+import scala.reflect.ClassTag
 
 object ArrayTConversions {
   implicit class ArrayTToBPCV[T : ClassTag](input: Array[T]) {
@@ -45,6 +46,15 @@ object ArrayTConversions {
       new BytePointer(buffer).capacity(input.size.toLong * VeScalarType.fromJvmType[T].cSize)
     }
 
+    private[colvector] def validityBuffer: BytePointer = {
+      val bitset = new FixedBitSet(input.size)
+      input.zipWithIndex.foreach { case (x, i) =>
+        bitset.set(i, x != null)
+      }
+
+      bitset.toBytePointer
+    }
+
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
         source,
@@ -53,7 +63,7 @@ object ArrayTConversions {
         input.size,
         Seq(
           dataBuffer,
-          FixedBitSet.ones(input.size)
+          validityBuffer
         )
       )
     }
