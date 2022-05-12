@@ -67,6 +67,15 @@ trait VeProcess {
 
   def loadedLibraries: Map[String, LibraryReference]
 
+  /*
+    VE memory that is allocated from the VE side through function calls will need
+    to be manually registered for allocation tracking, since they are not
+    allocated through `veo_alloc_mem`.
+  */
+  def registerAllocation(address: Long, size: Long): VeAllocation
+
+  def unregisterAllocation(address: Long): Unit
+
   def allocate(size: Long): VeAllocation
 
   /*
@@ -119,13 +128,19 @@ object VeProcess extends LazyLogging {
   final val DefaultVeNodeId = 0
   final val MaxVeNodes = 8
 
-  final val NumAllocationsMetric = "ve.allocations.count"
-  final val BytesAllocatedMetric = "ve.allocations.bytes"
-  final val VeSyncFnCallsCountMetric = "ve.calls.sync.count"
-  final val VeSyncFnCallTimesMetric = "ve.calls.sync.time"
-  final val VeSyncFnCallDurationsMetric = "ve.durations.calls.sync"
-  final val VeAllocDurationsMetric = "ve.durations.alloc"
-  final val VeFreeDurationsMetric = "ve.durations.free"
+  // Gauges
+  final val NumTrackedAllocationsMetric   = "ve.gauges.allocations.count"
+  final val TrackBytesAllocatedMetric     = "ve.gauges.allocations.bytes"
+  final val VeSyncFnCallsCountMetric      = "ve.gauges.calls.sync.count"
+  final val VeSyncFnCallTimesMetric       = "ve.gauges.calls.sync.time"
+  // Timers
+  final val VeSyncFnCallTimerMetric       = "ve.timers.calls.sync"
+  final val VeAllocTimerMetric            = "ve.timers.alloc"
+  final val VeFreeTimerMetric             = "ve.timers.free"
+  // Histograms
+  final val AllocSizesHistogramMetric     = "ve.histograms.allocations.sizes"
+  final val PutSizesHistogramMetric       = "ve.histograms.put.size"
+  final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
   private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, veo_thr_ctxt)] = {
     val nnum = if (venode < -1) venode.abs else venode

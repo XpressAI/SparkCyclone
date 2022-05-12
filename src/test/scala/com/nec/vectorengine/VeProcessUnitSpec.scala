@@ -77,10 +77,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.heapAllocations shouldBe empty
 
       // Metrics should be zero
-      process.metrics.getGauges.get(VeProcess.NumAllocationsMetric).getValue should be (0L)
-      process.metrics.getGauges.get(VeProcess.BytesAllocatedMetric).getValue should be (0L)
-      process.metrics.getTimers.get(VeProcess.VeAllocDurationsMetric).getCount should be (0L)
-      process.metrics.getTimers.get(VeProcess.VeFreeDurationsMetric).getCount should be (0L)
+      process.metrics.getGauges.get(VeProcess.NumTrackedAllocationsMetric).getValue should be (0L)
+      process.metrics.getGauges.get(VeProcess.TrackBytesAllocatedMetric).getValue should be (0L)
+      process.metrics.getTimers.get(VeProcess.VeAllocTimerMetric).getCount should be (0L)
+      process.metrics.getTimers.get(VeProcess.VeFreeTimerMetric).getCount should be (0L)
 
       val allocation = process.allocate(size)
       allocation.address should be > 0L
@@ -90,10 +90,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.heapAllocations.keys should be (Set(allocation.address))
 
       // Metrics should be non-zero
-      process.metrics.getGauges.get(VeProcess.NumAllocationsMetric).getValue should be (1L)
-      process.metrics.getGauges.get(VeProcess.BytesAllocatedMetric).getValue should be (size.toLong)
-      process.metrics.getTimers.get(VeProcess.VeAllocDurationsMetric).getCount should be (1L)
-      process.metrics.getTimers.get(VeProcess.VeFreeDurationsMetric).getCount should be (0L)
+      process.metrics.getGauges.get(VeProcess.NumTrackedAllocationsMetric).getValue should be (1L)
+      process.metrics.getGauges.get(VeProcess.TrackBytesAllocatedMetric).getValue should be (size.toLong)
+      process.metrics.getTimers.get(VeProcess.VeAllocTimerMetric).getCount should be (1L)
+      process.metrics.getTimers.get(VeProcess.VeFreeTimerMetric).getCount should be (0L)
 
       // First call to `free()` should work
       noException should be thrownBy {
@@ -104,10 +104,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.heapAllocations shouldBe empty
 
       // Metrics should be back to zero
-      process.metrics.getGauges.get(VeProcess.NumAllocationsMetric).getValue should be (0L)
-      process.metrics.getGauges.get(VeProcess.BytesAllocatedMetric).getValue should be (0L)
-      process.metrics.getTimers.get(VeProcess.VeAllocDurationsMetric).getCount should be (1L)
-      process.metrics.getTimers.get(VeProcess.VeFreeDurationsMetric).getCount should be (1L)
+      process.metrics.getGauges.get(VeProcess.NumTrackedAllocationsMetric).getValue should be (0L)
+      process.metrics.getGauges.get(VeProcess.TrackBytesAllocatedMetric).getValue should be (0L)
+      process.metrics.getTimers.get(VeProcess.VeAllocTimerMetric).getCount should be (1L)
+      process.metrics.getTimers.get(VeProcess.VeFreeTimerMetric).getCount should be (1L)
 
       // Double `free()` should fail without crashing the JVM
       intercept[IllegalArgumentException] {
@@ -136,6 +136,56 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       // VE memory address is valid but has never been allocated before
       intercept[IllegalArgumentException] {
         process.free(Random.nextInt(10000).toLong)
+      }
+    }
+
+    "correctly register, de-register, and re-register memory allocations for tracking" in {
+      val size = Random.nextInt(10000) + 100
+
+      // Allocate
+      val allocation = process.allocate(size)
+
+      // Tracker should contain the record
+      process.heapAllocations.keys should be (Set(allocation.address))
+
+      // VE memory address is invalid
+      intercept[IllegalArgumentException] {
+        process.registerAllocation(- Random.nextInt(10000).toLong, Random.nextInt(10000) + 100)
+      }
+
+      // Zero or negative allocation size
+      intercept[IllegalArgumentException] {
+        process.registerAllocation(Random.nextInt(10000) + 100, - Random.nextInt(10000).toLong + 100)
+      }
+
+      // VE memory address is invalid
+      intercept[IllegalArgumentException] {
+        process.unregisterAllocation(- Random.nextInt(10000).toLong)
+      }
+
+      // Register a conflicting allocation (same address, different size)
+      intercept[IllegalArgumentException] {
+        process.registerAllocation(allocation.address, allocation.size + Random.nextInt(10000).toLong + 100)
+      }
+
+      // The same allocation
+      noException should be thrownBy {
+        process.registerAllocation(allocation.address, allocation.size) should be (allocation)
+      }
+
+      // Un-register allocation from tracking
+      noException should be thrownBy {
+        process.unregisterAllocation(allocation.address)
+      }
+
+      // Re-register allocation for tracking
+      noException should be thrownBy {
+        process.registerAllocation(allocation.address, allocation.size)
+      }
+
+      // Free should work
+      noException should be thrownBy {
+        process.free(allocation.address)
       }
     }
 
@@ -446,7 +496,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         // Metrics should be zero
         process.metrics.getGauges.get(VeProcess.VeSyncFnCallsCountMetric).getValue should be (0L)
         process.metrics.getGauges.get(VeProcess.VeSyncFnCallTimesMetric).getValue should be (0L)
-        process.metrics.getTimers.get(VeProcess.VeSyncFnCallDurationsMetric).getCount should be (0L)
+        process.metrics.getTimers.get(VeProcess.VeSyncFnCallTimerMetric).getCount should be (0L)
 
         // Call the function (sync)
         val retp = process.call(func, stack)
@@ -455,7 +505,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         // Metrics should be non-zero
         process.metrics.getGauges.get(VeProcess.VeSyncFnCallsCountMetric).getValue should be (1L)
         process.metrics.getGauges.get(VeProcess.VeSyncFnCallTimesMetric).getValue shouldNot be (0L)
-        process.metrics.getTimers.get(VeProcess.VeSyncFnCallDurationsMetric).getCount should be (1L)
+        process.metrics.getTimers.get(VeProcess.VeSyncFnCallTimerMetric).getCount should be (1L)
 
         // Dereference the output pointer and move output from VE to VH
         val outbuffer = new DoublePointer(input.size)

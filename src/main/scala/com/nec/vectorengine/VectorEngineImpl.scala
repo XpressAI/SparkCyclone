@@ -1,5 +1,6 @@
 package com.nec.vectorengine
 
+import com.nec.cache.TransferDescriptor
 import com.nec.colvector._
 import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
 import com.nec.util.CallContext
@@ -18,8 +19,15 @@ class VectorEngineImpl(val process: VeProcess,
   // Declare implicit for use with VeAsyncResult contexts
   private implicit val p = process
 
-  def validateVectors(inputs: Seq[VeColVector]): Unit = {
-    inputs.foreach { vector =>
+  implicit class VeColVectorExtensions(vector: VeColVector) {
+    def register: VeColVector = {
+      vector.buffers.zip(vector.bufferSizes).foreach { case (address, size) =>
+        process.registerAllocation(address, size)
+      }
+      vector
+    }
+
+    def validate: Unit = {
       require(
         vector.source == process.source,
         s"Expecting source to be ${process.source}, but got ${vector.source} for vector ${vector}"
@@ -58,14 +66,14 @@ class VectorEngineImpl(val process: VeProcess,
     val argstack = process.newArgsStack(args)
 
     // Execute the function
-    logger.debug(s"Calling ${fnName}")
+    logger.debug(s"Calling VE function: ${fnName}")
     val outp = process.call(func, argstack)
 
     // Free the call args stack
     process.freeArgsStack(argstack)
 
     // All Cyclone C++ functions should return 0L on successful completion
-    require(outp.get == 0L, s"Expected 0 from function execution, got ${outp.get} instead.")
+    require(outp.get == 0L, s"Expected 0 from function execution, got ${outp.get} instead: ${fnName} (${lib.path})")
     outp.close
   }
 
@@ -99,7 +107,7 @@ class VectorEngineImpl(val process: VeProcess,
              (implicit context: CallContext): Seq[VeColVector] = {
     measureTime(fnName) {
       // Validate columns
-      validateVectors(inputs)
+      inputs.foreach(_.validate)
 
       // Set up the input buffer args
       val inbuffers = inputs.map { vec =>
@@ -124,7 +132,7 @@ class VectorEngineImpl(val process: VeProcess,
                   (implicit context: CallContext): Seq[(Int, Seq[VeColVector])] = {
     measureTime(fnName) {
       // Validate columns
-      validateVectors(inputs)
+      inputs.foreach(_.validate)
 
       // Set up the input buffer args
       val inbuffers = inputs.map { vec =>
@@ -164,7 +172,7 @@ class VectorEngineImpl(val process: VeProcess,
                     (implicit context: CallContext): Seq[VeColVector] = {
     measureTime(fnName) {
       // Validate columns
-      inputs.batches.foreach(batch => validateVectors(batch.columns))
+      inputs.batches.flatMap(_.columns).foreach(_.validate)
 
       // Set up the input count args
       val countargs = Seq(
@@ -203,8 +211,8 @@ class VectorEngineImpl(val process: VeProcess,
                  (implicit context: CallContext): Seq[VeColVector] = {
     measureTime(fnName) {
       // Validate columns
-      left.batches.foreach(batch => validateVectors(batch.columns))
-      right.batches.foreach(batch => validateVectors(batch.columns))
+      left.batches.flatMap(_.columns).foreach(_.validate)
+      right.batches.flatMap(_.columns).foreach(_.validate)
 
       // Set up the input count args
       val countargs = Seq(
@@ -254,7 +262,7 @@ class VectorEngineImpl(val process: VeProcess,
                                   (implicit context: CallContext): Seq[(K, Seq[VeColVector])] = {
     measureTime(fnName) {
       // Validate columns
-      inputs.batches.foreach(batch => validateVectors(batch.columns))
+      inputs.batches.flatMap(_.columns).foreach(_.validate)
 
       // Set up the input count args
       val countargs = Seq(
@@ -321,5 +329,37 @@ class VectorEngineImpl(val process: VeProcess,
       scope.close
       results
     }
+  }
+
+  def executeTransfer(lib: LibraryReference,
+                      descriptor: TransferDescriptor)
+                     (implicit context: CallContext): VeColBatch = {
+    require(descriptor.nonEmpty, "TransferDescriptor is empty")
+
+    // Allocate the buffer in VE and transfer the data over
+    logger.debug("Allocating VE memory and transferring data over using TransferDescriptor...")
+    val allocation = process.put(descriptor.buffer)
+
+    // Unregister from VeProcess tracking, as the memory is going to be freed on the VE during transfer handling
+    process.unregisterAllocation(allocation.address)
+
+    // Free the transfer buffer on the VH side
+    descriptor.closeTransferBuffer
+
+    // Unpack and construct nullabble_t_struct's from the VE side
+    execFn(lib, "handle_transfer", Seq(
+      BuffArg(VeArgIntent.In, new LongPointer(1).put(allocation.address)),
+      BuffArg(VeArgIntent.Out, descriptor.outputBuffer)
+    ))
+
+    // Construct VeColBatch from the output buffer
+    val batch = descriptor.outputBufferToColBatch
+
+    // Close the output buffer
+    descriptor.closeOutputBuffer
+
+    // Register the allocations made from the VE
+    batch.columns.foreach(_.register)
+    batch
   }
 }
