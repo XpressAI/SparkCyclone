@@ -44,11 +44,14 @@ class VectorEngineImpl(val process: VeProcess,
       require(location > 0, s"Expected nullable_t_struct container location to be > 0L, got ${location}")
       val buffer = new BytePointer(descriptor.veType.containerSize)
 
-      // Copy the nullable_t_struct to VH memory and wait before creating the VeColVector
+      // Copy the nullable_t_struct to VH memory and wait
       VeAsyncResult(process.getAsync(buffer, location)) { () =>
+        // Create the VeColVector from the contents of the nullable_t_struct buffer in VH memory
         val vector = VeColVector.fromBuffer(buffer, location, descriptor)(process.source)
+        // Close the buffer
         buffer.close
-        vector
+        // Register the VE-allocated memory for VeProcess tracking and return
+        vector.register
       }
     }
   }

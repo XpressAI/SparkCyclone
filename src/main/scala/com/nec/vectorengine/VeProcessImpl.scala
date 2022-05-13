@@ -157,7 +157,8 @@ final case class WrappingVeo private (val node: Int,
 
   def registerAllocation(address: Long, size: Long): VeAllocation = {
     require(address > 0L, s"Memory address ${address} is invalid; cannot register allocation!")
-    require(size > 0L, s"Memory size ${size} is invalid; cannot register allocation!")
+    // Explicitly allow registrations of zero-sized allocations
+    require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
     logger.trace(s"Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
 
     heapRecords.get(address) match {
@@ -169,6 +170,8 @@ final case class WrappingVeo private (val node: Int,
         throw new IllegalArgumentException(s"Allocation @ ${address} is already registered but with different byte sizes!")
 
       case None =>
+        if (size <= 0) { logger.debug(s"Allocation @ ${address} is of size 0") }
+
         // Record metrics
         allocSizesHistogram.update(size)
 

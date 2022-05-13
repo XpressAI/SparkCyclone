@@ -44,6 +44,11 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
         val expected = inputs.map(_.map(_ * 2))
         outputs.map(_.toBytePointerColVector2.toSeqOpt[Double]) should be (Seq(expected))
+
+        // Allocations should have been registered for tracking by VeProcess
+        noException should be thrownBy {
+          outputs.map(_.free2)
+        }
       }
     }
 
@@ -76,6 +81,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         }.toSeq
 
         outputs.map(_.toBytePointerColVector2.toSeqOpt[Double]) should be (Seq(expected1, expected2))
+
+        noException should be thrownBy {
+          outputs.map(_.free2)
+        }
       }
     }
 
@@ -113,6 +122,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         )
 
         results should be (expected)
+
+        noException should be thrownBy {
+          outputs.flatMap(_._2).map(_.free2)
+        }
       }
     }
 
@@ -157,6 +170,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
         results.map(_._2.size).toSet == Set(1, 2)
         results.flatMap(_._2).toSet should be (Set[(Double, String, Double)]((1, "a", 9), (2, "b", 8), (3, lastString, 7)))
+
+        noException should be thrownBy {
+          outputs.flatMap(_._2).map(_.free2)
+        }
       }
     }
 
@@ -190,6 +207,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         outputs.size should be (2)
         outputs(0).toBytePointerColVector2.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
         outputs(1).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
+
+        noException should be thrownBy {
+          outputs.map(_.free2)
+        }
       }
     }
 
@@ -250,6 +271,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         outputs(1).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("a", "b", "d"))
         outputs(2).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("vv", "xx", "xx"))
         outputs(3).toBytePointerColVector2.toSeqOpt[Float].flatten should be (Seq[Float](3.14f, 2.71f, 2.71f))
+
+        noException should be thrownBy {
+          outputs.map(_.free2)
+        }
       }
     }
 
@@ -308,6 +333,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         )
 
         results should be (expected)
+
+        noException should be thrownBy {
+          outputs.flatMap(_._2).map(_.free2)
+        }
       }
     }
 
