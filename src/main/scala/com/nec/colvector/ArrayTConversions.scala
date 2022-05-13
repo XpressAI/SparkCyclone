@@ -153,12 +153,12 @@ object ArrayTConversions {
       val dataBuffer = buffers(0)
       val startsBuffer = new IntPointer(buffers(1))
       val lensBuffer = new IntPointer(buffers(2))
-      val validityBuffer = buffers(3)
+      val validityBuffer = FixedBitSet.from(buffers(3))
 
       val output = new Array[String](numItems)
       for (i <- 0 until numItems) {
         // Get the validity bit at psition i
-        val isValid = (validityBuffer.get(i / 8) & (1 << (i % 8))) > 0
+        val isValid = validityBuffer.get(i)
 
         if (isValid) {
           // Read starts and lens as byte offsets (they are stored in BytePointerColVector as int32_t offsets)

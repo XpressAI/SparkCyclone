@@ -18,6 +18,10 @@ case class TransferDescriptor(
     val batchCount: Long = batches.size
     val columnCount: Long = batches.head.size
 
+    require(batchCount > 0, "Need more than 0 batches for transfer!")
+    require(columnCount > 0, "Need more than 0 columns for transfer!")
+    require(batches.forall(_.size == columnCount), "All batches must have the same column count!")
+
     logger.debug(s"Preparing transfer buffer for ${batchCount} batches of ${columnCount} columns")
 
     val sizeOfSizeT = 8
@@ -93,6 +97,13 @@ case class TransferDescriptor(
     }
 
     buffer.position(0)
+  }
+
+  def printBuffer(): Unit = {
+    println("Transfer Buffer = ")
+    val arr = Array.ofDim[Byte](buffer.limit().toInt)
+    buffer.get(arr)
+    println(arr.mkString("[", ", ", "]"))
   }
 
   def closeOutputBuffer(): Unit = outputBuffer.close()

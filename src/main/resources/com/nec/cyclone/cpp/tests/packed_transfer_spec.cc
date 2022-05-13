@@ -172,6 +172,52 @@ namespace cyclone::tests {
       CHECK(transferred->equals(vec1));
     }
 
+    TEST_CASE("Unpacking works for two varchar vectors of an empty string each"){
+          std::vector<std::string> raw { "" };
+          auto *vec1 = new nullable_varchar_vector(raw);
+          auto *vec2 = new nullable_varchar_vector(raw);
+
+          auto header_size = sizeof(transfer_header) + 2*(sizeof(size_t) + sizeof(varchar_col_in));
+
+          size_t element_count = static_cast<size_t>(vec1->count);
+          size_t data_size = VECTOR_ALIGNED(vec1->dataSize * sizeof(int32_t));
+          size_t offsets_size = VECTOR_ALIGNED(element_count * sizeof(int32_t));
+          size_t lengths_size = VECTOR_ALIGNED(element_count * sizeof(int32_t));
+          size_t validity_buffer_size = VECTOR_ALIGNED(frovedis::ceil_div(vec1->count, int32_t(64)) * sizeof(uint64_t));
+
+          char* transfer = static_cast<char*>(malloc(header_size + 2*(data_size + offsets_size + lengths_size + validity_buffer_size)));
+
+          size_t pos = 0;
+          transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
+          header->header_size = header_size;
+          header->batch_count = 1;
+          header->column_count = 2;
+          pos += sizeof(transfer_header);
+
+          size_t data_pos = 0;
+          size_t col_pos = 0;
+          copy_varchar_vec_to_transfer_buffer(vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+          copy_varchar_vec_to_transfer_buffer(vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+
+          uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * 10));
+
+          char* target[1] = {transfer};
+
+          int res = handle_transfer(target, od);
+          CHECK(res == 0);
+
+          nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
+          nullable_varchar_vector* transferred2 = reinterpret_cast<nullable_varchar_vector*>(od[5]);
+
+          vec1->print();
+          transferred1->print();
+          vec2->print();
+          transferred2->print();
+
+          CHECK(transferred1->equals(vec1));
+          CHECK(transferred2->equals(vec2));
+        }
+
     TEST_CASE("Unpacking works for multiple vectors of different types"){
       std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
       auto *vec1 = new nullable_varchar_vector(raw);
