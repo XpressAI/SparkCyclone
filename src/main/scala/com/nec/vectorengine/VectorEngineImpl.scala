@@ -21,9 +21,12 @@ class VectorEngineImpl(val process: VeProcess,
 
   implicit class VeColVectorExtensions(vector: VeColVector) {
     def register: VeColVector = {
+      // Register the buffers for allocations tracking
       vector.buffers.zip(vector.bufferSizes).foreach { case (address, size) =>
         process.registerAllocation(address, size)
       }
+      // Register the nullable_t_struct itself for allocations tracking
+      process.registerAllocation(vector.container, vector.veType.containerSize)
       vector
     }
 
@@ -331,10 +334,12 @@ class VectorEngineImpl(val process: VeProcess,
     }
   }
 
-  def executeTransfer(lib: LibraryReference,
-                      descriptor: TransferDescriptor)
+  def executeTransfer(descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch = {
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
+
+    // Load libcyclone if not already loaded
+    val lib = process.load(LibCyclone.SoPath)
 
     // Allocate the buffer in VE and transfer the data over
     logger.debug("Allocating VE memory and transferring data over using TransferDescriptor...")
@@ -347,7 +352,7 @@ class VectorEngineImpl(val process: VeProcess,
     descriptor.closeTransferBuffer
 
     // Unpack and construct nullabble_t_struct's from the VE side
-    execFn(lib, "handle_transfer", Seq(
+    execFn(lib, LibCyclone.HandleTransferFn, Seq(
       BuffArg(VeArgIntent.In, new LongPointer(1).put(allocation.address)),
       BuffArg(VeArgIntent.Out, descriptor.outputBuffer)
     ))

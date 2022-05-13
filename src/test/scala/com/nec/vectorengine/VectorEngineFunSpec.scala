@@ -1,5 +1,6 @@
 package com.nec.vectorengine
 
+import com.nec.cache.TransferDescriptor
 import com.nec.colvector._
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
@@ -18,16 +19,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
-  "VeProcess" should {
-    "be able to load the Cyclone C++ Library" in {
-      noException should be thrownBy {
-        val lib = process.load(LibCyclonePath)
-      }
-    }
-  }
-
   "VectorEngine" should {
-    "correctly execute a basic VE function [1] (single input, single output)" in {
+    "correctly execute a basic VE function [1] (single input, single output)" ignore {
       val func = SampleVeFunctions.DoublingFunction
 
       compiledWithHeaders(func) { path =>
@@ -54,7 +47,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a basic VE function [2] (multi input, multi output)" in {
+    "correctly execute a basic VE function [2] (multi input, multi output)" ignore {
       val func = SampleVeFunctions.FilterEvensFunction
 
       compiledWithHeaders(func) { path =>
@@ -86,7 +79,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-function [1] (simple partitioning)" in {
+    "correctly execute a multi-function [1] (simple partitioning)" ignore {
       val func = SampleVeFunctions.PartitioningFunction
 
       compiledWithHeaders(func) { path =>
@@ -123,7 +116,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-function [2] (custom grouping function)" in {
+    "correctly execute a multi-function [2] (custom grouping function)" ignore {
       val groupingFn = GroupingFunction(
         "grouping_func",
         List(
@@ -167,7 +160,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-in function [1] (merge multiple VeColBatches)" in {
+    "correctly execute a multi-in function [1] (merge multiple VeColBatches)" ignore {
       val mergeFn = MergeFunction("merge_func", Seq(VeNullableDouble, VeString))
 
       compiledWithHeaders(mergeFn.toCFunction) { path =>
@@ -200,7 +193,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a join function" in {
+    "correctly execute a join function" ignore {
       // Batch L1
       val c1a = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector2
       val c1b = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector2
@@ -260,7 +253,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a grouping function" in {
+    "correctly execute a grouping function" ignore {
       // Batch 1
       val c1a = Seq[Long](1, 2, 7, 9).map(Some(_)).toBytePointerColVector("_").toVeColVector2
       val c1b = Seq[Long](101, 102, 107, 109).map(Some(_)).toBytePointerColVector("_").toVeColVector2
@@ -315,6 +308,58 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         )
 
         results should be (expected)
+      }
+    }
+
+    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" in {
+      // Batch A
+      val sizeA = Random.nextInt(50) + 10
+      val a1 = InputSamples.seqOpt[Int](sizeA)
+      val a2 = InputSamples.seqOpt[Double](sizeA)
+      val a3 = InputSamples.seqOpt[String](sizeA)
+      println(s"a1 = ${a1}")
+      println(s"a2 = ${a2}")
+      println(s"a3 = ${a3}")
+
+      // Batch B
+      val sizeB = Random.nextInt(50) + 10
+      val b1 = InputSamples.seqOpt[Int](sizeB)
+      val b2 = InputSamples.seqOpt[Double](sizeB)
+      val b3 = InputSamples.seqOpt[String](sizeB)
+      println(s"b1 = ${b1}")
+      println(s"b2 = ${b2}")
+      println(s"b3 = ${b3}")
+
+      // Batch C
+      val sizeC = Random.nextInt(50) + 10
+      val c1 = InputSamples.seqOpt[Int](sizeC)
+      val c2 = InputSamples.seqOpt[Double](sizeC)
+      val c3 = InputSamples.seqOpt[String](sizeC)
+      println(s"c1 = ${c1}")
+      println(s"c2 = ${c2}")
+      println(s"c3 = ${c3}")
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(Seq(
+        Seq(a1.toBytePointerColVector("_"), a2.toBytePointerColVector("_"), a3.toBytePointerColVector("_")),
+        Seq(b1.toBytePointerColVector("_"), b2.toBytePointerColVector("_"), b3.toBytePointerColVector("_")),
+        Seq(c1.toBytePointerColVector("_"), c2.toBytePointerColVector("_"), c3.toBytePointerColVector("_"))
+      ))
+
+      // Create the VeColBatch via bulk data transfer
+      val batch = engine.executeTransfer(descriptor)
+
+      // There should be only 3 columns
+      batch.columns.size should be (3)
+
+      // The Nth column of each batch should be consolidated
+      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+      batch.columns(1).toBytePointerColVector2.toSeqOpt[Double] should be (a2 ++ b2 ++ c2)
+      batch.columns(2).toBytePointerColVector2.toSeqOpt[String] should be (a3 ++ b3 ++ c3)
+
+      // The memory created from the VE side should be registered for safe free()
+      noException should be thrownBy {
+        batch.free2
       }
     }
   }

@@ -54,6 +54,16 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
   }
 
   "VeProcess" should {
+    "be able to load the Cyclone C++ Library" in {
+      noException should be thrownBy {
+        // Load libcyclone
+        val lib = process.load(LibCyclone.SoPath)
+
+        // Unload libcyclone
+        process.unload(lib)
+      }
+    }
+
     "correctly indicate that the underlying VE process is open" in {
       process.isOpen should be (true)
     }
@@ -168,7 +178,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         process.registerAllocation(allocation.address, allocation.size + Random.nextInt(10000).toLong + 100)
       }
 
-      // The same allocation
+      // Registering the same allocation should be a no-op
       noException should be thrownBy {
         process.registerAllocation(allocation.address, allocation.size) should be (allocation)
       }
@@ -176,16 +186,19 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       // Un-register allocation from tracking
       noException should be thrownBy {
         process.unregisterAllocation(allocation.address)
+        process.heapAllocations shouldBe empty
       }
 
       // Re-register allocation for tracking
       noException should be thrownBy {
         process.registerAllocation(allocation.address, allocation.size)
+        process.heapAllocations.keys should be (Set(allocation.address))
       }
 
       // Free should work
       noException should be thrownBy {
         process.free(allocation.address)
+        process.heapAllocations shouldBe empty
       }
     }
 

@@ -7,7 +7,7 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import scala.collection.mutable.ListBuffer
 
 case class TransferDescriptor(
-  batches: List[List[BytePointerColVector]]) extends LazyLogging {
+  batches: Seq[Seq[BytePointerColVector]]) extends LazyLogging {
   lazy val isEmpty: Boolean = batches.flatten.isEmpty
   def nonEmpty: Boolean = !isEmpty
 

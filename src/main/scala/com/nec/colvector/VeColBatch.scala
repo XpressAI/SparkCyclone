@@ -130,6 +130,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns.foreach(_.free)
   }
 
+  def free2(implicit process: NewVeProcess): Unit = {
+    columns.foreach(_.free2)
+  }
+
   def toArrowColumnarBatch(implicit allocator: BufferAllocator,
                            process: VeProcess): ColumnarBatch = {
     val vecs = columns.map(_.toBytePointerColVector.toArrowVector)

@@ -21,7 +21,6 @@ package com.nec.spark.agile
 
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException
-
 import java.net.URL
 import java.nio.file.{Files, Path}
 

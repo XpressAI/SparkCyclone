@@ -1,5 +1,6 @@
 package com.nec.vectorengine
 
+import com.nec.cache.TransferDescriptor
 import com.nec.colvector._
 import com.nec.spark.agile.core.CVector
 import com.nec.util.CallContext
@@ -47,6 +48,9 @@ trait VectorEngine {
                                    inputs: VeBatchOfBatches,
                                    outputs: Seq[CVector])
                                   (implicit context: CallContext): Seq[(K, Seq[VeColVector])]
+
+  def executeTransfer(descriptor: TransferDescriptor)
+                     (implicit context: CallContext): VeColBatch
 }
 
 object VectorEngine {

@@ -7,10 +7,6 @@ import com.codahale.metrics._
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
-  final val LibCyclonePath: Path = {
-    Paths.get("target/scala-2.12/classes/cycloneve/libcyclone.so")
-  }
-
   // TODO: Remove
   implicit val metrics0 = VeProcessMetrics.noOp
 
