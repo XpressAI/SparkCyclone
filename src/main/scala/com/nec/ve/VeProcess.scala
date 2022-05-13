@@ -3,7 +3,7 @@ package com.nec.ve
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
+import com.nec.spark.agile.core.CVector
 import com.nec.ve.VeProcess.Requires.requireOk
 import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
 import com.typesafe.scalalogging.LazyLogging
@@ -310,7 +310,7 @@ object VeProcess {
     }
 
     override def loadLibrary(path: Path): LibraryReference = {
-      this.synchronized {
+      SparkCycloneExecutorPlugin.libsPerProcess.synchronized {
         SparkCycloneExecutorPlugin.libsPerProcess
           .getOrElseUpdate(
             veo_proc_handle,
