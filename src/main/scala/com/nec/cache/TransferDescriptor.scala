@@ -124,7 +124,7 @@ case class TransferDescriptor(
   def outputBufferToColBatch(): VeColBatch = {
     val od = new LongPointer(outputBuffer)
     val startingPositions = batches.head.map(_.veType.isString).map{
-      case true => 4
+      case true => 5
       case false => 3
     }.foldLeft(ListBuffer(0)){ case (acc, size) =>
       acc += acc.last + size
