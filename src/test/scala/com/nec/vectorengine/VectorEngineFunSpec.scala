@@ -20,7 +20,7 @@ import org.scalatest.wordspec.AnyWordSpec
 @VectorEngineTest
 final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
   "VectorEngine" should {
-    "correctly execute a basic VE function [1] (single input, single output)" ignore {
+    "correctly execute a basic VE function [1] (single input, single output)" in {
       val func = SampleVeFunctions.DoublingFunction
 
       compiledWithHeaders(func) { path =>
@@ -47,7 +47,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a basic VE function [2] (multi input, multi output)" ignore {
+    "correctly execute a basic VE function [2] (multi input, multi output)" in {
       val func = SampleVeFunctions.FilterEvensFunction
 
       compiledWithHeaders(func) { path =>
@@ -79,7 +79,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-function [1] (simple partitioning)" ignore {
+    "correctly execute a multi-function [1] (simple partitioning)" in {
       val func = SampleVeFunctions.PartitioningFunction
 
       compiledWithHeaders(func) { path =>
@@ -116,7 +116,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-function [2] (custom grouping function)" ignore {
+    "correctly execute a multi-function [2] (custom grouping function)" in {
       val groupingFn = GroupingFunction(
         "grouping_func",
         List(
@@ -160,7 +160,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a multi-in function [1] (merge multiple VeColBatches)" ignore {
+    "correctly execute a multi-in function [1] (merge multiple VeColBatches)" in {
       val mergeFn = MergeFunction("merge_func", Seq(VeNullableDouble, VeString))
 
       compiledWithHeaders(mergeFn.toCFunction) { path =>
@@ -193,7 +193,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a join function" ignore {
+    "correctly execute a join function" in {
       // Batch L1
       val c1a = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector2
       val c1b = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector2
@@ -253,7 +253,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly execute a grouping function" ignore {
+    "correctly execute a grouping function" in {
       // Batch 1
       val c1a = Seq[Long](1, 2, 7, 9).map(Some(_)).toBytePointerColVector("_").toVeColVector2
       val c1b = Seq[Long](101, 102, 107, 109).map(Some(_)).toBytePointerColVector("_").toVeColVector2
@@ -311,7 +311,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" in {
+    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" ignore {
       // Batch A
       val sizeA = Random.nextInt(50) + 10
       val a1 = InputSamples.seqOpt[Int](sizeA)
@@ -352,10 +352,74 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       // There should be only 3 columns
       batch.columns.size should be (3)
 
-      // The Nth column of each batch should be consolidated
+      // Transfer back to VH - the Nth column of each batch should be consolidated
       batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
       batch.columns(1).toBytePointerColVector2.toSeqOpt[Double] should be (a2 ++ b2 ++ c2)
       batch.columns(2).toBytePointerColVector2.toSeqOpt[String] should be (a3 ++ b3 ++ c3)
+
+      // The memory created from the VE side should be registered for safe free()
+      noException should be thrownBy {
+        batch.free2
+      }
+    }
+
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [1]" in {
+      // Batch A
+      val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142))
+
+      // Batch B
+      val b1 = Seq(None, None, None, Some(8051))
+
+      // Batch C
+      val c1 = Seq(Some(7319), None, None, Some(4859), Some(524))
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(Seq(
+        Seq(a1.toBytePointerColVector("_")),
+        Seq(b1.toBytePointerColVector("_")),
+        Seq(c1.toBytePointerColVector("_"))
+      ))
+
+      // Create the VeColBatch via bulk data transfer
+      val batch = engine.executeTransfer(descriptor)
+
+      // There should be only 1 columns
+      batch.columns.size should be (1)
+
+      // Transfer back to VH - the Nth column of each batch should be consolidated
+      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+
+      // The memory created from the VE side should be registered for safe free()
+      noException should be thrownBy {
+        batch.free2
+      }
+    }
+
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" ignore {
+      // Batch A
+      val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142), None, None, None, Some(2149), Some(4297), None, None, Some(3278), Some(6668), None)
+
+      // Batch B
+      val b1 = Seq(None, None, None, Some(8051), None, Some(1383), None, None, Some(2256), Some(5785), None, None, None, None, None, Some(4693), None, Some(1849), Some(3790), Some(8995), None, Some(6961), Some(7132), None, None, None, None, Some(6968), None, None, Some(3763), None, Some(3558), None, None, Some(2011), None, None, None, Some(3273), None, None, Some(9428), None, None, Some(6408), Some(7940), None, Some(9521), None, None, Some(5832), None, None, Some(5817), Some(5949))
+
+      // Batch C
+      val c1 = Seq(Some(7319), None, None, Some(4859), Some(524), Some(406), None, None, Some(1154), None, None, Some(1650), Some(8040), None, None, None, None, None, None, None, None, None, Some(1146), None, Some(7268), Some(8197), None, None, None, None, Some(81), Some(2053), Some(6571), Some(4600), None, Some(3699), None, Some(8404), None, None, Some(8401), None, None, Some(6234), Some(6281), Some(7367), None, Some(4688), Some(7490), None, Some(5412), None, None, Some(871), None, Some(9086), None, Some(5362), Some(6516))
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(Seq(
+        Seq(a1.toBytePointerColVector("_")),
+        Seq(b1.toBytePointerColVector("_")),
+        Seq(c1.toBytePointerColVector("_"))
+      ))
+
+      // Create the VeColBatch via bulk data transfer
+      val batch = engine.executeTransfer(descriptor)
+
+      // There should be only 1 columns
+      batch.columns.size should be (1)
+
+      // Transfer back to VH - the Nth column of each batch should be consolidated
+      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
 
       // The memory created from the VE side should be registered for safe free()
       noException should be thrownBy {

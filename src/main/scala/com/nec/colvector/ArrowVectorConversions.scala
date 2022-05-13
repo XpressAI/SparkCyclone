@@ -1,6 +1,7 @@
 package com.nec.colvector
 
 import com.nec.spark.agile.core._
+import com.nec.util.FixedBitSet
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import java.nio.charset.StandardCharsets
@@ -103,13 +104,11 @@ object ArrowVectorConversions {
         val dataBuffer = buffers(0)
         val startsBuffer = new IntPointer(buffers(1))
         val lensBuffer = new IntPointer(buffers(2))
-        val validityBuffer = buffers(3)
+        val bitset = FixedBitSet.from(buffers(3))
 
         for (i <- 0 until numItems) {
-          // Get the validity bit at psition i
-          val isValid = (validityBuffer.get(i / 8) & (1 << (i % 8))) > 0
-
-          if (isValid) {
+          // Get the validity bit at position i
+          if (bitset.get(i)) {
             // Read starts and lens as byte offsets (they are stored in BytePointerColVector as int32_t offsets)
             val start = startsBuffer.get(i.toLong) * 4
             val len = lensBuffer.get(i.toLong) * 4
