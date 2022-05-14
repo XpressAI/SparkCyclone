@@ -3,7 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.cache.{CycloneCacheBase, VeColColumnarVector}
 import com.nec.colvector.{ByteArrayColVector, VeColBatch, VeColVector}
 import com.nec.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -37,7 +37,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       .executeColumnar()
       .map(cb => {
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
-        import OriginalCallingContext.Automatic._
+        import com.nec.util.CallContextOps._
         import com.nec.spark.SparkCycloneExecutorPlugin._
         collectBatchMetrics(INPUT, cb)
 

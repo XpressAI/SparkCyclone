@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector
@@ -42,7 +42,7 @@ final case class VeColVector private[colvector] (
   }
 
   def toBytePointersAsync()(implicit process: VeProcess): Seq[VeAsyncResult[BytePointer]] = {
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+   import com.nec.util.CallContextOps._
     buffers.zip(bufferSizes).map { case (start, size) =>
       val bp = new BytePointer(size)
       val handle = process.getAsync(bp, start, size)
@@ -105,7 +105,7 @@ final case class VeColVector private[colvector] (
 
   def free()(implicit dsource: VeColVectorSource,
              process: VeProcess,
-             context: OriginalCallingContext): Unit = {
+             context: CallContext): Unit = {
     if (memoryFreed) {
       logger.warn(s"[VE MEMORY ${container}] double free called!")
 

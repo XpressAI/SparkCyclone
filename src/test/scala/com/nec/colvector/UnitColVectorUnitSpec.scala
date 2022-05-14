@@ -12,7 +12,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec1 = input.toVeColVector

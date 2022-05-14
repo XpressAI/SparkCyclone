@@ -108,7 +108,7 @@ trait VeRDD[T] extends RDD[T] {
   def toRDD : RDD[T] = {
     inputs.mapPartitions { batches =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       batches.flatMap { veColBatch =>
         val res = veColBatch.toCPUSeq[T]
@@ -136,7 +136,7 @@ trait VeRDD[T] extends RDD[T] {
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+   import com.nec.util.CallContextOps._
 
     val batches = inputs.iterator(split, context)
     batches.flatMap { veColBatch =>
@@ -171,7 +171,7 @@ abstract class ChainedVeRDD[T](
 
   def computeVe(): RDD[VeColBatch] = {
     verdd.inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
       val res = func.evalFunctionOnBatch(batches)
       res
     }
@@ -181,13 +181,13 @@ abstract class ChainedVeRDD[T](
     val newFunc = CppTranspiler.transpileReduce(expr)
 
     val reduceResults = inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
       newFunc.evalFunctionOnBatch(batches)
     }
 
     val ret = reduceResults.mapPartitions { batches =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       batches.map { veColBatch =>
         val res = veColBatch.toCPUSeq[T]
@@ -218,7 +218,7 @@ abstract class ChainedVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -241,7 +241,7 @@ abstract class ChainedVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -289,7 +289,7 @@ class BasicVeRDD[T](
     import com.nec.colvector.ArrayTConversions._
     import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
     import com.nec.spark.SparkCycloneExecutorPlugin._
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+   import com.nec.util.CallContextOps._
 
     val klass = typeTag.mirror.runtimeClass(tpe)
     val klassTag = ClassTag[Any](klass)
@@ -316,14 +316,14 @@ class BasicVeRDD[T](
     val newFunc = CppTranspiler.transpileReduce(expr)
 
     val reduceResults = inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       newFunc.evalFunctionOnBatch(batches)
     }
 
     val ret = reduceResults.mapPartitions { batches =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       batches.map { veColBatch =>
         val res = veColBatch.toCPUSeq[T]
@@ -344,7 +344,7 @@ class BasicVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -367,7 +367,7 @@ class BasicVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,

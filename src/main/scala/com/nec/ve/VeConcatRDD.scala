@@ -15,7 +15,7 @@ class VeConcatRDD[U: TypeTag, T: TypeTag](
 ) extends MappedVeRDD[U, T](rdd, func) {
   override def computeVe(): RDD[VeColBatch] = {
     rdd.inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
       val batchesList = batches.toList
       if (batchesList.isEmpty) {
         Iterator()

@@ -56,7 +56,7 @@ case class VectorEngineJoinPlan(
               val rightBatchesBatch = VeBatchOfBatches(rightBatches)
 
               withVeLibrary { libRefJoin =>
-                import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+                import com.nec.util.CallContextOps._
                 val outputBatch = try {
                   withInvocationMetrics(VE){
                     ImplicitMetrics.processMetrics.measureRunningTime {

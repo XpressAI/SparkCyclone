@@ -3,7 +3,7 @@ package com.nec.native
 import com.nec.colvector.{VeColBatch, VeColVector, VeBatchOfBatches}
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.core.{CFunction2, CVector}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 
 import java.nio.file.Paths
 import scala.reflect.ClassTag
@@ -21,7 +21,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     }
   }
 
-  def evalFunction(batch: VeColBatch)(implicit ctx: OriginalCallingContext): VeColBatch = {
+  def evalFunction(batch: VeColBatch)(implicit ctx: CallContext): VeColBatch = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
 
@@ -31,7 +31,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     res
   }
 
-  def evalFunctionOnBatch(batches: Iterator[VeColBatch])(implicit ctx: OriginalCallingContext): Iterator[VeColBatch] = {
+  def evalFunctionOnBatch(batches: Iterator[VeColBatch])(implicit ctx: CallContext): Iterator[VeColBatch] = {
     batches.map { batch =>
       evalFunction(batch)
     }
@@ -39,7 +39,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
 
   def evalGrouping[K: ClassTag](
     batchOfBatches: VeBatchOfBatches
-  )(implicit ctx: OriginalCallingContext): Seq[(K, List[VeColVector])] = {
+  )(implicit ctx: CallContext): Seq[(K, List[VeColVector])] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
 
@@ -52,7 +52,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
 
   def evalMultiInFunction(
     batchOfBatches: VeBatchOfBatches
-  )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
+  )(implicit ctx: CallContext): List[VeColVector] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
 
@@ -66,7 +66,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   def evalJoinFunction(
     leftBatchOfBatches: VeBatchOfBatches,
     rightBatchOfBatches: VeBatchOfBatches
-  )(implicit ctx: OriginalCallingContext): List[VeColVector] = {
+  )(implicit ctx: CallContext): List[VeColVector] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
     import com.nec.spark.SparkCycloneExecutorPlugin.source
 

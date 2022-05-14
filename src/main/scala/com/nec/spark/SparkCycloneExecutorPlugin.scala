@@ -21,8 +21,9 @@ package com.nec.spark
 
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, _veo_thr_ctxt, launched, params, pluginContext}
-import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.VeProcess.LibraryReference
 import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkEnv
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
@@ -103,7 +104,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   @transient private val cachedCols: mutable.Map[String, VeColVector] = mutable.HashMap.empty
 
-  private def cleanCache()(implicit originalCallingContext: OriginalCallingContext): Unit = {
+  private def cleanCache()(implicit context: CallContext): Unit = {
     cachedBatches.toList.foreach { colBatch =>
       cachedBatches.remove(colBatch._1)
       colBatch._2.columns.zipWithIndex.foreach { case (_, i) =>
@@ -114,7 +115,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   def freeCachedCol(
     col: String
-  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
+  )(implicit context: CallContext): Unit = {
     if (cachedCols.contains(col)) {
       cachedCols(col).free()
       cachedCols.remove(col)
@@ -135,13 +136,13 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   def cleanUpIfNotCached(
     veColBatch: VeColBatch
-  )(implicit originalCallingContext: OriginalCallingContext): Unit = {
+  )(implicit context: CallContext): Unit = {
     if (cachedBatches.values.contains(veColBatch)) {
       logger.trace(
         s"Data at ${
           veColBatch.columns
             .map(_.container)
-        } will not be cleaned up as it's cached (${originalCallingContext.fullName.value}#${originalCallingContext.line.value})"
+        } will not be cleaned up as it's cached (${context.fullName.value}#${context.line.value})"
       )
     } else {
       val (cached, notCached) = veColBatch.columns.partition(cachedCols.values.contains)
@@ -212,7 +213,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
   override def shutdown(): Unit = {
     if (SparkCycloneExecutorPlugin.CleanUpCache) {
-      import OriginalCallingContext.Automatic._
+      import com.nec.util.CallContextOps._
 
       SparkCycloneExecutorPlugin.cleanCache()
     }

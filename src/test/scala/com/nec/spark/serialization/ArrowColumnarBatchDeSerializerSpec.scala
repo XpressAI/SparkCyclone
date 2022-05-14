@@ -18,7 +18,7 @@ object ArrowColumnarBatchDeSerializerSpec {
     def take(n: Int): ValueInfo[Value]
     def drop(n: Int): ValueInfo[Value]
     type Vector <: FieldVector
-    def create(name: String)(implicit bufferAllocator: BufferAllocator): Vector
+    def create(name: String)(implicit allocator: BufferAllocator): Vector
     def parse(vector: Vector): List[Option[Value]]
     def parseFV(vector: FieldVector): List[Option[Value]] = parse(vector.asInstanceOf[Vector])
     def values: List[Option[Value]]
@@ -27,8 +27,8 @@ object ArrowColumnarBatchDeSerializerSpec {
   object ValueInfo {
     final case class IntStorage(ints: Option[Int]*) extends ValueInfo[Int] {
       override type Vector = IntVector
-      override def create(name: String)(implicit bufferAllocator: BufferAllocator): IntVector = {
-        val iv = new IntVector(name, bufferAllocator)
+      override def create(name: String)(implicit allocator: BufferAllocator): IntVector = {
+        val iv = new IntVector(name, allocator)
         iv.setValueCount(ints.size)
         values.zipWithIndex.foreach {
           case (None, idx)        => iv.setNull(idx)
@@ -54,8 +54,8 @@ object ArrowColumnarBatchDeSerializerSpec {
       override type Vector = VarCharVector
       override def create(
         name: String
-      )(implicit bufferAllocator: BufferAllocator): VarCharVector = {
-        val iv = new VarCharVector(name, bufferAllocator)
+      )(implicit allocator: BufferAllocator): VarCharVector = {
+        val iv = new VarCharVector(name, allocator)
         iv.setValueCount(strings.size)
         values.zipWithIndex.foreach {
           case (None, idx)        => iv.setNull(idx)
@@ -75,8 +75,8 @@ object ArrowColumnarBatchDeSerializerSpec {
       override def take(n: Int): ValueInfo[Double] = FloatStorage(ints.take(n): _*)
       override def drop(n: Int): ValueInfo[Double] = FloatStorage(ints.drop(n): _*)
       override type Vector = Float8Vector
-      override def create(name: String)(implicit bufferAllocator: BufferAllocator): Float8Vector = {
-        val iv = new Float8Vector(name, bufferAllocator)
+      override def create(name: String)(implicit allocator: BufferAllocator): Float8Vector = {
+        val iv = new Float8Vector(name, allocator)
         iv.setValueCount(ints.size)
         values.zipWithIndex.foreach {
           case (None, idx)        => iv.setNull(idx)

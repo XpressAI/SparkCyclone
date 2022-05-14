@@ -1,7 +1,7 @@
 package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeString, VeType}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import org.bytedeco.javacpp.BytePointer
 
@@ -27,7 +27,7 @@ final case class UnitColVector private[colvector] (
 
   def withData(stream: InputStream)(implicit source: VeColVectorSource,
                                     process: VeProcess,
-                                    context: OriginalCallingContext): () => VeAsyncResult[VeColVector] = {
+                                    context: CallContext): () => VeAsyncResult[VeColVector] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
 
     val channel = Channels.newChannel(stream)
@@ -48,7 +48,7 @@ final case class UnitColVector private[colvector] (
 
   def withData(array: Array[Byte])(implicit source: VeColVectorSource,
                                    process: VeProcess,
-                                   context: OriginalCallingContext,
+                                   context: CallContext,
                                    metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     metrics.measureRunningTime {
       val buffers = bufferSizes.scanLeft(0)(_ + _).zip(bufferSizes).map {

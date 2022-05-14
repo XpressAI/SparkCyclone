@@ -6,7 +6,8 @@ import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.ve.VeProcess.{DeferredVeProcess, OriginalCallingContext, WrappingVeo}
+import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
+import com.nec.util.CallContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
 import org.apache.spark.SparkEnv
@@ -28,7 +29,7 @@ final class DualModeVESpec
   with VeKernelInfra
   with BeforeAndAfterAll {
 
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
@@ -83,7 +84,7 @@ final class DualModeVESpec
     val result = inputRdd
       .mapPartitions { iteratorRows =>
         implicit val rootAllocator: RootAllocator = new RootAllocator()
-        implicit val arrowEncodingSettings: ArrowEncodingSettings =
+        implicit val encoding: ArrowEncodingSettings =
           ArrowEncodingSettings("UTC", 3, 10)
         import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
         unwrapPossiblyDualToVeColBatches(

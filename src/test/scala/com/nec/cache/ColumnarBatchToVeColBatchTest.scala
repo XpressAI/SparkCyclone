@@ -4,7 +4,7 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.WithVeProcess
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
@@ -26,7 +26,7 @@ object ColumnarBatchToVeColBatchTest {
     ).asJava
   )
 
-  implicit val arrowEncodingSettings: ArrowEncodingSettings =
+  implicit val encoding: ArrowEncodingSettings =
     ArrowEncodingSettings("UTC", 3, 10)
 
   val columnarBatches: List[ColumnarBatch] = {
@@ -46,7 +46,7 @@ final class ColumnarBatchToVeColBatchTest
   extends AnyFreeSpec
   with SparkAdditions
   with WithVeProcess {
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
   import ColumnarBatchToVeColBatchTest._
 
   implicit val allocator = new RootAllocator(Integer.MAX_VALUE)

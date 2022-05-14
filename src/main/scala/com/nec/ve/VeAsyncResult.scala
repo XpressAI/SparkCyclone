@@ -1,13 +1,13 @@
 package com.nec.ve
 
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import org.bytedeco.veoffload.global.veo
 
 class VeAsyncResult[T](
   val process: VeProcess,
   val handles: Seq[Long],
   val fn: () => T)(
-  implicit val originalCallingContext: OriginalCallingContext
+  implicit val context: CallContext
 ) {
   lazy private val result: T = {
     handles.foreach{ handle =>
@@ -37,13 +37,13 @@ class VeAsyncResult[T](
 }
 
 object VeAsyncResult {
-  def apply[T](handle: Long)(fn: () => T)(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[T] = {
+  def apply[T](handle: Long)(fn: () => T)(implicit process: VeProcess, context: CallContext): VeAsyncResult[T] = {
     new VeAsyncResult[T](process, Seq(handle), fn)
   }
 
-  def apply[T](handles: Seq[Long])(fn: () => T)(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[T] = {
+  def apply[T](handles: Seq[Long])(fn: () => T)(implicit process: VeProcess, context: CallContext): VeAsyncResult[T] = {
     new VeAsyncResult[T](process, handles, fn)
   }
 
-  def empty()(implicit process: VeProcess, originalCallingContext: OriginalCallingContext): VeAsyncResult[Unit] = VeAsyncResult(Nil){ () =>}
+  def empty()(implicit process: VeProcess, context: CallContext): VeAsyncResult[Unit] = VeAsyncResult(Nil){ () =>}
 }

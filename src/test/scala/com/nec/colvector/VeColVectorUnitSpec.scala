@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.colvector.SeqOptTConversions._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.WithVeProcess
 import com.nec.vectorengine.{WithVeProcess => WithNewVeProcess}
 import scala.reflect.ClassTag
@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers._
 
 @VectorEngineTest
 final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   def runTransferTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec = input.toVeColVector
@@ -61,7 +61,7 @@ final class VeColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
 
 @VectorEngineTest
 final class NewVeColVectorUnitSpec extends AnyWordSpec with WithNewVeProcess {
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   def runTransferTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec = input.toVeColVector2

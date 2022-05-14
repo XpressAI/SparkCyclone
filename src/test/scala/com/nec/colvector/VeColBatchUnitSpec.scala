@@ -9,7 +9,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   "VeColBatch" should {
     "correctly serialize and deserialize a batch of 2 columns through Array[Byte]" in {

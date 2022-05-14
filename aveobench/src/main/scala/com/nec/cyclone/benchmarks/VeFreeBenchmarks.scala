@@ -2,7 +2,7 @@ package com.nec.cyclone.benchmarks
 
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
-import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+import com.nec.util.CallContextOps._
 import com.nec.ve._
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}

@@ -3,7 +3,7 @@ package com.nec.ve
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import com.nec.colvector.{VeColBatch, VeColVector}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.serializer.{DualBatchOrBytes, VeSerializer}
 import com.typesafe.scalalogging.LazyLogging
@@ -16,7 +16,7 @@ import scala.reflect.ClassTag
 
 object VeRDDOps extends LazyLogging {
   def exchangeSparkSerialize(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean)(implicit
-    originalCallingContext: OriginalCallingContext
+    context: CallContext
   ): RDD[VeColBatch] =
     rdd
       .map { case (idx, veColBatch) =>
@@ -39,7 +39,7 @@ object VeRDDOps extends LazyLogging {
       }
 
   def exchangeCycloneSerialize(rdd: RDD[(Int, VeColBatch)], cleanUpInput: Boolean, partitions: Int)(
-    implicit originalCallingContext: OriginalCallingContext
+    implicit context: CallContext
   ): RDD[VeColBatch] =
     rdd
       .map { case (idx, veColBatch) =>
@@ -66,7 +66,7 @@ object VeRDDOps extends LazyLogging {
       Seq(
         left.map { case (num, vcv) =>
           require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           import com.nec.spark.SparkCycloneExecutorPlugin._
           if (cleanUpInput)
             TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
@@ -74,7 +74,7 @@ object VeRDDOps extends LazyLogging {
         },
         right.map { case (num, vcv) =>
           require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           import com.nec.spark.SparkCycloneExecutorPlugin._
           if (cleanUpInput)
             TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
@@ -87,7 +87,7 @@ object VeRDDOps extends LazyLogging {
     cg.mapValues { case Array(vs, w1s) =>
       (vs.asInstanceOf[Iterable[DualBatchOrBytes]], w1s.asInstanceOf[Iterable[DualBatchOrBytes]])
     }.map{ case (_, (leftIter, rightIter)) =>
-      import OriginalCallingContext.Automatic._
+      import com.nec.util.CallContextOps._
       import com.nec.spark.SparkCycloneExecutorPlugin._
 
       val leftBatches = leftIter.map(left => left.fold(
@@ -109,7 +109,7 @@ object VeRDDOps extends LazyLogging {
   implicit class RichKeyedRDD(rdd: RDD[(Int, VeColVector)]) {
     def exchangeBetweenVEs(cleanUpInput: Boolean)(implicit
       veProcess: VeProcess,
-      originalCallingContext: OriginalCallingContext
+      context: CallContext
     ): RDD[VeColVector] =
       rdd
         .map { case (i, vcv) => i -> VeColBatch(List(vcv)) }
@@ -134,7 +134,7 @@ object VeRDDOps extends LazyLogging {
     def exchangeBetweenVEs(
       cleanUpInput: Boolean = true,
       partitions: Int = rdd.partitions.length
-    )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
+    )(implicit context: CallContext): RDD[VeColBatch] =
       if (UseFastSerializer)
         exchangeCycloneSerialize(rdd, cleanUpInput, partitions = partitions)
       else exchangeSparkSerialize(rdd, cleanUpInput)
@@ -148,7 +148,7 @@ object VeRDDOps extends LazyLogging {
     def exchangeBetweenVEs(
       cleanUpInput: Boolean = true,
       partitions: Int = 8
-    )(implicit originalCallingContext: OriginalCallingContext): RDD[VeColBatch] =
+    )(implicit context: CallContext): RDD[VeColBatch] =
       rdd.mapPartitionsWithIndex { (k, b) =>
         import com.nec.spark.SparkCycloneExecutorPlugin._
 

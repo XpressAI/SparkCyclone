@@ -25,7 +25,7 @@ import com.nec.spark.agile.filter.FilterFunction
 import com.nec.spark.agile.join.JoinUtils._
 import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions._
@@ -52,7 +52,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
         )
       ).renderGroupBy
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(cFunction, "agg")(input, veRetriever.makeCVectors)
   }
 
@@ -78,7 +78,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
         )
       )
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
@@ -98,7 +98,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
         VeGroupBy(inputs = veAllocator.makeCVectors, groups = groups, outputs = expressions)
       ).renderGroupBy
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
 
   }
@@ -121,7 +121,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
         )
       ).renderGroupBy
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
   }
 
@@ -139,7 +139,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     }
     val projectionFn = ProjectionFunction("project_f", veAllocator.makeCVectors, outputs.map(Right(_)))
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(projectionFn.toCFunction)(input, outputs.map(_.cVector))
   }
 
@@ -151,7 +151,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
+    context: CallContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
@@ -172,7 +172,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
+    context: CallContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
@@ -204,7 +204,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
       onVe = false
     )
 
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     evalFunction(filterFn.toCFunction)(
       input.toList,
       veRetriever.veTypes.zipWithIndex.map { case (t, i) => t.makeCVector(s"out_${i}") }
@@ -218,7 +218,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Data] = {
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
 
     val sortFn = SortFunction(
       "sort_f",

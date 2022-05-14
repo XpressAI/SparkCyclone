@@ -5,7 +5,8 @@ import com.nec.colvector.{VeBatchOfBatches, VeColBatch, VeColVector, VeColVector
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.core.CVector
 import com.nec.ve.VeProcess.Requires.requireOk
-import com.nec.ve.VeProcess.{LibraryReference, OriginalCallingContext}
+import com.nec.ve.VeProcess.LibraryReference
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp._
 import org.bytedeco.veoffload.global.veo
@@ -17,9 +18,9 @@ import scala.reflect.ClassTag
 trait VeProcess {
   def validateVectors(list: Seq[VeColVector]): Unit
   def loadLibrary(path: Path): LibraryReference
-  def allocate(size: Long)(implicit context: OriginalCallingContext): Long
-  def putPointer(bytePointer: BytePointer)(implicit context: OriginalCallingContext): Long
-  def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit
+  def allocate(size: Long)(implicit context: CallContext): Long
+  def putPointer(bytePointer: BytePointer)(implicit context: CallContext): Long
+  def free(memoryLocation: Long)(implicit context: CallContext): Unit
 
   /**
    * Asynchronously write a pointer to the given target location
@@ -28,7 +29,7 @@ trait VeProcess {
    * @param context original calling context
    * @return Handle for checking the operation status or veo.VEO_REQUEST_ID_INVALID if the request failed
    */
-  def putAsync(source: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long
+  def putAsync(source: BytePointer, to: Long)(implicit context: CallContext): Long
 
   /**
    * Asynchronously read from a pointer into the given destination
@@ -45,7 +46,7 @@ trait VeProcess {
    * @param context original calling context
    * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
    */
-  def peekResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+  def peekResult(handle: Long)(implicit  context: CallContext): (Int, Long)
 
   /**
    * Wait for the result of an async operation
@@ -53,7 +54,7 @@ trait VeProcess {
    * @param context original calling context
    * @return tuple of veo.VEO_COMMAND_OK | veo.VEO_COMMAND_EXCEPTION | veo.VEO_COMMAND_ERROR | veo.VEO_COMMAND_UNFINISHED | -1 (internal error) and the return value of the checked function
    */
-  def waitResult(handle: Long)(implicit  context: OriginalCallingContext): (Int, Long)
+  def waitResult(handle: Long)(implicit  context: CallContext): (Int, Long)
 
 
   /** Return a single dataset */
@@ -62,7 +63,7 @@ trait VeProcess {
     functionName: String,
     cols: List[VeColVector],
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[VeColVector]
+  )(implicit context: CallContext): List[VeColVector]
 
   /** Return multiple datasets - eg for sorting/exchanges */
   def executeMulti(
@@ -70,14 +71,14 @@ trait VeProcess {
     functionName: String,
     cols: List[VeColVector],
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])]
+  )(implicit context: CallContext): List[(Int, List[VeColVector])]
 
   def executeMultiIn(
     libraryReference: LibraryReference,
     functionName: String,
     batches: VeBatchOfBatches,
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[VeColVector]
+  )(implicit context: CallContext): List[VeColVector]
 
   /**
    * Takes in multiple batches and returns multiple batches
@@ -88,58 +89,39 @@ trait VeProcess {
     left: VeBatchOfBatches,
     right: VeBatchOfBatches,
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[VeColVector]
+  )(implicit context: CallContext): List[VeColVector]
 
   def executeGrouping[K: ClassTag](
     libraryReference: LibraryReference,
     functionName: String,
     inputs: VeBatchOfBatches,
     results: List[CVector]
-  )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])]
+  )(implicit context: CallContext): List[(K, List[VeColVector])]
 
   def executeTransfer(
     libraryReference: LibraryReference,
     transferDescriptor: TransferDescriptor
-  )(implicit context: OriginalCallingContext): VeColBatch
+  )(implicit context: CallContext): VeColBatch
 }
 
 object VeProcess {
   var calls = 0
   var veSeconds = 0.0
 
-  final case class OriginalCallingContext(fullName: sourcecode.FullName, line: sourcecode.Line) {
-    def renderString: String = s"${fullName.value}#${line.value}"
-  }
-
-  object OriginalCallingContext {
-    def make(implicit
-      fullName: sourcecode.FullName,
-      line: sourcecode.Line
-    ): OriginalCallingContext =
-      OriginalCallingContext(fullName, line)
-
-    object Automatic {
-      implicit def originalCallingContext(implicit
-        fullName: sourcecode.FullName,
-        line: sourcecode.Line
-      ): OriginalCallingContext = make
-    }
-  }
-
   final case class LibraryReference(value: Long)
   final case class DeferredVeProcess(f: () => VeProcess) extends VeProcess with LazyLogging {
     override def validateVectors(list: Seq[VeColVector]): Unit = f().validateVectors(list)
     override def loadLibrary(path: Path): LibraryReference = f().loadLibrary(path)
 
-    override def allocate(size: Long)(implicit context: OriginalCallingContext): Long =
+    override def allocate(size: Long)(implicit context: CallContext): Long =
       f().allocate(size)
 
     override def putPointer(bytePointer: BytePointer)(implicit
-      context: OriginalCallingContext
+      context: CallContext
     ): Long =
       f().putPointer(bytePointer)
 
-    override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit =
+    override def free(memoryLocation: Long)(implicit context: CallContext): Unit =
       f().free(memoryLocation)
 
     override def execute(
@@ -147,7 +129,7 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[VeColVector] =
+    )(implicit context: CallContext): List[VeColVector] =
       f().execute(libraryReference, functionName, cols, results)
 
     /** Return multiple datasets - eg for sorting/exchanges */
@@ -156,7 +138,7 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])] =
+    )(implicit context: CallContext): List[(Int, List[VeColVector])] =
       f().executeMulti(libraryReference, functionName, cols, results)
 
     override def executeMultiIn(
@@ -164,7 +146,7 @@ object VeProcess {
       functionName: String,
       batches: VeBatchOfBatches,
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[VeColVector] =
+    )(implicit context: CallContext): List[VeColVector] =
       f().executeMultiIn(libraryReference, functionName, batches, results)
 
     override def executeJoin(
@@ -173,7 +155,7 @@ object VeProcess {
        left: VeBatchOfBatches,
        right: VeBatchOfBatches,
        results: List[CVector]
-     )(implicit context: OriginalCallingContext): List[VeColVector] =
+     )(implicit context: CallContext): List[VeColVector] =
       f().executeJoin(libraryReference, functionName, left, right, results)
 
     override def executeGrouping[K: ClassTag](
@@ -181,19 +163,19 @@ object VeProcess {
       functionName: String,
       inputs: VeBatchOfBatches,
       results: List[CVector]
-    )(implicit context: OriginalCallingContext):  List[(K, List[VeColVector])] =
+    )(implicit context: CallContext):  List[(K, List[VeColVector])] =
       f().executeGrouping(libraryReference, functionName, inputs, results)
 
 
-    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = f().putAsync(bytePointer, to)
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: CallContext): Long = f().putAsync(bytePointer, to)
 
     override def getAsync(destination: BytePointer, source: Long, size: Long): Long = f().getAsync(destination, source, size)
 
-    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().peekResult(handle)
+    override def peekResult(handle: Long)(implicit context: CallContext): (Int, Long) = f().peekResult(handle)
 
-    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = f().waitResult(handle)
+    override def waitResult(handle: Long)(implicit context: CallContext): (Int, Long) = f().waitResult(handle)
 
-    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: OriginalCallingContext): VeColBatch = f().executeTransfer(libraryReference, transferDescriptor)
+    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: CallContext): VeColBatch = f().executeTransfer(libraryReference, transferDescriptor)
 
   }
 
@@ -204,7 +186,7 @@ object VeProcess {
     veProcessMetrics: VeProcessMetrics
   ) extends VeProcess
     with LazyLogging {
-    override def allocate(size: Long)(implicit context: OriginalCallingContext): Long = {
+    override def allocate(size: Long)(implicit context: CallContext): Long = {
       val veInputPointer = new LongPointer(1)
       val allocResult = veo.veo_alloc_mem(veo_proc_handle, veInputPointer, size)
       require(allocResult == 0, s"Could not allocate ${size} bytes of memory. Result: ${allocResult}")
@@ -218,7 +200,7 @@ object VeProcess {
     }
 
     private implicit class RichVCV(veColVector: VeColVector) {
-      def register()(implicit context: OriginalCallingContext): VeColVector = {
+      def register()(implicit context: CallContext): VeColVector = {
         veColVector.buffers.zip(veColVector.bufferSizes).foreach {
           case (location, size) =>
             logger.trace(
@@ -232,7 +214,7 @@ object VeProcess {
 
     override def putPointer(
       bytePointer: BytePointer
-    )(implicit context: OriginalCallingContext): Long = {
+    )(implicit context: CallContext): Long = {
       val memoryLocation = allocate(bytePointer.limit())
       requireOk(
         veo.veo_write_mem(veo_proc_handle, memoryLocation, bytePointer, bytePointer.limit())
@@ -240,7 +222,7 @@ object VeProcess {
       memoryLocation
     }
 
-    override def free(memoryLocation: Long)(implicit context: OriginalCallingContext): Unit = {
+    override def free(memoryLocation: Long)(implicit context: CallContext): Unit = {
       veProcessMetrics.deregisterAllocation(memoryLocation)
       logger.trace(
         s"Deallocating ptr ${memoryLocation} (in ${context.fullName.value}#${context.line.value})"
@@ -262,7 +244,7 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[VeColVector] = {
+    )(implicit context: CallContext): List[VeColVector] = {
       validateVectors(cols)
       val our_args = veo.veo_args_alloc()
       cols.zipWithIndex.foreach { case (vcv, index) =>
@@ -334,7 +316,7 @@ object VeProcess {
       functionName: String,
       cols: List[VeColVector],
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[(Int, List[VeColVector])] = {
+    )(implicit context: CallContext): List[(Int, List[VeColVector])] = {
 
       validateVectors(cols)
 
@@ -403,7 +385,7 @@ object VeProcess {
       functionName: String,
       batches: VeBatchOfBatches,
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[VeColVector] = {
+    )(implicit context: CallContext): List[VeColVector] = {
 
       batches.batches.foreach(batch => validateVectors(batch.columns))
       val our_args = veo.veo_args_alloc()
@@ -467,7 +449,7 @@ object VeProcess {
        left: VeBatchOfBatches,
        right: VeBatchOfBatches,
        results: List[CVector]
-     )(implicit context: OriginalCallingContext): List[VeColVector] = {
+     )(implicit context: CallContext): List[VeColVector] = {
       left.batches.foreach(batch => validateVectors(batch.columns))
       right.batches.foreach(batch => validateVectors(batch.columns))
 
@@ -558,7 +540,7 @@ object VeProcess {
       functionName: String,
       inputs: VeBatchOfBatches,
       results: List[CVector]
-    )(implicit context: OriginalCallingContext): List[(K, List[VeColVector])] = {
+    )(implicit context: CallContext): List[(K, List[VeColVector])] = {
       inputs.batches.foreach(batch => validateVectors(batch.columns))
 
       val our_args = veo.veo_args_alloc()
@@ -656,13 +638,13 @@ object VeProcess {
     }
 
     private def readAllVeColVectors(pointerVecs: List[(Long, CVector)])(implicit
-                                                                             context: OriginalCallingContext
+                                                                             context: CallContext
     ): List[VeColVector] = {
       readAllVeColVectorsAsync(pointerVecs).map(_.get())
     }
 
     private def readAllVeColVectorsAsync(pointerVecs: List[(Long, CVector)])(implicit
-                                                                          context: OriginalCallingContext
+                                                                          context: CallContext
     ): List[VeAsyncResult[VeColVector]] = {
       pointerVecs.map { case (location, descriptor) =>
         require(location > 0, s"Expected nullable_t_struct container location to be > 0L, got ${location}")
@@ -676,7 +658,7 @@ object VeProcess {
       }
     }
 
-    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: OriginalCallingContext): Long = {
+    override def putAsync(bytePointer: BytePointer, to: Long)(implicit context: CallContext): Long = {
       veo.veo_async_write_mem(veo_thr_ctxt, to, bytePointer, bytePointer.limit())
     }
 
@@ -684,7 +666,7 @@ object VeProcess {
       veo.veo_async_read_mem(veo_thr_ctxt, destination, source, size)
     }
 
-    override def peekResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+    override def peekResult(handle: Long)(implicit context: CallContext): (Int, Long) = {
       val retp = new LongPointer(0)
       val res = veo.veo_call_peek_result(veo_thr_ctxt, handle, retp)
       val retVal = retp.get()
@@ -693,7 +675,7 @@ object VeProcess {
       (res, retVal)
     }
 
-    override def waitResult(handle: Long)(implicit context: OriginalCallingContext): (Int, Long) = {
+    override def waitResult(handle: Long)(implicit context: CallContext): (Int, Long) = {
       val retp = new LongPointer(0)
       val res = veo.veo_call_wait_result(veo_thr_ctxt, handle, retp)
       val retVal = retp.get()
@@ -702,7 +684,7 @@ object VeProcess {
       (res, retVal)
     }
 
-    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: OriginalCallingContext): VeColBatch = {
+    override def executeTransfer(libraryReference: LibraryReference, transferDescriptor: TransferDescriptor)(implicit context: CallContext): VeColBatch = {
       require(transferDescriptor.nonEmpty)
 
       val transferBufferSize = transferDescriptor.buffer.limit()

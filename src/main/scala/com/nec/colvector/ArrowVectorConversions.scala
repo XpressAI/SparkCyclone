@@ -1,7 +1,7 @@
 package com.nec.colvector
 
 import com.nec.spark.agile.core._
-import com.nec.util.FixedBitSet
+import com.nec.util.{FixedBitSet, CallContext}
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import java.nio.charset.StandardCharsets
@@ -131,7 +131,7 @@ object ArrowVectorConversions {
       vec
     }
 
-    def toArrowVector(implicit bufferAllocator: BufferAllocator): FieldVector = {
+    def toArrowVector(implicit allocator: BufferAllocator): FieldVector = {
       input.veType match {
         case VeNullableShort =>
           // Specialize this case because Int values in VeNullableShort need to be cast to Short
@@ -289,7 +289,7 @@ object ArrowVectorConversions {
   implicit class ValueVectorToVeColVector(vector: ValueVector) {
     def toVeColVector(implicit veProcess: VeProcess,
                       source: VeColVectorSource,
-                      context: VeProcess.OriginalCallingContext,
+                      context: CallContext,
                       metrics: VeProcessMetrics): VeColVector = {
       vector.toBytePointerColVector.toVeColVector
     }

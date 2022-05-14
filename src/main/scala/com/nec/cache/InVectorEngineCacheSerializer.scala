@@ -4,7 +4,7 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
@@ -33,9 +33,9 @@ object InVectorEngineCacheSerializer {
    */
   def internalRowToCachedVeColBatch(rowIterator: Iterator[InternalRow], arrowSchema: Schema)(
     implicit
-    bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    allocator: BufferAllocator,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     cycloneMetrics: VeProcessMetrics
   ): Iterator[CachedVeBatch] = {
     SparkInternalRowsToArrowColumnarBatches
@@ -60,12 +60,12 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = {
-    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
+    implicit val encoding = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
     input.mapPartitions { internalRows =>
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      import OriginalCallingContext.Automatic._
+      import com.nec.util.CallContextOps._
       import SparkCycloneExecutorPlugin.ImplicitMetrics._
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
@@ -91,7 +91,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())
           .map { i =>
-            import OriginalCallingContext.Automatic._
+            import com.nec.util.CallContextOps._
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
                 acv.toBytePointerColVector.asyncToVeColVector

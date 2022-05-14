@@ -9,7 +9,7 @@ import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
 import com.nec.ve.PureVeFunctions.DoublingFunction
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -23,7 +23,7 @@ final class VERDDSpec
   with VeKernelInfra
   with BeforeAndAfterAll {
 
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   "We can perform a VE call on Arrow things" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
@@ -56,7 +56,7 @@ final class VERDDSpec
 
 object VERDDSpec {
   val MultiFunctionName = "f_multi"
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   def exchangeBatches(sparkSession: SparkSession, pathStr: String): RDD[Double] = {
     import SparkCycloneExecutorPlugin._

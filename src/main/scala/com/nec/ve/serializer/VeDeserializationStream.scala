@@ -54,12 +54,12 @@ class VeDeserializationStream(in: InputStream)(implicit
         case DoubleTag =>
           dataInputStream.readDouble()
         case CbTag =>
-          import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           VeColBatch.fromStream(dataInputStream)
         case MixedCbTagColBatch =>
           val theSize = dataInputStream.readInt()
           if (DeserStreamed) {
-            import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+            import com.nec.util.CallContextOps._
             cycloneMetrics.measureRunningTime {
               DualBatchOrBytes.ColBatchWrapper(VeColBatch.fromStream(dataInputStream))
             }(cycloneMetrics.registerDeserializationTime)

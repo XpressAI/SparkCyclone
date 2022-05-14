@@ -1,6 +1,6 @@
 package com.nec.cache
 
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeProcessMetrics
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
@@ -17,14 +17,14 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
     arrowSchema: Schema,
     completeInSpark: Boolean = true
   )(implicit
-    bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    allocator: BufferAllocator,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     cycloneMetrics: VeProcessMetrics
   ): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       new Iterator[ColumnarBatch] {
-        private val root = VectorSchemaRoot.create(arrowSchema, bufferAllocator)
+        private val root = VectorSchemaRoot.create(arrowSchema, allocator)
         import scala.collection.JavaConverters._
         private val cb = new ColumnarBatch(
           root.getFieldVectors.asScala
@@ -59,7 +59,7 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
 
             /** We try to fill up as much as possible either if the row count is too small or if the total size is too small */
             def tryToAddMore: Boolean =
-              rowCount < arrowEncodingSettings.numRows || totalVectorSize < arrowEncodingSettings.batchSizeTargetBytes
+              rowCount < encoding.numRows || totalVectorSize < encoding.batchSizeTargetBytes
 
             while (tryToAddMore && rowIterator.hasNext) {
               val row = rowIterator.next()
@@ -69,7 +69,7 @@ object SparkInternalRowsToArrowColumnarBatches extends LazyLogging {
             }
             cb.setNumRows(rowCount)
             logger.debug(
-              s"Emitted batch of size ${totalVectorSize} bytes (${rowCount} rows); requested from ${originalCallingContext.renderString}."
+              s"Emitted batch of size ${totalVectorSize} bytes (${rowCount} rows); requested from ${context}."
             )
             cb
           }(cycloneMetrics.registerConversionTime)

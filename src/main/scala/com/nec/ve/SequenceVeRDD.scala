@@ -56,7 +56,7 @@ object SequenceVeRDD {
 
     new SequenceVeRDD(rdd, rdd.mapPartitions { iter =>
       import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
 
       val part = Array[Long](iter.next)
       val colvec = part.toBytePointerColVector(s"seq-${part(0)}").toVeColVector
