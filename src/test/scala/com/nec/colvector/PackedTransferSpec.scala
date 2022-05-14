@@ -2,19 +2,18 @@ package com.nec.colvector
 
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.util.FixedBitSet
 import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.LibCyclone
 import org.bytedeco.javacpp.LongPointer
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
-
 import java.nio.file.Paths
-
 
 @VectorEngineTest
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
-  val libraryPath = Paths.get("target/scala-2.12/classes/cycloneve/libcyclone.so")
-
   private def batch1() = Seq(
     Array[Double](1, 2, 3).toBytePointerColVector("col1_b1"),
     Array[String]("a", "b", "c").toBytePointerColVector("col2_b1")
@@ -101,7 +100,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         .newBatch().addColumns(cols)
         .build()
 
-      val libRef = veProcess.loadLibrary(libraryPath)
+      val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
       val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.numRows should be (3)
@@ -124,7 +123,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       descriptor.buffer.get(buffer)
       println(buffer.mkString("Array(", ", ", ")"))
 
-      val libRef = veProcess.loadLibrary(libraryPath)
+      val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
       val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.numRows should be (8)
@@ -142,6 +141,78 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
 
       col1.toBytePointerColVector.toBytes should equal(col1_merged)
       col2.toBytePointerColVector.toBytes should equal(col2_merged)
+    }
+
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [1]" in {
+      // Batch A
+      val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142))
+
+      // Batch B
+      val b1 = Seq(None, None, None, Some(8051))
+
+      // Batch C
+      val c1 = Seq(Some(7319), None, None, Some(4859), Some(524))
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(Seq(
+        Seq(a1.toBytePointerColVector("_")),
+        Seq(b1.toBytePointerColVector("_")),
+        Seq(c1.toBytePointerColVector("_"))
+      ))
+
+
+      val lib = veProcess.loadLibrary(LibCyclone.SoPath)
+      val batch = veProcess.executeTransfer(lib, descriptor)
+
+
+      batch.columns.size should be (1)
+      batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+    }
+
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" ignore {
+      // Batch A
+      val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142), None, None, None, Some(2149), Some(4297), None, None, Some(3278), Some(6668), None)
+
+      // Batch B
+      val b1 = Seq(None, None, None, Some(8051), None, Some(1383), None, None, Some(2256), Some(5785), None, None, None, None, None, Some(4693), None, Some(1849), Some(3790), Some(8995), None, Some(6961), Some(7132), None, None, None, None, Some(6968), None, None, Some(3763), None, Some(3558), None, None, Some(2011), None, None, None, Some(3273), None, None, Some(9428), None, None, Some(6408), Some(7940), None, Some(9521), None, None, Some(5832), None, None, Some(5817), Some(5949))
+
+      // Batch C
+      val c1 = Seq(Some(7319), None, None, Some(4859), Some(524), Some(406), None, None, Some(1154), None, None, Some(1650), Some(8040), None, None, None, None, None, None, None, None, None, Some(1146), None, Some(7268), Some(8197), None, None, None, None, Some(81), Some(2053), Some(6571), Some(4600), None, Some(3699), None, Some(8404), None, None, Some(8401), None, None, Some(6234), Some(6281), Some(7367), None, Some(4688), Some(7490), None, Some(5412), None, None, Some(871), None, Some(9086), None, Some(5362), Some(6516))
+
+      // Create BytePointerColVectors
+      val a1v = a1.toBytePointerColVector("_")
+      val b1v = b1.toBytePointerColVector("_")
+      val c1v = c1.toBytePointerColVector("_")
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(Seq(
+        Seq(a1v),
+        Seq(b1v),
+        Seq(c1v)
+      ))
+
+      val lib = veProcess.loadLibrary(LibCyclone.SoPath)
+      val batch = veProcess.executeTransfer(lib, descriptor)
+
+      batch.columns.size should be (1)
+      val output = batch.columns(0).toBytePointerColVector
+
+      // If we extract as Array[Int], the values match with the input
+      output.toArray[Int].toSeq should be ((a1 ++ b1 ++ c1).map(_.getOrElse(0)))
+
+      // The lengths match as well
+      output.toArray[Int].size should be (a1.size + b1.size + c1.size)
+
+      val a1bits = FixedBitSet.from(a1v.buffers(1))
+      val b1bits = FixedBitSet.from(b1v.buffers(1))
+      val c1bits = FixedBitSet.from(c1v.buffers(1))
+      val outbits = FixedBitSet.from(output.buffers(1)).toSeq
+
+      // But the output bitset does not match the merge of the 3 input bitsets,,,
+      println(a1bits.toSeq.take(a1.size))
+      println(b1bits.toSeq.take(b1.size))
+      println(c1bits.toSeq.take(c1.size))
+      println(outbits.toSeq)
     }
   }
 }

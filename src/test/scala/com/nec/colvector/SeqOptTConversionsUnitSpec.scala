@@ -21,14 +21,18 @@ final class SeqOptTConversionsUnitSpec extends AnyWordSpec {
     colvec.numItems should be (input.size)
     colvec.buffers.size should be (2)
 
-    // Data buffer capacity should be correctly set
+    // Data buffer size should be correctly set
     colvec.buffers(0).capacity() should be (input.size.toLong * colvec.veType.asInstanceOf[VeScalarType].cSize)
 
     // Check validity buffer
     val validityBuffer = colvec.buffers(1)
     validityBuffer.capacity() should be ((input.size / 64.0).ceil.toLong * 8)
+
     val bitset = FixedBitSet.from(validityBuffer)
-    0.until(input.size).foreach(i => bitset.get(i) should be (input(i).nonEmpty))
+    // Bitset should be correctly set
+    0.until(input.size).foreach { i => bitset.get(i) should be (input(i).nonEmpty) }
+    // Padding should be all zero's
+    input.size.until((input.size / 64.0).ceil.toInt).foreach { i => bitset.get(i) should be (false) }
 
     // Check conversion
     colvec.toSeqOpt[T] should be (input)
@@ -70,15 +74,17 @@ final class SeqOptTConversionsUnitSpec extends AnyWordSpec {
       colvec.buffers.size should be (4)
 
       // Data, starts, and lens buffer capacities should be correctly set
-      val capacity = input.foldLeft(0) { case (accum, x) =>
+      val dsize = input.foldLeft(0) { case (accum, x) =>
         accum + x.map(_.getBytes("UTF-32LE").size).getOrElse(0)
       }
-      colvec.buffers(0).capacity() should be (capacity)
+      colvec.buffers(0).capacity() should be (dsize)
       colvec.buffers(1).capacity() should be (input.size.toLong * 4)
       colvec.buffers(2).capacity() should be (input.size.toLong * 4)
 
+      // Validity buffer should be correctly set
       val bitset = FixedBitSet.from(colvec.buffers(3))
-      0.until(input.size).foreach(i => bitset.get(i) should be (input(i).nonEmpty))
+      0.until(input.size).foreach { i => bitset.get(i) should be (input(i).nonEmpty) }
+      input.size.until((input.size / 64.0).ceil.toInt).foreach { i => bitset.get(i) should be (false) }
 
       // Check conversion - null String values should be preserved as well
       colvec.toSeqOpt[String] should be (input)

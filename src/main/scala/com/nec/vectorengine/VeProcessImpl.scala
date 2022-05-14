@@ -39,16 +39,22 @@ final case class WrappingVeo private (val node: Int,
   private val syncFnCallTimer = new Timer
   private val allocTimer = new Timer
   private val freeTimer = new Timer
+  private val allocSizesHistogram = new Histogram(new UniformReservoir)
+  private val putSizesHistogram = new Histogram(new UniformReservoir)
+  private val putThroughputsHistogram = new Histogram(new UniformReservoir)
 
   // Register the metrics with the MetricRegistry
-  metrics.register(VeProcess.VeAllocDurationsMetric, allocTimer)
-  metrics.register(VeProcess.VeFreeDurationsMetric, freeTimer)
-  metrics.register(VeProcess.VeSyncFnCallDurationsMetric, syncFnCallTimer)
-  metrics.register(VeProcess.NumAllocationsMetric, new Gauge[Long] {
+  metrics.register(VeProcess.VeAllocTimerMetric,            allocTimer)
+  metrics.register(VeProcess.VeFreeTimerMetric,             freeTimer)
+  metrics.register(VeProcess.VeSyncFnCallTimerMetric,       syncFnCallTimer)
+  metrics.register(VeProcess.AllocSizesHistogramMetric,     allocSizesHistogram)
+  metrics.register(VeProcess.PutSizesHistogramMetric,       putSizesHistogram)
+  metrics.register(VeProcess.PutThroughputHistogramMetric,  putThroughputsHistogram)
+  metrics.register(VeProcess.NumTrackedAllocationsMetric, new Gauge[Long] {
       def getValue: Long = heapRecords.size
     }
   )
-  metrics.register(VeProcess.BytesAllocatedMetric, new Gauge[Long] {
+  metrics.register(VeProcess.TrackBytesAllocatedMetric, new Gauge[Long] {
       def getValue: Long = heapRecords.valuesIterator.foldLeft(0L)(_ + _.size)
     }
   )
@@ -138,13 +144,54 @@ final case class WrappingVeo private (val node: Int,
       logger.trace(s"Allocated ${size} bytes ==> ${ptr}")
       ptr.close
 
-      // Record metric
+      // Record metrics
       allocTimer.update(Duration.ofNanos(duration))
+      allocSizesHistogram.update(size)
 
       // Create an allocation record to track the allocation
       val allocation = VeAllocation(address, size, new Exception().getStackTrace)
       heapRecords.put(address, allocation)
       allocation
+    }
+  }
+
+  def registerAllocation(address: Long, size: Long): VeAllocation = {
+    require(address > 0L, s"Memory address ${address} is invalid; cannot register allocation!")
+    // Explicitly allow registrations of zero-sized allocations
+    require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
+    logger.trace(s"Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
+
+    heapRecords.get(address) match {
+      case Some(allocation) if allocation.size == size =>
+        logger.warn(s"Allocation for ${size} bytes @ ${address} is already registered")
+        allocation
+
+      case Some(allocation) =>
+        throw new IllegalArgumentException(s"Allocation @ ${address} is already registered but with different byte sizes!")
+
+      case None =>
+        if (size <= 0) { logger.debug(s"Allocation @ ${address} is of size 0") }
+
+        // Record metrics
+        allocSizesHistogram.update(size)
+
+        // Register the allocation
+        val allocation = VeAllocation(address, size, new Exception().getStackTrace)
+        heapRecords.put(address, allocation)
+        allocation
+    }
+  }
+
+  def unregisterAllocation(address: Long): Unit = {
+    require(address > 0L, s"Invalid VE memory address ${address}")
+
+    heapRecords.get(address) match {
+      case Some(allocation) =>
+        logger.trace(s"Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
+        heapRecords.remove(address)
+
+      case None =>
+        logger.warn(s"VE memory location @ ${address} is not tracked by ${getClass.getSimpleName}; no allocation to unregister")
     }
   }
 
@@ -185,10 +232,20 @@ final case class WrappingVeo private (val node: Int,
 
   def put(buffer: Pointer): VeAllocation = {
     withVeoProc {
+      // Allocate VE memory
       requireValidBufferForPut(buffer)
       val allocation = allocate(buffer.nbytes)
-      val result = veo.veo_write_mem(handle, allocation.address, buffer, buffer.nbytes)
+
+      // Transfer over and measure time
+      val (result, duration) = measureTime { veo.veo_write_mem(handle, allocation.address, buffer, buffer.nbytes) }
       require(result == 0, s"veo_write_mem failed and returned ${result}")
+
+      // Log transfer metrics
+      val throughput = (buffer.nbytes / 1024 / 1024) / (duration / 1e9)
+      putThroughputsHistogram.update(throughput.toLong)
+      putSizesHistogram.update(buffer.nbytes)
+      logger.debug(s"Transfer of ${buffer.nbytes} bytes to the VE took ${duration / 1e6} ms (${throughput} MB/s")
+
       allocation
     }
   }
