@@ -71,7 +71,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
       import com.nec.util.CallContextOps._
-      import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+      import com.nec.spark.SparkCycloneExecutorPlugin._
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,

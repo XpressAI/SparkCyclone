@@ -66,7 +66,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
       import com.nec.util.CallContextOps._
-      import SparkCycloneExecutorPlugin.ImplicitMetrics._
+      import SparkCycloneExecutorPlugin._
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
           rowIterator = internalRows,
@@ -85,7 +85,6 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
     TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
     import com.nec.spark.SparkCycloneExecutorPlugin._
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =

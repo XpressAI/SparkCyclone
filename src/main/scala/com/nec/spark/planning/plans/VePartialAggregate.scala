@@ -1,7 +1,7 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
@@ -47,7 +47,7 @@ case class VePartialAggregate(
 
               try {
                 val result = withInvocationMetrics(VE) {
-                  ImplicitMetrics.processMetrics.measureRunningTime(
+                  veMetrics.measureRunningTime(
                     veProcess.executeMulti(
                       libraryReference = libRef,
                       functionName = partialFunction.functionName,
@@ -55,7 +55,7 @@ case class VePartialAggregate(
                       results = partialFunction.namedResults
                     )
                   )(
-                    ImplicitMetrics.processMetrics
+                    veMetrics
                       .registerFunctionCallTime(_, veFunction.functionName)
                   )
                 }

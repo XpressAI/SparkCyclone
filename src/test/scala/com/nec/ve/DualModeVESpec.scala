@@ -74,7 +74,8 @@ final class DualModeVESpec
       .makeRDD(Seq(1, 2))
       .repartition(1)
       .map { int =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+        import SparkCycloneExecutorPlugin.veMetrics
+        implicit val source = SparkCycloneExecutorPlugin.source
         VeColBatch.fromArrowColumnarBatch(
           if (int == 1) makeColumnarBatch1()
           else makeColumnarBatch2()
@@ -86,7 +87,7 @@ final class DualModeVESpec
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         implicit val encoding: ArrowEncodingSettings =
           ArrowEncodingSettings("UTC", 3, 10)
-        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+        import com.nec.spark.SparkCycloneExecutorPlugin.veMetrics
         unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =

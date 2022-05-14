@@ -43,10 +43,8 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
         withInvocationMetrics(BATCH){
           val res = VeColBatch(unwrapBatch(cb).map {
-            case Left(veColVector)         => veColVector
-            case Right(baColVector) =>
-              import ImplicitMetrics._
-              baColVector.toVeColVector
+            case Left(veColVector)  => veColVector
+            case Right(baColVector) => baColVector.toVeColVector
           })
           logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
           collectBatchMetrics(OUTPUT, res)

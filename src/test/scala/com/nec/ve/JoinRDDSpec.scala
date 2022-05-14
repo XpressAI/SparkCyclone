@@ -19,7 +19,6 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       Seq(1 -> Seq(5, 6, 7), 2 -> Seq(8, 8, 7), 3 -> Seq(9, 6, 7))
 
     import SparkCycloneExecutorPlugin._
-    import SparkCycloneExecutorPlugin.ImplicitMetrics._
 
     VeRDDOps
       .joinExchange(

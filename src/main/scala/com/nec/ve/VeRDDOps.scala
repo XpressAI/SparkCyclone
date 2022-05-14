@@ -20,8 +20,7 @@ object VeRDDOps extends LazyLogging {
   ): RDD[VeColBatch] =
     rdd
       .map { case (idx, veColBatch) =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
         logger.debug(s"Preparing to serialize batch ${veColBatch}")
         val r = (idx, veColBatch.toBytes)
         if (cleanUpInput) veColBatch.columns.foreach(_.free())
@@ -31,8 +30,7 @@ object VeRDDOps extends LazyLogging {
       .repartitionByKey(serializer = None /* default **/ )
       .map { case (_, ba) =>
         logger.debug(s"Preparing to deserialize batch of size ${ba.length}...")
-        import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
-        import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+        import com.nec.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
         val res = VeColBatch.fromBytes(ba)
         logger.debug(s"Completed deserializing batch ${ba.length} ==> ${res}")
         res

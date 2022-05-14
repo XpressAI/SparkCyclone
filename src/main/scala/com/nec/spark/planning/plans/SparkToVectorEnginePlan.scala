@@ -108,7 +108,6 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
-        import ImplicitMetrics._
 
         withInvocationMetrics(PLAN){
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator

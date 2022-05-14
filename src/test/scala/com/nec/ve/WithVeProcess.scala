@@ -1,7 +1,12 @@
 package com.nec.ve
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.colvector.VeColVectorSource
 import org.bytedeco.veoffload.global.veo
+import org.apache.spark.SparkConf
+import org.apache.spark.api.plugin.PluginContext
+import org.apache.spark.resource.ResourceInformation
+import com.codahale.metrics.MetricRegistry
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
@@ -29,7 +34,19 @@ trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
     (proc, ctxt)
   }
 
-  override protected def afterAll(): Unit = {
+  override def beforeAll: Unit = {
+    SparkCycloneExecutorPlugin.pluginContext = new PluginContext {
+      def ask(message: Any): AnyRef = ???
+      def conf: SparkConf = ???
+      def metricRegistry = new MetricRegistry
+      def executorID: String = "executor-id"
+      def hostname: String = "hostname"
+      def resources: java.util.Map[String, ResourceInformation] = ???
+      def send(message: Any): Unit = ???
+    }
+  }
+
+  override def afterAll: Unit = {
     super.afterAll()
     if (initialized) {
       val (proc, thr_ctxt) = proc_and_ctxt

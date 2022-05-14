@@ -7,7 +7,7 @@ import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.ve.PureVeFunctions.DoublingFunction
 import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDD

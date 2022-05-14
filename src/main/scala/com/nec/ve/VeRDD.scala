@@ -218,7 +218,7 @@ abstract class ChainedVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-     import com.nec.util.CallContextOps._
+      import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -241,7 +241,7 @@ abstract class ChainedVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-     import com.nec.util.CallContextOps._
+      import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -287,7 +287,7 @@ class BasicVeRDD[T](
 
   def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
     import com.nec.colvector.ArrayTConversions._
-    import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics.processMetrics
+    import com.nec.spark.SparkCycloneExecutorPlugin.veMetrics
     import com.nec.spark.SparkCycloneExecutorPlugin._
    import com.nec.util.CallContextOps._
 
@@ -344,7 +344,7 @@ class BasicVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-     import com.nec.util.CallContextOps._
+      import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,
@@ -367,7 +367,7 @@ class BasicVeRDD[T](
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
       import com.nec.spark.SparkCycloneExecutorPlugin._
-     import com.nec.util.CallContextOps._
+      import com.nec.util.CallContextOps._
 
       require(
         veColBatch.nonEmpty,

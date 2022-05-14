@@ -58,7 +58,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
     concatInputs.mapPartitions { batches =>
       batches.map { case (key, veColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-       import com.nec.util.CallContextOps._
+        import com.nec.util.CallContextOps._
 
         val array = veColBatch.toCPUSeq[T]
         veColBatch.free()

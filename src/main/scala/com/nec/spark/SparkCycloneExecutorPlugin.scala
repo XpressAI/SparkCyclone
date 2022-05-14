@@ -20,7 +20,7 @@
 package com.nec.spark
 
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
-import com.nec.spark.SparkCycloneExecutorPlugin.{DefaultVeNodeId, ImplicitMetrics, _veo_thr_ctxt, launched, params, pluginContext}
+
 import com.nec.ve.VeProcess.LibraryReference
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.util.CallContext
@@ -92,11 +92,16 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     NodeCount * 8
   }
 
-  var theMetrics: ProcessExecutorMetrics = _
-
-  object ImplicitMetrics {
-    implicit def processMetrics: VeProcessMetrics = theMetrics
+  @transient implicit lazy val veMetrics: ProcessExecutorMetrics = {
+    require(pluginContext != null, s"${classOf[PluginContext].getSimpleName} is not yet set!")
+    new ProcessExecutorMetrics(AllocationTracker.simple, pluginContext.metricRegistry)
   }
+
+  // var theMetrics: ProcessExecutorMetrics = _
+
+  // object ImplicitMetrics {
+  //   implicit def veMetrics: VeProcessMetrics = theMetrics
+  // }
 
   var CleanUpCache: Boolean = true
 
@@ -156,10 +161,11 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
-  import com.nec.spark.SparkCycloneExecutorPlugin._veo_proc
+  import com.nec.spark.SparkCycloneExecutorPlugin._
+
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    SparkCycloneExecutorPlugin.theMetrics =
-      new ProcessExecutorMetrics(AllocationTracker.simple(), ctx.metricRegistry())
+    // SparkCycloneExecutorPlugin.theMetrics =
+    //   new ProcessExecutorMetrics(AllocationTracker.simple(), ctx.metricRegistry())
     //SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
 
     val resources = ctx.resources()
@@ -219,7 +225,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     }
 
     import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx}
-    Option(ImplicitMetrics.processMetrics.getAllocations)
+    Option(veMetrics.getAllocations)
       .filter(_.nonEmpty)
       .foreach(unfinishedAllocations =>
         logger.error(
@@ -229,7 +235,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       )
 
     val NumToPrint = 5
-    Option(ImplicitMetrics.processMetrics.allocationTracker)
+    Option(veMetrics.allocationTracker)
       .map(_.remaining)
       .filter(_.nonEmpty)
       .map(_.take(NumToPrint))
