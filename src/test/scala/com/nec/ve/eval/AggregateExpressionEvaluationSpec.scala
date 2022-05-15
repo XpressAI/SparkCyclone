@@ -28,6 +28,7 @@ import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.{DeclarativeAggregationConverter, StringProducer}
 import com.nec.ve._
 import com.nec.ve.eval.StaticTypingTestAdditions._
+import com.nec.vectorengine.{VeProcess, WithVeProcess}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Corr, Sum}
 import org.apache.spark.sql.types.DoubleType

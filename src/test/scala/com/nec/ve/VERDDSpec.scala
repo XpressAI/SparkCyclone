@@ -40,7 +40,7 @@ final class VERDDSpec
       }
       .map { input =>
         val colvec = input.toVeColVector
-        val outputs = veProcess.execute(ref, "f", List(colvec), DoublingFunction.outputs)
+        val outputs = vectorEngine.execute(ref, "f", List(colvec), DoublingFunction.outputs)
         outputs.head.toBytePointerColVector.toSeqOpt[Double].flatten
       }
       .collect
@@ -73,7 +73,7 @@ object VERDDSpec {
           val colvec = input.toVeColVector
           val ref = veProcess.load(java.nio.file.Paths.get(pathStr))
 
-          veProcess.executeMulti(
+          vectorEngine.executeMulti(
             ref,
             MultiFunctionName,
             List(colvec),

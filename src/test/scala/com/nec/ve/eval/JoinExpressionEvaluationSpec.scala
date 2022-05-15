@@ -25,6 +25,7 @@ import com.nec.spark.agile.join.JoinUtils.TypedJoinExpression
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.ve._
+import com.nec.vectorengine.WithVeProcess
 import com.nec.ve.eval.StaticTypingTestAdditions._
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec

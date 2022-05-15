@@ -24,6 +24,7 @@ import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.ve._
+import com.nec.vectorengine.WithVeProcess
 import org.scalatest.freespec.AnyFreeSpec
 
 /**
@@ -31,7 +32,6 @@ import org.scalatest.freespec.AnyFreeSpec
  */
 @VectorEngineTest
 final class ProjectExpressionEvalSpec extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
-
   import RealExpressionEvaluationUtils._
 
   "We can transform a column" in {

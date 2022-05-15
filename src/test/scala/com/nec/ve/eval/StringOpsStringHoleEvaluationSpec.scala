@@ -11,7 +11,8 @@ import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.CallContext
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
-import com.nec.ve.{VeKernelInfra, VeProcess, WithVeProcess}
+import com.nec.ve.VeKernelInfra
+import com.nec.vectorengine.{VectorEngine, VeProcess, WithVeProcess}
 import org.apache.arrow.memory.RootAllocator
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
@@ -90,6 +91,7 @@ object StringOpsStringHoleEvaluationSpec {
     veAllocator: VeAllocator[String],
     veRetriever: VeRetriever[Int],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veKernelInfra: VeKernelInfra,
     context: CallContext,
     veColVectorSource: VeColVectorSource
@@ -117,7 +119,7 @@ object StringOpsStringHoleEvaluationSpec {
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =
-          veProcess.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
+          vectorEngine.execute(libRef, "test", inputVectors.columns.toList, veRetriever.makeCVectors)
         veRetriever.retrieve(VeColBatch(resultingVectors))
       } finally inputVectors.free()
     }

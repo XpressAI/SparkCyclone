@@ -23,6 +23,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.ve._
+import com.nec.vectorengine.WithVeProcess
 import org.scalatest.Ignore
 import org.scalatest.freespec.AnyFreeSpec
 

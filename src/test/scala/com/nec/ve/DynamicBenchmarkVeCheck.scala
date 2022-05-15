@@ -22,8 +22,8 @@ package com.nec.ve
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.BenchTestingPossibilities.BenchTestAdditions
 import com.nec.spark.{BenchTestingPossibilities, SparkCycloneExecutorPlugin}
+import com.nec.vectorengine.VeProcess
 import org.apache.log4j.{Level, Logger}
-import org.bytedeco.veoffload.global.veo
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -33,19 +33,17 @@ final class DynamicBenchmarkVeCheck
   with BeforeAndAfterAll
   with BenchTestAdditions {
 
-  override protected def beforeAll(): Unit = {
-    val rootLogger = Logger.getRootLogger
-    rootLogger.setLevel(Level.INFO)
-    SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
-    SparkCycloneExecutorPlugin._veo_thr_ctxt = veo.veo_context_open(SparkCycloneExecutorPlugin._veo_proc)
-    super.beforeAll()
+  override def beforeAll: Unit = {
+    super.beforeAll
+    Logger.getRootLogger.setLevel(Level.INFO)
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
   }
 
   /** TODO We could also generate Spark plan details from here for easy cross-referencing, as well as codegen */
   BenchTestingPossibilities.possibilities.filter(_.testingTarget.isVE).foreach(runTestCase)
 
-  override protected def afterAll(): Unit = {
-    SparkCycloneExecutorPlugin.closeProcAndCtx()
-    super.afterAll()
+  override def afterAll(): Unit = {
+    SparkCycloneExecutorPlugin.veProcess.close
+    super.afterAll
   }
 }

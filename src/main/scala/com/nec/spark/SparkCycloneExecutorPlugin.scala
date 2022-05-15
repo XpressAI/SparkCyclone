@@ -40,11 +40,14 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
 
   var NodeCount = 1
 
+  // Used for tests
+  var CloseAutomatically = true
+
   def totalVeCores: Int = {
     NodeCount * 8
   }
 
-  @transient implicit val veProcess: VeProcess = DeferredVeProcess { () =>
+  @transient implicit var veProcess: VeProcess = DeferredVeProcess { () =>
     require(pluginContext != null, s"${classOf[PluginContext].getSimpleName} has not been set yet!")
     VeProcess.createFromContext(pluginContext)
   }
@@ -89,8 +92,10 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     logger.info(s"Clearing the VeColBatch cache...")
     SparkCycloneExecutorPlugin.batchesCache.cleanup
 
-    logger.info(s"Shutting down the VE process...")
-    SparkCycloneExecutorPlugin.veProcess.close
+    if (SparkCycloneExecutorPlugin.CloseAutomatically) {
+      logger.info(s"Shutting down the VE process...")
+      SparkCycloneExecutorPlugin.veProcess.close
+    }
 
     super.shutdown
   }
