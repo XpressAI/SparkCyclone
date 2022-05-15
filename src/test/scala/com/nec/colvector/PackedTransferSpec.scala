@@ -92,7 +92,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
   }
 
   "handle_transfer" should {
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+   import com.nec.util.CallContextOps._
 
     "correctly unpack a single batch of mixed vector types" in {
       val cols = batch1()

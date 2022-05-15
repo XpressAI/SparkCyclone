@@ -9,7 +9,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class UnitColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   "UnitColBatch" should {
     s"correctly construct ${classOf[VeColBatch].getSimpleName} from Seq[Array[Byte]]" in {

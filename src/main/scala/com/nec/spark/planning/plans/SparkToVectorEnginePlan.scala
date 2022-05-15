@@ -7,7 +7,7 @@ import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning._
 import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -46,7 +46,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
 
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
+    implicit val encoding = ArrowEncodingSettings.fromConf(conf)(sparkContext)
 
     if (child.supportsColumnar) {
       child
@@ -57,7 +57,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
             implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
             TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-            import OriginalCallingContext.Automatic._
+            import com.nec.util.CallContextOps._
 
             // Transfer entire partition, i.e. all batches, with a single transfer.
             // Steps:
@@ -108,13 +108,12 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
     } else {
       child.execute().mapPartitions { internalRows =>
         import SparkCycloneExecutorPlugin._
-        import ImplicitMetrics._
 
         withInvocationMetrics(PLAN){
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
           TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
 
           collectBatchMetrics(OUTPUT, DualMode.unwrapPossiblyDualToVeColBatches(
             possiblyDualModeInternalRows = internalRows,

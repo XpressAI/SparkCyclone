@@ -4,7 +4,7 @@ import com.nec.cyclone.colvector.BytePointerColVectorOps._
 import com.nec.cyclone.colvector.CompressedBytePointerColVector
 import com.nec.colvector._
 import com.nec.colvector.SeqOptTConversions._
-import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+import com.nec.util.CallContextOps._
 import com.nec.ve._
 import org.bytedeco.veoffload.global.veo
 import scala.reflect._

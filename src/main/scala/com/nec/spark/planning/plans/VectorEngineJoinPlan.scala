@@ -1,7 +1,6 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
-import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics
 import com.nec.spark.planning._
 import com.nec.ve.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
@@ -35,7 +34,7 @@ case class VectorEngineJoinPlan(
         cleanUpInput = true
       )
       .mapPartitions { tupleIterator =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
 
         withInvocationMetrics(PLAN){
           val (leftBatchesIter, rightBatchesIter) = tupleIterator.fold((Seq.empty, Seq.empty)){ case ((accLeft, accRight), (left, right)) =>
@@ -56,10 +55,10 @@ case class VectorEngineJoinPlan(
               val rightBatchesBatch = VeBatchOfBatches(rightBatches)
 
               withVeLibrary { libRefJoin =>
-                import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+                import com.nec.util.CallContextOps._
                 val outputBatch = try {
                   withInvocationMetrics(VE){
-                    ImplicitMetrics.processMetrics.measureRunningTime {
+                    veMetrics.measureRunningTime {
                       veProcess.executeJoin(
                         libraryReference = libRefJoin,
                         functionName = joinFunction.functionName,
@@ -67,7 +66,7 @@ case class VectorEngineJoinPlan(
                         right = rightBatchesBatch,
                         results = joinFunction.namedResults
                       )
-                    }(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                    }(veMetrics.registerFunctionCallTime(_, veFunction.functionName))
                   }
                 } finally {
                   leftBatches.foreach(dataCleanup.cleanup(_))

@@ -4,7 +4,7 @@ import com.nec.cache.ArrowEncodingSettings
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -41,7 +41,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
               .map {
                 case inputBatches if inputBatches.size == 1 => inputBatches.head
                 case inputBatches =>
-                  import OriginalCallingContext.Automatic._
+                  import com.nec.util.CallContextOps._
                   try {
                       val res = withInvocationMetrics(VE) {
                         VeColBatch(

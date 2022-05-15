@@ -2,7 +2,7 @@ package com.nec.cache
 
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
@@ -22,7 +22,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
   }
 
   def toArrowColumnarBatch()(implicit
-    bufferAllocator: BufferAllocator,
+    allocator: BufferAllocator,
     veProcess: VeProcess
   ): ColumnarBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {
@@ -41,7 +41,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
   def toVEColBatch()(implicit
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext,
+    context: CallContext,
     cycloneMetrics: VeProcessMetrics
   ): VeColBatch = {
     Option(vecs.flatMap(_.left.toSeq)).filter(_.nonEmpty) match {

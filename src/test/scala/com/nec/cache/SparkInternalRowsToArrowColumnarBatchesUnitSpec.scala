@@ -18,7 +18,7 @@ final class SparkInternalRowsToArrowColumnarBatchesUnitSpec extends AnyWordSpec 
 
   "SparkInternalRowsToArrowColumnarBatches" should {
     "work" in {
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+      import com.nec.util.CallContextOps._
 
       val result = SparkInternalRowsToArrowColumnarBatches.apply(
         Iterator(

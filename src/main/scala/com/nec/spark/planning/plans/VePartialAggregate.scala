@@ -1,9 +1,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -28,7 +28,7 @@ case class VePartialAggregate(
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    import OriginalCallingContext.Automatic._
+    import com.nec.util.CallContextOps._
     initializeMetrics()
 
     child
@@ -47,7 +47,7 @@ case class VePartialAggregate(
 
               try {
                 val result = withInvocationMetrics(VE) {
-                  ImplicitMetrics.processMetrics.measureRunningTime(
+                  veMetrics.measureRunningTime(
                     veProcess.executeMulti(
                       libraryReference = libRef,
                       functionName = partialFunction.functionName,
@@ -55,7 +55,7 @@ case class VePartialAggregate(
                       results = partialFunction.namedResults
                     )
                   )(
-                    ImplicitMetrics.processMetrics
+                    veMetrics
                       .registerFunctionCallTime(_, veFunction.functionName)
                   )
                 }

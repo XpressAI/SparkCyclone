@@ -1,9 +1,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
+import com.nec.spark.SparkCycloneExecutorPlugin.{veMetrics, source}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
@@ -40,18 +40,18 @@ case class VeFinalAggregate(
             logger.debug(s"Preparing to final-aggregate a batch... ${veColBatch}")
             collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
-              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+              import com.nec.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
               collectBatchMetrics(OUTPUT, VeColBatch({
-                import OriginalCallingContext.Automatic._
+                import com.nec.util.CallContextOps._
                 withInvocationMetrics(VE){
-                  try ImplicitMetrics.processMetrics.measureRunningTime(
+                  try veMetrics.measureRunningTime(
                     veProcess.execute(
                       libraryReference = libRef,
                       functionName = finalFunction.functionName,
                       cols = veColBatch.columns.toList,
                       results = finalFunction.namedResults
                     )
-                  )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                  )(veMetrics.registerFunctionCallTime(_, veFunction.functionName))
                   finally {
                     logger.debug("Completed a final-aggregate of  a batch...")
                     child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup(veColBatch)

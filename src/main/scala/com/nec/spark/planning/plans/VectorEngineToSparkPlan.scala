@@ -3,7 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.planning.ArrowBatchToUnsafeRows.mapBatchToRow
 import com.nec.spark.planning.{PlanMetrics, SupportsVeColBatch}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.rdd.RDD
@@ -45,7 +45,7 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan)
           .newChildAllocator(s"Writer for partial collector", 0, Long.MaxValue)
 
         iterator.map { veColBatch =>
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           collectBatchMetrics(INPUT, veColBatch)
           withInvocationMetrics(BATCH){
             try {

@@ -20,9 +20,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -59,7 +59,7 @@ final case class VeOneStageEvaluationPlan(
       .mapPartitions { veColBatches =>
         withVeLibrary { libRef =>
           logger.info(s"Will map batches with function ${veFunction}")
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
 
           incrementInvocations(PLAN)
           veColBatches.map { inputBatch =>
@@ -68,7 +68,7 @@ final case class VeOneStageEvaluationPlan(
               try {
                 logger.debug(s"Mapping batch ${inputBatch}")
                 val cols = withInvocationMetrics(VE){
-                  ImplicitMetrics.processMetrics.measureRunningTime(
+                  veMetrics.measureRunningTime(
                     veProcess.execute(
                       libraryReference = libRef,
                       functionName = veFunction.functionName,
@@ -76,7 +76,7 @@ final case class VeOneStageEvaluationPlan(
                       results = veFunction.namedResults
                     )
                   )(
-                    ImplicitMetrics.processMetrics
+                    veMetrics
                       .registerFunctionCallTime(_, veFunction.functionName)
                   )
                 }

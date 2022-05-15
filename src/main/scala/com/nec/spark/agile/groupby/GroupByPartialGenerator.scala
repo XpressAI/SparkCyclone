@@ -30,7 +30,7 @@ final case class GroupByPartialGenerator(
   computedGroupingKeys: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
   computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
   stringVectorComputations: List[StringHoleEvaluation],
-  nBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores()
+  nBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores
 ) {
   import finalGenerator._
   import stagedGroupBy._

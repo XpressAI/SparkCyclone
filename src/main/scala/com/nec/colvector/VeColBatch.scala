@@ -4,7 +4,7 @@ import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeType
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.arrow.memory.BufferAllocator
@@ -126,7 +126,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
 
   def free()(implicit source: VeColVectorSource,
              process: VeProcess,
-             context: OriginalCallingContext): Unit = {
+             context: CallContext): Unit = {
     columns.foreach(_.free)
   }
 
@@ -168,7 +168,7 @@ object VeColBatch {
   def fromStream(din: DataInputStream)(implicit
     veProcess: VeProcess,
     source: VeColVectorSource,
-    originalCallingContext: OriginalCallingContext
+    context: CallContext
   ): VeColBatch = {
     ensureId(din.readInt(), ColLengthsId)
 
@@ -202,7 +202,7 @@ object VeColBatch {
 
   def fromBytes(data: Array[Byte])(implicit source: VeColVectorSource,
                                    process: VeProcess,
-                                   context: OriginalCallingContext,
+                                   context: CallContext,
                                    metrics: VeProcessMetrics): VeColBatch = {
     val stream = new ByteArrayInputStream(data)
     val reader = new ObjectInputStream(stream)
@@ -216,7 +216,7 @@ object VeColBatch {
 
   def fromArrowColumnarBatch(batch: ColumnarBatch)(implicit source: VeColVectorSource,
                                                    process: VeProcess,
-                                                   context: OriginalCallingContext,
+                                                   context: CallContext,
                                                    metrics: VeProcessMetrics): VeColBatch = {
     VeColBatch(
       (0 until batch.numCols).map { i =>

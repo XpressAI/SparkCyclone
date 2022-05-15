@@ -2,7 +2,7 @@ package com.nec.cache
 
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
@@ -34,9 +34,9 @@ object ArrowBasedCacheSerializer {
     internalRows: Iterator[InternalRow],
     arrowSchema: Schema
   )(implicit
-    bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    allocator: BufferAllocator,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     cycloneMetrics: VeProcessMetrics
   ): Iterator[CachedVeBatch] =
     SparkInternalRowsToArrowColumnarBatches
@@ -65,13 +65,13 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
     storageLevel: StorageLevel,
     conf: SQLConf
   ): RDD[CachedBatch] = {
-    implicit val arrowEncodingSettings = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
+    implicit val encoding = ArrowEncodingSettings.fromConf(conf)(input.sparkContext)
     input.mapPartitions(f = internalRows => {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      import OriginalCallingContext.Automatic._
-      import com.nec.spark.SparkCycloneExecutorPlugin.ImplicitMetrics._
+      import com.nec.util.CallContextOps._
+      import com.nec.spark.SparkCycloneExecutorPlugin._
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,

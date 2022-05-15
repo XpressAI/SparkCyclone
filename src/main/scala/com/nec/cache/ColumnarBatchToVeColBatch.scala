@@ -3,7 +3,7 @@ package com.nec.cache
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
@@ -16,9 +16,9 @@ object ColumnarBatchToVeColBatch {
     completeInSpark: Boolean,
     metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
-    bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    allocator: BufferAllocator,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     cycloneMetrics: VeProcessMetrics,
@@ -48,9 +48,9 @@ object ColumnarBatchToVeColBatch {
     completeInSpark: Boolean,
     metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
-    bufferAllocator: BufferAllocator,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    allocator: BufferAllocator,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     veProcess: VeProcess,
     veColVectorSource: VeColVectorSource,
     cycloneMetrics: VeProcessMetrics

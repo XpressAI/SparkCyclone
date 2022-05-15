@@ -230,20 +230,20 @@ object CFunctionGeneration {
     condition: Condition
   )
 
-  def allocateFrom(cVector: CVector)(implicit bufferAllocator: BufferAllocator): FieldVector =
+  def allocateFrom(cVector: CVector)(implicit allocator: BufferAllocator): FieldVector =
     cVector.veType match {
       case VeString =>
-        new VarCharVector(cVector.name, bufferAllocator)
+        new VarCharVector(cVector.name, allocator)
       case VeNullableDouble =>
-        new Float8Vector(cVector.name, bufferAllocator)
+        new Float8Vector(cVector.name, allocator)
       case VeNullableFloat =>
-        new Float8Vector(cVector.name, bufferAllocator)
+        new Float8Vector(cVector.name, allocator)
       case VeNullableInt =>
-        new IntVector(cVector.name, bufferAllocator)
+        new IntVector(cVector.name, allocator)
       case VeNullableLong =>
-        new BigIntVector(cVector.name, bufferAllocator)
+        new BigIntVector(cVector.name, allocator)
       case VeNullableShort =>
-        new SmallIntVector(cVector.name, bufferAllocator)
+        new SmallIntVector(cVector.name, allocator)
     }
 
   val KeyHeaders = CodeLines.from(

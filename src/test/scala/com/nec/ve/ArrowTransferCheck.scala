@@ -9,14 +9,14 @@ import com.nec.spark.agile.merge.MergeFunction
 import com.nec.ve.PureVeFunctions.{DoublingFunction, PartitioningFunction}
 import com.nec.colvector.VeColBatch
 import com.nec.colvector.VeBatchOfBatches
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.freespec.AnyFreeSpec
 
 @VectorEngineTest
 final class ArrowTransferCheck extends AnyFreeSpec with WithVeProcess with VeKernelInfra {
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
   "Execute our function" in {
     compiledWithHeaders(DoublingFunction, "f") { path =>
       val lib = veProcess.loadLibrary(path)

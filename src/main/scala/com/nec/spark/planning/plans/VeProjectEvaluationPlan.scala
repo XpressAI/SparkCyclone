@@ -21,9 +21,9 @@ package com.nec.spark.planning.plans
 
 import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -70,7 +70,7 @@ final case class VeProjectEvaluationPlan(
           withInvocationMetrics(BATCH){
             veColBatches.map { veColBatch =>
               collectBatchMetrics(INPUT, veColBatch)
-              import OriginalCallingContext.Automatic._
+              import com.nec.util.CallContextOps._
               import SparkCycloneExecutorPlugin.veProcess
               try {
                 val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
@@ -79,7 +79,7 @@ final case class VeProjectEvaluationPlan(
                   if (canPassThroughall) Nil
                   else {
                     withInvocationMetrics(VE){
-                      ImplicitMetrics.processMetrics.measureRunningTime(
+                      veMetrics.measureRunningTime(
                         veProcess.execute(
                           libraryReference = libRef,
                           functionName = veFunction.functionName,
@@ -87,7 +87,7 @@ final case class VeProjectEvaluationPlan(
                           results = veFunction.namedResults
                         )
                       )(
-                        ImplicitMetrics.processMetrics
+                        veMetrics
                           .registerFunctionCallTime(_, veFunction.functionName)
                       )
                     }

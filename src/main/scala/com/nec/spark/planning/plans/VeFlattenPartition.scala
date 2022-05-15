@@ -3,7 +3,7 @@ package com.nec.spark.planning.plans
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -42,7 +42,7 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                   case one :: Nil => Iterator(one)
                   case Nil        => Iterator.empty
                   case _ =>
-                    import OriginalCallingContext.Automatic._
+                    import com.nec.util.CallContextOps._
                     Iterator {
                       VeColBatch(try {
                         val res = withInvocationMetrics(VE){

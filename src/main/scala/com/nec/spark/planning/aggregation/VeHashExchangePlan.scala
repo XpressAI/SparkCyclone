@@ -1,9 +1,9 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{ImplicitMetrics, source}
+import com.nec.spark.SparkCycloneExecutorPlugin.{veMetrics, source}
 import com.nec.spark.planning._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -18,7 +18,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   with PlanMetrics
   with SupportsKeyedVeColBatch {
 
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
   import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
@@ -37,18 +37,18 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
           collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
             collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
-              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
+              import com.nec.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
               try {
                 logger.debug(s"Mapping ${veColBatch} for exchange")
                 val multiBatches = withInvocationMetrics(VE){
-                  ImplicitMetrics.processMetrics.measureRunningTime(
+                  veMetrics.measureRunningTime(
                     veProcess.executeMulti(
                       libraryReference = libRefExchange,
                       functionName = exchangeFunction.functionName,
                       cols = veColBatch.columns.toList,
                       results = exchangeFunction.namedResults
                     )
-                  )(ImplicitMetrics.processMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                  )(veMetrics.registerFunctionCallTime(_, veFunction.functionName))
                 }
                 logger.debug(s"Mapped to ${multiBatches} completed.")
 
