@@ -113,7 +113,7 @@ object StringOpsStringHoleEvaluationSpec {
     )
 
     veKernelInfra.compiledWithHeaders(cFunction, "test") { path =>
-      val libRef = veProcess.loadLibrary(path)
+      val libRef = veProcess.load(path)
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =

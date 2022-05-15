@@ -156,7 +156,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
     veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
-      val libRef = veProcess.loadLibrary(path)
+      val libRef = veProcess.load(path)
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =
@@ -177,7 +177,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
     veKernelInfra.compiledWithHeaders(cFunction) { path =>
-      val libRef = veProcess.loadLibrary(path)
+      val libRef = veProcess.load(path)
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =

@@ -2,9 +2,10 @@ package com.nec.spark.planning.plans
 
 import com.nec.cache.ArrowEncodingSettings
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -41,15 +42,14 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
               .map {
                 case inputBatches if inputBatches.size == 1 => inputBatches.head
                 case inputBatches =>
-                  import com.nec.util.CallContextOps._
                   try {
                       val res = withInvocationMetrics(VE) {
                         VeColBatch(
-                          veProcess.executeMultiIn(
-                            libraryReference = libRefExchange,
-                            functionName = amplifyFunction.functionName,
-                            batches = VeBatchOfBatches(inputBatches.toList),
-                            results = amplifyFunction.namedResults
+                          vectorEngine.executeMultiIn(
+                            libRefExchange,
+                            amplifyFunction.functionName,
+                            VeBatchOfBatches(inputBatches.toList),
+                            amplifyFunction.namedResults
                           )
                         )
                       }

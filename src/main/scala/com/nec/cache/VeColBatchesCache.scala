@@ -3,7 +3,7 @@ package com.nec.cache
 import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.util.CallContext
-import com.nec.ve.VeProcess
+import com.nec.vectorengine.VeProcess
 import scala.collection.concurrent.TrieMap
 import com.typesafe.scalalogging.LazyLogging
 

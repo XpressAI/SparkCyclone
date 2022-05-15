@@ -3,7 +3,7 @@ package com.nec.cache
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import com.nec.util.CallContext
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}

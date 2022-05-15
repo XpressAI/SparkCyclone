@@ -101,7 +101,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
             }
           }
           .map(_.apply())
-          .map(_.get())
+          .map(_.get)
           .toList
           .map(byteArrayColVector => Left(byteArrayColVector))
       )

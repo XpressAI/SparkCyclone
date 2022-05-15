@@ -2,7 +2,7 @@ package com.nec.spark.planning
 
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.colvector.VeColBatch
-import com.nec.ve.VeProcess
+import com.nec.vectorengine.VeProcess
 import com.nec.util.CallContext
 import com.nec.colvector.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging

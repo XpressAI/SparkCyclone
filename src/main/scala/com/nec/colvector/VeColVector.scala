@@ -3,7 +3,8 @@ package com.nec.colvector
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core._
 import com.nec.util.CallContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeAsyncResult, VeProcess}
+import com.nec.ve.VeProcessMetrics
 import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
@@ -47,10 +48,10 @@ final case class VeColVector private[colvector] (
 
   def toBytePointersAsync()(implicit process: VeProcess): Seq[VeAsyncResult[BytePointer]] = {
    import com.nec.util.CallContextOps._
-    buffers.zip(bufferSizes).map { case (start, size) =>
-      val bp = new BytePointer(size)
-      val handle = process.getAsync(bp, start, size)
-      VeAsyncResult(handle){() => bp}
+    buffers.zip(bufferSizes).map { case (location, size) =>
+      val buffer = new BytePointer(size)
+      val handle = process.getAsync(buffer, location)
+      VeAsyncResult(handle){ () => buffer }
     }
   }
 
@@ -59,14 +60,15 @@ final case class VeColVector private[colvector] (
   }
 
   def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
-    val nbuffers = buffers.zip(bufferSizes).map { case (location, size) =>
-      val ptr = new BytePointer(size)
-      val handle = process.getAsync(ptr, location, size)
-      (ptr, handle)
-    }.map{ case (ptr, handle) =>
-      require(process.waitResult(handle)(null)._1 == veo.VEO_COMMAND_OK)
-      ptr
-    }
+    val nbuffers = buffers.zip(bufferSizes)
+      .map { case (location, size) =>
+        val buffer = new BytePointer(size)
+        (buffer, process.getAsync(buffer, location))
+      }
+      .map{ case (buffer, handle) =>
+        require(process.awaitResult(handle).get == veo.VEO_COMMAND_OK)
+        buffer
+      }
 
     BytePointerColVector(
       source,
@@ -112,7 +114,7 @@ final case class VeColVector private[colvector] (
              context: CallContext): Unit = {
     if (open) {
       require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
-      allocations.foreach(process.free)
+      allocations.foreach(process.free(_))
       open = false
 
     } else {

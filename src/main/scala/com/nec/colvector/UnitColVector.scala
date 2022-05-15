@@ -2,7 +2,8 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeString, VeType}
 import com.nec.util.CallContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeAsyncResult, VeProcess}
+import com.nec.ve.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 import java.io.{DataInputStream, DataOutputStream, InputStream}

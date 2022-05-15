@@ -1,7 +1,8 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{veMetrics, source}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
+import com.nec.util.CallContextOps._
 import com.nec.spark.planning._
 import com.nec.util.CallContext
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
@@ -18,8 +19,6 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
   with PlanMetrics
   with SupportsKeyedVeColBatch {
 
-  import com.nec.util.CallContextOps._
-  import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
@@ -41,14 +40,12 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
               try {
                 logger.debug(s"Mapping ${veColBatch} for exchange")
                 val multiBatches = withInvocationMetrics(VE){
-                  veMetrics.measureRunningTime(
-                    veProcess.executeMulti(
-                      libraryReference = libRefExchange,
-                      functionName = exchangeFunction.functionName,
-                      cols = veColBatch.columns.toList,
-                      results = exchangeFunction.namedResults
-                    )
-                  )(veMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                  vectorEngine.executeMulti(
+                    libRefExchange,
+                    exchangeFunction.functionName,
+                    veColBatch.columns.toList,
+                    exchangeFunction.namedResults
+                  )
                 }
                 logger.debug(s"Mapped to ${multiBatches} completed.")
 
@@ -94,11 +91,11 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                 if (veColBatch.nonEmpty) {
                   logger.debug(s"Mapping ${veColBatch} for exchange")
                   val multiBatches = withInvocationMetrics(VE){
-                    veProcess.executeMulti(
-                      libraryReference = libRefExchange,
-                      functionName = exchangeFunction.functionName,
-                      cols = veColBatch.columns.toList,
-                      results = exchangeFunction.namedResults
+                    vectorEngine.executeMulti(
+                      libRefExchange,
+                      exchangeFunction.functionName,
+                      veColBatch.columns.toList,
+                      exchangeFunction.namedResults
                     )
                   }
                   logger.debug(s"Mapped to ${multiBatches} completed.")

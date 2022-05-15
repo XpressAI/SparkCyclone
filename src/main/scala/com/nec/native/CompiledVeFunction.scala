@@ -2,6 +2,8 @@ package com.nec.native
 
 import com.nec.colvector.{VeColBatch, VeColVector, VeBatchOfBatches}
 import com.nec.spark.SparkCycloneDriverPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin.{vectorEngine, veProcess, source}
+
 import com.nec.spark.agile.core.{CFunction2, CVector}
 import com.nec.util.CallContext
 
@@ -22,11 +24,10 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   }
 
   def evalFunction(batch: VeColBatch)(implicit ctx: CallContext): VeColBatch = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    import com.nec.spark.SparkCycloneExecutorPlugin.source
+    import com.nec.spark.SparkCycloneExecutorPlugin.{vectorEngine, source}
 
-    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    val res = VeColBatch(veProcess.execute(libRef, func.name, batch.columns.toList, outputs))
+    val libRef = veProcess.load(Paths.get(libraryPath))
+    val res = VeColBatch(vectorEngine.execute(libRef, func.name, batch.columns.toList, outputs))
     batch.free()
     res
   }
@@ -39,12 +40,9 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
 
   def evalGrouping[K: ClassTag](
     batchOfBatches: VeBatchOfBatches
-  )(implicit ctx: CallContext): Seq[(K, List[VeColVector])] = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    import com.nec.spark.SparkCycloneExecutorPlugin.source
-
-    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    val res = veProcess.executeGrouping[K](libRef, func.name, batchOfBatches, outputs)
+  )(implicit ctx: CallContext): Seq[(K, Seq[VeColVector])] = {
+    val libRef = veProcess.load(Paths.get(libraryPath))
+    val res = vectorEngine.executeGrouping[K](libRef, func.name, batchOfBatches, outputs)
     batchOfBatches.batches.foreach(_.free())
 
     res
@@ -52,12 +50,9 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
 
   def evalMultiInFunction(
     batchOfBatches: VeBatchOfBatches
-  )(implicit ctx: CallContext): List[VeColVector] = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    import com.nec.spark.SparkCycloneExecutorPlugin.source
-
-    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    val res = veProcess.executeMultiIn(libRef, func.name, batchOfBatches, outputs)
+  )(implicit ctx: CallContext): Seq[VeColVector] = {
+    val libRef = veProcess.load(Paths.get(libraryPath))
+    val res = vectorEngine.executeMultiIn(libRef, func.name, batchOfBatches, outputs)
     batchOfBatches.batches.foreach(_.free())
 
     res
@@ -66,12 +61,9 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
   def evalJoinFunction(
     leftBatchOfBatches: VeBatchOfBatches,
     rightBatchOfBatches: VeBatchOfBatches
-  )(implicit ctx: CallContext): List[VeColVector] = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
-    import com.nec.spark.SparkCycloneExecutorPlugin.source
-
-    val libRef = veProcess.loadLibrary(Paths.get(libraryPath))
-    val res = veProcess.executeJoin(libRef, func.name, leftBatchOfBatches, rightBatchOfBatches, outputs)
+  )(implicit ctx: CallContext): Seq[VeColVector] = {
+    val libRef = veProcess.load(Paths.get(libraryPath))
+    val res = vectorEngine.executeJoin(libRef, func.name, leftBatchOfBatches, rightBatchOfBatches, outputs)
 
     leftBatchOfBatches.batches.foreach(_.free())
     rightBatchOfBatches.batches.foreach(_.free())

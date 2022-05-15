@@ -6,7 +6,8 @@ import com.nec.util.CallContext
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.catalyst.InternalRow

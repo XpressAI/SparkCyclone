@@ -5,7 +5,8 @@ import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
 import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
 

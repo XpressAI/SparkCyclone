@@ -4,7 +4,8 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.util.CallContext
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -37,7 +38,7 @@ object ColumnarBatchToVeColBatch {
             }
           )
     }.map{ it =>
-      VeColBatch(it.map(_.apply()).map(_.get()).toList)
+      VeColBatch(it.map(_.apply()).map(_.get).toList)
     }.toList.iterator
   }
 

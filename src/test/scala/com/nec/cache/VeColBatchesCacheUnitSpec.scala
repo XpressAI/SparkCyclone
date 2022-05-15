@@ -4,7 +4,7 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.{InputSamples, VeColBatch}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import scala.util.Random
 import java.io._
 import org.scalatest.matchers.should.Matchers._

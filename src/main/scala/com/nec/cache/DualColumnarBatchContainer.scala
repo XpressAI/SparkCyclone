@@ -3,7 +3,8 @@ package com.nec.cache
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector._
 import com.nec.util.CallContext
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -48,7 +49,7 @@ final case class DualColumnarBatchContainer(vecs: List[Either[VeColVector, ByteA
       case Some(vecs) => VeColBatch(vecs)
       case None =>
         val byteArrayColVectors = vecs.flatMap(_.right.toSeq)
-        VeColBatch(byteArrayColVectors.map(_.asyncToVeColVector).map(_.apply()).map(_.get()))
+        VeColBatch(byteArrayColVectors.map(_.asyncToVeColVector).map(_.apply()).map(_.get))
     }
   }
 

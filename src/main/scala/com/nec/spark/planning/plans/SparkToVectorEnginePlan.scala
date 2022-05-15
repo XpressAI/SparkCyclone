@@ -4,10 +4,11 @@ import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase, DualMode, Transfe
 import com.nec.colvector.ArrowVectorConversions.ValueVectorToBPCV
 import com.nec.colvector.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin
+import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.spark.planning._
 import com.nec.ve.VeKernelCompiler
 import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -58,11 +59,9 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
         .executeColumnar()
         .mapPartitions { columnarBatches =>
           withInvocationMetrics(PLAN) {
-            import SparkCycloneExecutorPlugin._
             implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
               .newChildAllocator(s"Writer for partial collector (ColBatch-->Arrow)", 0, Long.MaxValue)
             TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-            import com.nec.util.CallContextOps._
 
             // Transfer entire partition, i.e. all batches, with a single transfer.
             // Steps:
@@ -98,12 +97,9 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
               Iterator.empty
             }else{
               // TODO: find a better way of calling a library function ("handle_transfer") from here
-              val libRef = veProcess.loadLibrary(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
+              val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
               val batch = withInvocationMetrics(VE) {
-                veProcess.executeTransfer(
-                  libraryReference = libRef,
-                  transferDescriptor = transferDescriptor
-                )
+                vectorEngine.executeTransfer(transferDescriptor)
               }
 
               Seq(batch).iterator
@@ -112,13 +108,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
         }
     } else {
       child.execute().mapPartitions { internalRows =>
-        import SparkCycloneExecutorPlugin._
-
         withInvocationMetrics(PLAN){
           implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
             .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
           TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-          import com.nec.util.CallContextOps._
 
           collectBatchMetrics(OUTPUT, DualMode.unwrapPossiblyDualToVeColBatches(
             possiblyDualModeInternalRows = internalRows,

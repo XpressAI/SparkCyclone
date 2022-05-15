@@ -6,6 +6,8 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
 import com.nec.ve.WithVeProcess
+import com.nec.util.FixedBitSet
+import com.nec.vectorengine.WithVeProcess
 import com.nec.vectorengine.LibCyclone
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -77,8 +79,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
 
       // The lengths match as well
       output.toArray[Int].size should be (a1.size + b1.size + c1.size)
-
-      import com.nec.util.FixedBitSet
 
       val a1bits = FixedBitSet.from(a1v.buffers(1))
       val b1bits = FixedBitSet.from(b1v.buffers(1))

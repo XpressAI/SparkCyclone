@@ -5,7 +5,8 @@ import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeType
 import com.nec.util.CallContext
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
@@ -89,7 +90,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
       // no bytes length as it's a stream here
       stream.writeInt(-1)
       stream.writeInt(VeColBatch.PayloadBytesId)
-      buffers.map(_.get()).filterNot(_.limit() == 0).foreach{ bytePointer =>
+      buffers.map(_.get).filterNot(_.limit() == 0).foreach{ bytePointer =>
         val numWritten = channel.write(bytePointer.asBuffer())
         require(numWritten == bytePointer.limit(), s"Written ${numWritten}, expected ${bytePointer.limit()}")
       }
@@ -195,7 +196,7 @@ object VeColBatch {
             e
           )
       }
-    }.map(_.apply()).map(_.get())
+    }.map(_.apply()).map(_.get)
 
     VeColBatch(columns)
   }
@@ -224,7 +225,7 @@ object VeColBatch {
           .getArrowValueVector
           .toBytePointerColVector
           .asyncToVeColVector
-      }.map(_.apply()).map(_.get())
+      }.map(_.apply()).map(_.get)
     )
   }
 

@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec

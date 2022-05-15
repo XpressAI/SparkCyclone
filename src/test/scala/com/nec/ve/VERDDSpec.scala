@@ -31,7 +31,7 @@ final class VERDDSpec
     import SparkCycloneExecutorPlugin._
 
     val result = compiledWithHeaders(DoublingFunction, "f") { path =>
-      val ref = veProcess.loadLibrary(path)
+      val ref = veProcess.load(path)
 
       VERDDSpec.doubleBatches {
         sparkSession.sparkContext
@@ -71,7 +71,7 @@ object VERDDSpec {
       f = { iter =>
         iter.flatMap { input =>
           val colvec = input.toVeColVector
-          val ref = veProcess.loadLibrary(java.nio.file.Paths.get(pathStr))
+          val ref = veProcess.load(java.nio.file.Paths.get(pathStr))
 
           veProcess.executeMulti(
             ref,

@@ -3,7 +3,8 @@ package com.nec.ve.serializer
 import com.nec.colvector.VeColBatch
 import com.nec.colvector.VeColVectorSource
 import com.nec.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.SerializationStream
 

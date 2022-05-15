@@ -4,7 +4,7 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
 import com.nec.util.CallContextOps._
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import scala.util.Random
 import java.io._
 import java.util.UUID
@@ -16,7 +16,7 @@ final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
   def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec1 = input.toVeColVector
     val bytes = colvec1.toBytes
-    val colvec2 = colvec1.toUnitColVector.withData(bytes).apply().get()
+    val colvec2 = colvec1.toUnitColVector.withData(bytes).apply().get
 
     colvec1.container should not be (colvec2.container)
     colvec1.buffers should not be (colvec2.buffers)
