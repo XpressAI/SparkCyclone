@@ -3,6 +3,7 @@ package com.nec.colvector
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
+import com.nec.util.CallContextOps._
 import com.nec.ve.WithVeProcess
 import scala.util.Random
 import java.io._
@@ -12,8 +13,6 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class UnitColVectorUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.util.CallContextOps._
-
   def runSerializationTest(input: BytePointerColVector): BytePointerColVector = {
     val colvec1 = input.toVeColVector
     val bytes = colvec1.toBytes

@@ -11,7 +11,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
   implicit def metrics = VeProcessMetrics.noOp
-  implicit def source = VeColVectorSource(getClass.getName)
+  implicit def source = SparkCycloneExecutorPlugin.source
   implicit def veProcess: VeProcess = VeProcess.WrappingVeo(proc_and_ctxt._1, proc_and_ctxt._2, source, VeProcessMetrics.noOp)
 
   private var initialized = false
@@ -44,6 +44,10 @@ trait WithVeProcess extends BeforeAndAfterAll { this: Suite =>
       def resources: java.util.Map[String, ResourceInformation] = ???
       def send(message: Any): Unit = ???
     }
+
+    val (proc, ctx) = proc_and_ctxt
+    SparkCycloneExecutorPlugin._veo_proc = proc
+    SparkCycloneExecutorPlugin._veo_thr_ctxt = ctx
   }
 
   override def afterAll: Unit = {

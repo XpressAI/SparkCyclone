@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.spark.SparkCycloneExecutorPlugin.cleanUpIfNotCached
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.colvector.VeColBatch
 import com.nec.ve.VeProcess
 import com.nec.util.CallContext
@@ -35,7 +35,7 @@ object DataCleanup extends LazyLogging {
         s"Requesting to clean up data of ${veColBatch.columns
           .map(_.container)} at ${processId} by ${context.fullName.value}#${context.line.value}, directed by ${parent.getCanonicalName}"
       )
-      cleanUpIfNotCached(veColBatch)
+      SparkCycloneExecutorPlugin.batchesCache.cleanupIfNotCached(veColBatch)
     }
   }
 

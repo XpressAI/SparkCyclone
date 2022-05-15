@@ -20,7 +20,11 @@ final case class VeColVector private[colvector] (
   container: Long
 ) extends ColVectorUtilsTrait {
   private val logger = LoggerFactory.getLogger(getClass)
-  private var memoryFreed = false
+  private var open = true
+
+  def isOpen: Boolean = {
+    open
+  }
 
   def allocations: Seq[Long] = {
     Seq(container) ++ buffers
@@ -106,24 +110,24 @@ final case class VeColVector private[colvector] (
   def free()(implicit dsource: VeColVectorSource,
              process: VeProcess,
              context: CallContext): Unit = {
-    if (memoryFreed) {
-      logger.warn(s"[VE MEMORY ${container}] double free called!")
-
-    } else {
+    if (open) {
       require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
       allocations.foreach(process.free)
-      memoryFreed = true
+      open = false
+
+    } else {
+      logger.warn(s"[VE MEMORY ${container}] double free called!")
     }
   }
 
   def free2(implicit process: NewVeProcess): Unit = {
-    if (memoryFreed) {
-      logger.warn(s"[VE MEMORY ${container}] double free called!")
-
-    } else {
+    if (open) {
       require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
       allocations.foreach(process.free(_))
-      memoryFreed = true
+      open = false
+
+    } else {
+      logger.warn(s"[VE MEMORY ${container}] double free called!")
     }
   }
 }

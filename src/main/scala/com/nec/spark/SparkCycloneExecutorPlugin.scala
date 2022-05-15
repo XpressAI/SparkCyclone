@@ -19,8 +19,8 @@
  */
 package com.nec.spark
 
+import com.nec.cache.VeColBatchesCache
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
-
 import com.nec.ve.VeProcess.LibraryReference
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import com.nec.util.CallContext
@@ -88,7 +88,7 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
   var DefaultVeNodeId = 0
   var NodeCount = 1
 
-  def totalVeCores(): Int = {
+  def totalVeCores: Int = {
     NodeCount * 8
   }
 
@@ -97,77 +97,15 @@ object SparkCycloneExecutorPlugin extends LazyLogging {
     new ProcessExecutorMetrics(AllocationTracker.simple, pluginContext.metricRegistry)
   }
 
-  // var theMetrics: ProcessExecutorMetrics = _
-
-  // object ImplicitMetrics {
-  //   implicit def veMetrics: VeProcessMetrics = theMetrics
-  // }
-
   var CleanUpCache: Boolean = true
 
-  @transient private val cachedBatches: mutable.Map[String, VeColBatch] = mutable.HashMap.empty
-
-  @transient private val cachedCols: mutable.Map[String, VeColVector] = mutable.HashMap.empty
-
-  private def cleanCache()(implicit context: CallContext): Unit = {
-    cachedBatches.toList.foreach { colBatch =>
-      cachedBatches.remove(colBatch._1)
-      colBatch._2.columns.zipWithIndex.foreach { case (_, i) =>
-        freeCachedCol(s"${colBatch._1}-${i}")
-      }
-    }
-  }
-
-  def freeCachedCol(
-    col: String
-  )(implicit context: CallContext): Unit = {
-    if (cachedCols.contains(col)) {
-      cachedCols(col).free()
-      cachedCols.remove(col)
-    }
-  }
-
-  def containsCachedBatch(name: String): Boolean = cachedBatches.contains(name)
-  def getCachedBatch(name: String): VeColBatch = cachedBatches(name)
-
-  def registerCachedBatch(name: String, cb: VeColBatch): Unit = {
-    cachedBatches(name) = cb
-
-    cb.columns.zipWithIndex.foreach { case (col, i) =>
-      cachedCols(s"$name-$i") = col
-    }
-  }
-
-
-  def cleanUpIfNotCached(
-    veColBatch: VeColBatch
-  )(implicit context: CallContext): Unit = {
-    if (cachedBatches.values.contains(veColBatch)) {
-      logger.trace(
-        s"Data at ${
-          veColBatch.columns
-            .map(_.container)
-        } will not be cleaned up as it's cached (${context.fullName.value}#${context.line.value})"
-      )
-    } else {
-      val (cached, notCached) = veColBatch.columns.partition(cachedCols.values.contains)
-      logger.trace(s"Will clean up data for ${
-        cached
-          .map(_.buffers)
-      }, and not clean up for ${notCached.map(_.allocations)}")
-      notCached.foreach(_.free())
-    }
-  }
+  @transient val batchesCache = new VeColBatchesCache
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
   import com.nec.spark.SparkCycloneExecutorPlugin._
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    // SparkCycloneExecutorPlugin.theMetrics =
-    //   new ProcessExecutorMetrics(AllocationTracker.simple(), ctx.metricRegistry())
-    //SparkEnv.get.metricsSystem.registerSource(SparkCycloneExecutorPlugin.metrics)
-
     val resources = ctx.resources()
 
     logger.info(s"Executor has the following resources available => ${resources}")
@@ -221,7 +159,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     if (SparkCycloneExecutorPlugin.CleanUpCache) {
       import com.nec.util.CallContextOps._
 
-      SparkCycloneExecutorPlugin.cleanCache()
+      SparkCycloneExecutorPlugin.batchesCache.cleanup
     }
 
     import com.nec.spark.SparkCycloneExecutorPlugin.{CloseAutomatically, closeProcAndCtx}

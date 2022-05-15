@@ -64,7 +64,7 @@ object VERewriteStrategy {
   val InputPrefix: String = "input_"
   val GroupPrefix: String = "group_"
 
-  val HashExchangeBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores()
+  val HashExchangeBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores
 }
 
 final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
