@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
 import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 
-object SparkCycloneExecutorPlugin extends LazyLogging {
+object SparkCycloneExecutorPlugin {
   var pluginContext: PluginContext = _
 
   var params = TrieMap.empty[String, String]

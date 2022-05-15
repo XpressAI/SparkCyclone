@@ -158,19 +158,19 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       // Tracker should contain the record
       process.heapAllocations.keys should be (Set(allocation.address))
 
-      // VE memory address is invalid
+      // VE memory address is invalid (< 0)
       intercept[IllegalArgumentException] {
-        process.registerAllocation(- Random.nextInt(10000).toLong, Random.nextInt(10000) + 100)
+        process.registerAllocation(- (Random.nextInt(10000).toLong + 1), Random.nextInt(10000) + 100)
       }
 
-      // Zero or negative allocation size
+      // Allocation size is invalid (< 0)
       intercept[IllegalArgumentException] {
-        process.registerAllocation(Random.nextInt(10000) + 100, - Random.nextInt(10000).toLong + 100)
+        process.registerAllocation(Random.nextInt(10000) + 100, - (Random.nextInt(10000).toLong + 1))
       }
 
-      // VE memory address is invalid
+      // VE memory address is invalid (< 0)
       intercept[IllegalArgumentException] {
-        process.unregisterAllocation(- Random.nextInt(10000).toLong)
+        process.unregisterAllocation(- (Random.nextInt(10000).toLong + 1))
       }
 
       // Register a conflicting allocation (same address, different size)
@@ -199,6 +199,16 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       noException should be thrownBy {
         process.free(allocation.address)
         process.heapAllocations shouldBe empty
+      }
+
+      // Free on address 0 should always work
+      noException should be thrownBy {
+        0.to(Random.nextInt(10)).foreach { _ => process.free(0L) }
+      }
+
+      // Unregister allocation on address 0 should always work
+      noException should be thrownBy {
+        0.to(Random.nextInt(10)).foreach { _ => process.unregisterAllocation(0L) }
       }
     }
 
@@ -434,6 +444,9 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
         // Load the library
         val library = process.load(path)
+
+        // Path should be saved in the library reference as a string
+        library.path should be (path.normalize.toString)
 
         // Libraries tracker should now contain the record
         process.loadedLibraries should be (Map(path.normalize.toString -> library))

@@ -4,7 +4,7 @@ import com.nec.colvector.{VeColVectorSource => VeSource}
 import scala.collection.concurrent.{TrieMap => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
@@ -156,7 +156,8 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def registerAllocation(address: Long, size: Long): VeAllocation = {
-    require(address > 0L, s"Memory address ${address} is invalid; cannot register allocation!")
+    // Explicitly allow address of 0
+    require(address >= 0L, s"Memory address ${address} is invalid; cannot register allocation!")
     // Explicitly allow registrations of zero-sized allocations
     require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
     logger.trace(s"Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
@@ -183,7 +184,8 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def unregisterAllocation(address: Long): Unit = {
-    require(address > 0L, s"Invalid VE memory address ${address}")
+    // Explicitly allow address of 0
+    require(address >= 0L, s"Invalid VE memory address ${address}")
 
     heapRecords.get(address) match {
       case Some(allocation) =>
@@ -197,7 +199,8 @@ final case class WrappingVeo private (val node: Int,
 
   def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
-      require(address > 0L, s"Invalid VE memory address ${address}")
+      // Explicitly allow address of 0
+      require(address >= 0L, s"Invalid VE memory address ${address}")
 
       heapRecords.get(address) match {
         case Some(allocation) =>
@@ -213,6 +216,10 @@ final case class WrappingVeo private (val node: Int,
           val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
           require(result == 0, s"Memory release failed with code: ${result}")
           freeTimer.update(Duration.ofNanos(duration))
+
+        case None if address == 0 =>
+          // Do nothing for free(0)
+          ()
 
         case None =>
           throw new IllegalArgumentException(s"VE memory address does not correspond to a tracked allocation: ${address}")
@@ -307,30 +314,32 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def load(path: Path): LibraryReference = {
-    withVeoProc {
-      val npath = path.normalize
-      loadedLibRecords.get(npath.toString) match {
-        case Some(lib) =>
-          logger.debug(s"Library .SO has already been loaded: ${npath}")
-          lib
+    loadedLibRecords.synchronized {
+      withVeoProc {
+        val npath = path.normalize
+        loadedLibRecords.get(npath.toString) match {
+          case Some(lib) =>
+            logger.debug(s"Library .SO has already been loaded: ${npath}")
+            lib
 
-        case None =>
-          require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
-          logger.info(s"Loading from path as .SO: ${npath}...")
-          val result = veo.veo_load_library(handle, npath.toString)
-          require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
+          case None =>
+            require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
+            logger.info(s"Loading from path as .SO: ${npath}...")
+            val result = veo.veo_load_library(handle, npath.toString)
+            require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
 
-          // Create a library load record to track
-          val lib = LibraryReference(npath, result)
-          loadedLibRecords.put(npath.toString, lib)
-          lib
+            // Create a library load record to track
+            val lib = LibraryReference(npath.toString, result)
+            loadedLibRecords.put(npath.toString, lib)
+            lib
+        }
       }
     }
   }
 
   def unload(lib: LibraryReference): Unit = {
     withVeoProc {
-      val npath = lib.path.normalize
+      val npath = Paths.get(lib.path).normalize
       loadedLibRecords.get(npath.toString) match {
         case Some(lib) =>
           logger.info(s"Unloading library from the VE process: ${npath}...")

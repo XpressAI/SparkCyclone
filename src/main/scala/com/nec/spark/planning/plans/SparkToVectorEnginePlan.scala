@@ -99,7 +99,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
               // TODO: find a better way of calling a library function ("handle_transfer") from here
               val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
               val batch = withInvocationMetrics(VE) {
-                vectorEngine.executeTransfer(transferDescriptor)
+                vectorEngine.executeTransfer(libRef, transferDescriptor)
               }
 
               Seq(batch).iterator

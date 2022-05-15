@@ -43,6 +43,7 @@ final class DynamicBenchmarkVeCheck
   BenchTestingPossibilities.possibilities.filter(_.testingTarget.isVE).foreach(runTestCase)
 
   override def afterAll(): Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
     SparkCycloneExecutorPlugin.veProcess.close
     super.afterAll
   }

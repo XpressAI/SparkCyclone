@@ -44,6 +44,7 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
   }
 
   override def afterAll: Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
     SparkCycloneExecutorPlugin.veProcess.close
   }
 

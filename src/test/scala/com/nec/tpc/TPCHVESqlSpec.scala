@@ -52,6 +52,7 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
     TPCHVESqlSpec.VeConfiguration(failFast = failFast)
 
   override protected def afterAll(configMap: ConfigMap): Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
     SparkCycloneExecutorPlugin.veProcess.close
   }
 

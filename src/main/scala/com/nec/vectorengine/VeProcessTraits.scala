@@ -24,7 +24,8 @@ final case class VeAllocation private[vectorengine] (address: Long, size: Long, 
   }
 }
 
-final case class LibraryReference private[vectorengine] (path: Path, value: Long)
+// Keep path field as a String so that LibraryReference can be serialized across RDD maps
+final case class LibraryReference private[vectorengine] (path: String, value: Long)
 
 final case class LibrarySymbol private[vectorengine] (lib: LibraryReference, name: String, address: Long)
 

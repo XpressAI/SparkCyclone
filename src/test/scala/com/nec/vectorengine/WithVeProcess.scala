@@ -1,9 +1,13 @@
 package com.nec.vectorengine
 
+import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.ve.VeProcessMetrics
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import java.nio.file.{Path, Paths}
 import com.codahale.metrics._
+import org.apache.spark.SparkConf
+import org.apache.spark.api.plugin.PluginContext
+import org.apache.spark.resource.ResourceInformation
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
@@ -25,11 +29,24 @@ trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
     process.source
   }
 
-  implicit var engine: VectorEngine = _
+  implicit def engine: VectorEngine = {
+    new VectorEngineImpl(process, metrics)
+  }
 
   override def beforeAll: Unit = {
     super.beforeAll
-    engine = new VectorEngineImpl(process, metrics)
+
+    SparkCycloneExecutorPlugin.pluginContext = new PluginContext {
+      def ask(message: Any): AnyRef = ???
+      def conf: SparkConf = ???
+      def metricRegistry = metrics
+      def executorID: String = "executor-id"
+      def hostname: String = "hostname"
+      def resources: java.util.Map[String, ResourceInformation] = ???
+      def send(message: Any): Unit = ???
+    }
+
+    SparkCycloneExecutorPlugin.veProcess = process
   }
 
   override def afterAll: Unit = {
