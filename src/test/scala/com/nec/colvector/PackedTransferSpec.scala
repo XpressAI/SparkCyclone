@@ -2,11 +2,8 @@ package com.nec.colvector
 
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector.ArrayTConversions._
-import com.nec.colvector.SeqOptTConversions.{SeqOptStringToBPCV, SeqOptTToBPCV}
-import com.nec.colvector.SeqOptTConversions.SeqOptTToBPCV
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.util.FixedBitSet
 import com.nec.ve.WithVeProcess
 import com.nec.vectorengine.LibCyclone
 import org.bytedeco.javacpp.LongPointer
@@ -16,7 +13,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks.whenever
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
 
-import java.nio.file.Paths
 import scala.reflect.ClassTag
 
 @VectorEngineTest
@@ -100,6 +96,8 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
 
   "handle_transfer" should {
    import com.nec.util.CallContextOps._
+   val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
+
 
     "correctly unpack a single batch of mixed vector types" in {
       val cols = batch1()
@@ -107,7 +105,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         .newBatch().addColumns(cols)
         .build()
 
-      val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
       val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.numRows should be (3)
@@ -126,7 +123,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "correctly unpack multiple batches of mixed vector types" in {
       val descriptor = transferDescriptor()
 
-      val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
       val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.numRows should be (8)
@@ -163,10 +159,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         Seq(c1.toBytePointerColVector("_"))
       ))
 
-
-      val lib = veProcess.loadLibrary(LibCyclone.SoPath)
-      val batch = veProcess.executeTransfer(lib, descriptor)
-
+      val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.columns.size should be (1)
       batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
@@ -194,8 +187,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         Seq(c1v)
       ))
 
-      val lib = veProcess.loadLibrary(LibCyclone.SoPath)
-      val batch = veProcess.executeTransfer(lib, descriptor)
+      val batch = veProcess.executeTransfer(libRef, descriptor)
 
       batch.columns.size should be (1)
       val output = batch.columns(0).toBytePointerColVector
@@ -211,7 +203,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val a1bits = FixedBitSet.from(a1v.buffers(1))
       val b1bits = FixedBitSet.from(b1v.buffers(1))
       val c1bits = FixedBitSet.from(c1v.buffers(1))
-      val outbits = FixedBitSet.from(output.buffers(1)).toSeq
+      val outbits = FixedBitSet.from(output.buffers(1))
 
       outbits.toSeq.take(a1.size + b1.size + c1.size) should equal(a1bits.toSeq.take(a1.size) ++ b1bits.toSeq.take(b1.size) ++ c1bits.toSeq.take(c1.size))
     }
