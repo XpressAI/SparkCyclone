@@ -213,7 +213,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val c1bits = FixedBitSet.from(c1v.buffers(1))
       val outbits = FixedBitSet.from(output.buffers(1)).toSeq
 
-      outbits.toSeq should equal(a1bits.toSeq.take(a1.size) ++ b1bits.toSeq.take(b1.size) ++ c1bits.toSeq.take(c1.size))
+      outbits.toSeq.take(a1.size + b1.size + c1.size) should equal(a1bits.toSeq.take(a1.size) ++ b1bits.toSeq.take(b1.size) ++ c1bits.toSeq.take(c1.size))
     }
 
     def generatedColumn[T: ClassTag] = Gen.choose[Int](1, 512).map(InputSamples.seqOpt[T](_))
