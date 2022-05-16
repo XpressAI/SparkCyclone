@@ -216,7 +216,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       outbits.toSeq.take(a1.size + b1.size + c1.size) should equal(a1bits.toSeq.take(a1.size) ++ b1bits.toSeq.take(b1.size) ++ c1bits.toSeq.take(c1.size))
     }
 
-    def generatedColumn[T: ClassTag] = Gen.choose[Int](1, 512).map(InputSamples.seqOpt[T](_))
     "correctly unpack a batch of two columns of a single item of an empty string" in {
       val input = List(Array(""), Array(""))
       val inputBatch = List(input.map(_.toBytePointerColVector("_")))
