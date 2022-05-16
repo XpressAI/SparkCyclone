@@ -17,6 +17,8 @@ import scala.reflect.ClassTag
 
 @VectorEngineTest
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
+  private val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
+
   private def batch1() = Seq(
     Array[Double](1, 2, 3).toBytePointerColVector("col1_b1"),
     Array[String]("a", "b", "c").toBytePointerColVector("col2_b1")
@@ -96,7 +98,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
 
   "handle_transfer" should {
    import com.nec.util.CallContextOps._
-   val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
 
 
     "correctly unpack a single batch of mixed vector types" in {
