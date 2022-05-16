@@ -2,6 +2,7 @@ package com.nec.colvector
 
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.SeqOptTConversions.SeqOptTToBPCV
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.FixedBitSet
