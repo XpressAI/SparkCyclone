@@ -165,7 +165,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
     }
 
-    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" ignore {
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" in {
       // Batch A
       val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142), None, None, None, Some(2149), Some(4297), None, None, Some(3278), Some(6668), None)
 
