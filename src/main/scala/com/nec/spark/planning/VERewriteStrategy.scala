@@ -223,7 +223,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeOneStageEvaluationPlan(
           outputExpressions = s.output,
           veFunction = veFunction,
-          child = SparkToVectorEnginePlan(planLater(child), veFunction)
+          child = SparkToVectorEnginePlan(planLater(child), veFunction, Some(orders)),
         )
       )
     )
