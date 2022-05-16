@@ -2,6 +2,7 @@ package com.nec.colvector
 
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector.ArrayTConversions._
+import com.nec.colvector.SeqOptTConversions.SeqOptTToBPCV
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.ve.WithVeProcess
 import org.bytedeco.javacpp.LongPointer
@@ -171,6 +172,62 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       batch.columns.zip(input).foreach{ case (bc, inCol)  =>
         bc.toBytePointerColVector.toBytes should equal(inCol.toBytePointerColVector("_").toBytes)
       }
+    }
+
+    "correctly do stuff 2" in {
+      // Batch A
+      val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142), None, None, None, Some(2149), Some(4297), None, None, Some(3278), Some(6668), None)
+
+      // Batch B
+      val b1 = Seq(None, None, None, Some(8051), None, Some(1383), None, None, Some(2256), Some(5785), None, None, None, None, None, Some(4693), None, Some(1849), Some(3790), Some(8995), None, Some(6961), Some(7132), None, None, None, None, Some(6968), None, None, Some(3763), None, Some(3558), None, None, Some(2011), None, None, None, Some(3273), None, None, Some(9428), None, None, Some(6408), Some(7940), None, Some(9521), None, None, Some(5832), None, None, Some(5817), Some(5949))
+
+      // Batch C
+      val c1 = Seq(Some(7319), None, None, Some(4859), Some(524), Some(406), None, None, Some(1154), None, None, Some(1650), Some(8040), None, None, None, None, None, None, None, None, None, Some(1146), None, Some(7268), Some(8197), None, None, None, None, Some(81), Some(2053), Some(6571), Some(4600), None, Some(3699), None, Some(8404), None, None, Some(8401), None, None, Some(6234), Some(6281), Some(7367), None, Some(4688), Some(7490), None, Some(5412), None, None, Some(871), None, Some(9086), None, Some(5362), Some(6516))
+
+      // Create BytePointerColVectors
+      val a1v = a1.toBytePointerColVector("_")
+      val b1v = b1.toBytePointerColVector("_")
+      val c1v = c1.toBytePointerColVector("_")
+
+      // Create batch of batches
+      val descriptor = TransferDescriptor(List(
+        List(a1v),
+        List(b1v),
+        List(c1v)
+      ))
+
+      println("Transfer Buffer")
+      descriptor.printBuffer()
+
+      val lib = veProcess.loadLibrary(libraryPath)
+      val batch = veProcess.executeTransfer(lib, descriptor)
+
+      batch.columns.size should be (1)
+      val output = batch.columns(0).toBytePointerColVector
+
+      // If we extract as Array[Int], the values match with the input
+      output.toArray[Int].toSeq should be ((a1 ++ b1 ++ c1).map(_.getOrElse(0)))
+
+      // The lengths match as well
+      output.toArray[Int].size should be (a1.size + b1.size + c1.size)
+
+      println(a1v.toBytes.mkString("A(", ", ", ")"))
+      println(b1v.toBytes.mkString("B(", ", ", ")"))
+      println(c1v.toBytes.mkString("C(", ", ", ")"))
+      println(output.toBytes.mkString("O(", ", ", ")"))
+
+      import com.nec.util.FixedBitSet
+
+      val a1bits = FixedBitSet.from(a1v.buffers(1))
+      val b1bits = FixedBitSet.from(b1v.buffers(1))
+      val c1bits = FixedBitSet.from(c1v.buffers(1))
+      val outbits = FixedBitSet.from(output.buffers(1))
+
+      // But the output bitset does not match the merge of the 3 input bitsets,,,
+      println(a1bits.toSeq.take(a1.size))
+      println(b1bits.toSeq.take(b1.size))
+      println(c1bits.toSeq.take(c1.size))
+      println(outbits.toSeq)
     }
 
     def generatedColumn[T: ClassTag] = Gen.choose[Int](1, 512).map(InputSamples.seq[T](_))

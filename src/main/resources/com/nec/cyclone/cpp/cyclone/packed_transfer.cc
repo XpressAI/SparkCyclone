@@ -231,7 +231,7 @@ void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char*
  * # Output descriptor
  * The output descriptor has the following format:
  * ```
- * [column ouput descriptor]...
+ * [column output descriptor]...
  * ```
  * As we are merging the entire input into a single batch, there will be exactly
  * `column count` output descriptors.
