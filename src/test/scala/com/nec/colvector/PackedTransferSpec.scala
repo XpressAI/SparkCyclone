@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
 
 @VectorEngineTest
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
-  private val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
+  private lazy val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
 
   private def batch1() = Seq(
     Array[Double](1, 2, 3).toBytePointerColVector("col1_b1"),
