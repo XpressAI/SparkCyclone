@@ -40,6 +40,13 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
   private def metricsFn[T](f:() => T): T = withInvocationMetrics(VE)(f.apply())
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
+
+    println("executeVeColumnar got:")
+    println(child.outputPartitioning)
+    println("...........")
+    println(child.outputOrdering)
+    println("...........")
+
     require(!child.isInstanceOf[SupportsVeColBatch], "Child should not be a VE plan")
     initializeMetrics()
     val byteTotalBatchRowCount = longMetric(s"byteTotalBatchRowCount")
