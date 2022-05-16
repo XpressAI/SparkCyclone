@@ -375,4 +375,45 @@ namespace cyclone::tests {
     CHECK(output[4] == expected[4]);
     free(output);
   }
+
+  TEST_CASE("Merging into tail works after several small steps landing on full byte"){
+    uint64_t inputs[3] = {
+      0b0000000000000000000000000000000000000000000000000110011000110010,
+//                                                      ^ valid until here
+      0b0000000011001001011001001000100101001000011011101000001100101000,
+//              ^ valid until here
+      0b0000011010100101101110010010101111000011010000000001100100111001
+//           ^ valid until here
+    };
+
+    uint64_t lengths[3] = {16, 56, 59};
+
+    const auto vbytes = sizeof(uint64_t) * frovedis::ceil_div(lengths[0] + lengths[1] + lengths[2], size_t(64));
+    uint64_t* output = static_cast<uint64_t *>(calloc(vbytes, 1));
+
+    auto d1 = cyclone::append_bitsets(&output[0],  0, &inputs[0], lengths[0]);
+    auto d2 = cyclone::append_bitsets(&output[0], d1, &inputs[1], lengths[1]);
+    auto d3 = cyclone::append_bitsets(&output[1], d2, &inputs[2], lengths[2]);
+
+    auto expected_d1 = lengths[0] % 64;
+    auto expected_d2 = (lengths[0] + lengths[1]) % 64;
+    auto expected_d3 = (lengths[0] + lengths[1] + lengths[2]) % 64;
+
+    uint64_t expected[3] = {
+      0b0110010010001001010010000110111010000011001010000110011000110010,
+//                                 part of inputs[1]    ^ inputs[0]
+      0b1010010110111001001010111100001101000000000110010011100111001001,
+//                                 part of inputs[2]    ^ part of inputs[1]
+      0b0000000000000000000000000000000000000000000000000000000000000110
+//                                              empty                ^ part of inputs[2]
+    };
+
+    CHECK(d1 == expected_d1);
+    CHECK(d2 == expected_d2);
+    CHECK(d3 == expected_d3);
+
+    CHECK(output[0] == expected[0]);
+    CHECK(output[1] == expected[1]);
+    CHECK(output[2] == expected[2]);
+  }
 }
