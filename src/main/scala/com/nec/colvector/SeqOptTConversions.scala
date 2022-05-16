@@ -17,7 +17,7 @@ object SeqOptTConversions {
     bitset.toBytePointer
   }
 
-  implicit class SeqOptTToBPCV[T: ClassTag](input: Seq[Option[T]]) {
+  implicit class SeqOptTToBPCV[T <: AnyVal : ClassTag](input: Seq[Option[T]]) {
     private[colvector] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
