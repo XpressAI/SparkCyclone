@@ -219,7 +219,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     }
 
     def generatedColumn[T: ClassTag] = Gen.choose[Int](1, 512).map(InputSamples.seqOpt[T](_))
-    def generatedColumns[T: ClassTag] = Gen.zip(Gen.choose[Int](1, 25), Gen.choose[Int](1, 25)).map{ case (colCount, colLength) =>
+    def generatedColumns[T: ClassTag] = Gen.zip(Gen.choose[Int](1, 25), Gen.choose[Int](1, 512)).map{ case (colCount, colLength) =>
       (0 until colCount).map{ i => InputSamples.seqOpt[T](colLength) }.toList
     }
     def generatedBatches[T: ClassTag](maxLength: Int = 512) = Gen.zip(Gen.choose[Int](1, 10), Gen.choose[Int](1, 10), Gen.choose[Int](1, maxLength)).map{ case(batchCount, colCount, colLength) =>
