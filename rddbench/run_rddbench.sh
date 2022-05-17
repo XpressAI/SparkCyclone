@@ -8,8 +8,8 @@ time $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --name RDDBench \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
-    --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.4.jar \
-    --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.4.jar \
+    --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.5-SNAPSHOT.jar \
+    --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.5-SNAPSHOT.jar \
     --conf spark.rpc.message.maxSize=1024 \
     --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
