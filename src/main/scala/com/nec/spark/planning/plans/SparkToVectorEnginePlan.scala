@@ -12,7 +12,8 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.{Distribution, OrderedDistribution, UnspecifiedDistribution}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
@@ -20,7 +21,7 @@ import java.nio.file.Paths
 
 // SparkToVectorEnginePlan calls handleTransfer, a library function. It uses the parentVeFunction
 // to get access to the library.
-case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFunction)
+case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFunction, sortOrder: Option[Seq[SortOrder]] = None)
   extends UnaryExecNode
   with LazyLogging
   with SupportsVeColBatch
@@ -34,6 +35,10 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
   override def child: SparkPlan = childPlan
 
   override def output: Seq[Attribute] = child.output
+
+  override def outputOrdering: Seq[SortOrder] = sortOrder.getOrElse(Nil)
+
+  override def requiredChildDistribution: Seq[Distribution] = if (sortOrder.isDefined) Seq(OrderedDistribution(sortOrder.get)) else Seq(UnspecifiedDistribution)
 
   override def dataCleanup: DataCleanup = DataCleanup.cleanup(this.getClass)
 

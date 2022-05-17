@@ -204,7 +204,6 @@ namespace cyclone {
       return out_dangling;
     }
 
-    // Calculate how many full elements are necessary to fit the second bitset into the given type
     auto is_big_steps = sizeof(T) > 1;
 
     // How many elements *can* be fit into the tail

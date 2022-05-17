@@ -172,6 +172,52 @@ namespace cyclone::tests {
       CHECK(transferred->equals(vec1));
     }
 
+    TEST_CASE("Unpacking works for two varchar vectors of an empty string each"){
+      std::vector<std::string> raw { "" };
+      auto *vec1 = new nullable_varchar_vector(raw);
+      auto *vec2 = new nullable_varchar_vector(raw);
+
+      auto header_size = sizeof(transfer_header) + 2*(sizeof(size_t) + sizeof(varchar_col_in));
+
+      size_t element_count = static_cast<size_t>(vec1->count);
+      size_t data_size = VECTOR_ALIGNED(vec1->dataSize * sizeof(int32_t));
+      size_t offsets_size = VECTOR_ALIGNED(element_count * sizeof(int32_t));
+      size_t lengths_size = VECTOR_ALIGNED(element_count * sizeof(int32_t));
+      size_t validity_buffer_size = VECTOR_ALIGNED(frovedis::ceil_div(vec1->count, int32_t(64)) * sizeof(uint64_t));
+
+      char* transfer = static_cast<char*>(malloc(header_size + 2*(data_size + offsets_size + lengths_size + validity_buffer_size)));
+
+      size_t pos = 0;
+      transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
+      header->header_size = header_size;
+      header->batch_count = 1;
+      header->column_count = 2;
+      pos += sizeof(transfer_header);
+
+      size_t data_pos = 0;
+      size_t col_pos = 0;
+      copy_varchar_vec_to_transfer_buffer(vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_varchar_vec_to_transfer_buffer(vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+
+      uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * 10));
+
+      char* target[1] = {transfer};
+
+      int res = handle_transfer(target, od);
+      CHECK(res == 0);
+
+      nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
+      nullable_varchar_vector* transferred2 = reinterpret_cast<nullable_varchar_vector*>(od[5]);
+
+      vec1->print();
+      transferred1->print();
+      vec2->print();
+      transferred2->print();
+
+      CHECK(transferred1->equals(vec1));
+      CHECK(transferred2->equals(vec2));
+    }
+
     TEST_CASE("Unpacking works for multiple vectors of different types"){
       std::vector<std::string> raw { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
       auto *vec1 = new nullable_varchar_vector(raw);
@@ -322,94 +368,234 @@ namespace cyclone::tests {
     }
 
     TEST_CASE("Unpacking and merging three batches works for multiple vectors of different types"){
-          std::vector<std::string> raw1 { "JAN", "FEB", "MAR", "APR", "MAY", "JUN"};
-          std::vector<std::string> raw2 { "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
-          std::vector<std::string> raw3 { "A", "b", "C"};
-          auto *vc_vec1 = new nullable_varchar_vector(raw1);
-          vc_vec1->set_validity(1, 0);
-          vc_vec1->set_validity(3, 0);
-          vc_vec1->set_validity(5, 0);
+      std::vector<std::string> raw1 { "JAN", "FEB", "MAR", "APR", "MAY", "JUN"};
+      std::vector<std::string> raw2 { "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+      std::vector<std::string> raw3 { "A", "b", "C"};
+      auto *vc_vec1 = new nullable_varchar_vector(raw1);
+      vc_vec1->set_validity(1, 0);
+      vc_vec1->set_validity(3, 0);
+      vc_vec1->set_validity(5, 0);
 
-          auto *vc_vec2 = new nullable_varchar_vector(raw2);
-          vc_vec2->set_validity(0, 0);
-          vc_vec2->set_validity(2, 0);
-          vc_vec2->set_validity(4, 0);
+      auto *vc_vec2 = new nullable_varchar_vector(raw2);
+      vc_vec2->set_validity(0, 0);
+      vc_vec2->set_validity(2, 0);
+      vc_vec2->set_validity(4, 0);
 
-          auto *vc_vec3 = new nullable_varchar_vector(raw3);
-          vc_vec3->set_validity(1, 0);
+      auto *vc_vec3 = new nullable_varchar_vector(raw3);
+      vc_vec3->set_validity(1, 0);
 
-          auto *sc_vec1 = new NullableScalarVec<int32_t>({586, 951, 106, 318, 538, 620});
-          sc_vec1->set_validity(1, 0);
-          sc_vec1->set_validity(3, 0);
-          sc_vec1->set_validity(5, 0);
+      auto *sc_vec1 = new NullableScalarVec<int32_t>({586, 951, 106, 318, 538, 620});
+      sc_vec1->set_validity(1, 0);
+      sc_vec1->set_validity(3, 0);
+      sc_vec1->set_validity(5, 0);
 
-          auto *sc_vec2 = new NullableScalarVec<int32_t>({553, 605, 822, 941});
-          sc_vec2->set_validity(2, 0);
-          sc_vec2->set_validity(3, 0);
+      auto *sc_vec2 = new NullableScalarVec<int32_t>({553, 605, 822, 941});
+      sc_vec2->set_validity(2, 0);
+      sc_vec2->set_validity(3, 0);
 
-          auto *sc_vec3 = new NullableScalarVec<int32_t>({53, 5, 22, 94});
-          sc_vec2->set_validity(0, 0);
-          sc_vec2->set_validity(1, 0);
+      auto *sc_vec3 = new NullableScalarVec<int32_t>({53, 5, 22, 94});
+      sc_vec2->set_validity(0, 0);
+      sc_vec2->set_validity(1, 0);
 
-          auto header_size = sizeof(transfer_header) + (3 * (sizeof(size_t) + sizeof(scalar_col_in))) + (3 * (sizeof(size_t) + sizeof(varchar_col_in)));
+      auto header_size = sizeof(transfer_header) + (3 * (sizeof(size_t) + sizeof(scalar_col_in))) + (3 * (sizeof(size_t) + sizeof(varchar_col_in)));
 
-          size_t data_size = (VECTOR_ALIGNED(vc_vec1->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->dataSize * sizeof(int32_t))
-                             + VECTOR_ALIGNED(sc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(sc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(sc_vec3->count * sizeof(int32_t)));
-          size_t offsets_size = VECTOR_ALIGNED(vc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->count * sizeof(int32_t));
-          size_t lengths_size = VECTOR_ALIGNED(vc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->count * sizeof(int32_t));
-          size_t validity_buffer_size = VECTOR_ALIGNED(sizeof(uint64_t) * ( frovedis::ceil_div(vc_vec1->count, int32_t(64))
-                                                           + frovedis::ceil_div(vc_vec2->count, int32_t(64))
-                                                           + frovedis::ceil_div(vc_vec3->count, int32_t(64))
-                                                           + frovedis::ceil_div(sc_vec1->count, int32_t(64))
-                                                           + frovedis::ceil_div(sc_vec2->count, int32_t(64))
-                                                           + frovedis::ceil_div(sc_vec3->count, int32_t(64))));
+      size_t data_size = (VECTOR_ALIGNED(vc_vec1->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->dataSize * sizeof(int32_t))
+                         + VECTOR_ALIGNED(sc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(sc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(sc_vec3->count * sizeof(int32_t)));
+      size_t offsets_size = VECTOR_ALIGNED(vc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->count * sizeof(int32_t));
+      size_t lengths_size = VECTOR_ALIGNED(vc_vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vc_vec3->count * sizeof(int32_t));
+      size_t validity_buffer_size = VECTOR_ALIGNED(sizeof(uint64_t) * ( frovedis::ceil_div(vc_vec1->count, int32_t(64))
+                                                       + frovedis::ceil_div(vc_vec2->count, int32_t(64))
+                                                       + frovedis::ceil_div(vc_vec3->count, int32_t(64))
+                                                       + frovedis::ceil_div(sc_vec1->count, int32_t(64))
+                                                       + frovedis::ceil_div(sc_vec2->count, int32_t(64))
+                                                       + frovedis::ceil_div(sc_vec3->count, int32_t(64))));
 
-          char* transfer = static_cast<char*>(malloc(header_size + data_size + offsets_size + lengths_size + validity_buffer_size));
+      char* transfer = static_cast<char*>(malloc(header_size + data_size + offsets_size + lengths_size + validity_buffer_size));
 
-          size_t pos = 0;
-          transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
-          header->header_size = header_size;
-          header->batch_count = 3;
-          header->column_count = 2;
-          pos += sizeof(transfer_header);
+      size_t pos = 0;
+      transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
+      header->header_size = header_size;
+      header->batch_count = 3;
+      header->column_count = 2;
+      pos += sizeof(transfer_header);
 
-          size_t data_pos = 0;
-          size_t col_pos = 0;
-          copy_varchar_vec_to_transfer_buffer(vc_vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
-          copy_varchar_vec_to_transfer_buffer(vc_vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
-          copy_varchar_vec_to_transfer_buffer(vc_vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
-          copy_scalar_vec_to_transfer_buffer(sc_vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
-          copy_scalar_vec_to_transfer_buffer(sc_vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
-          copy_scalar_vec_to_transfer_buffer(sc_vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      size_t data_pos = 0;
+      size_t col_pos = 0;
+      copy_varchar_vec_to_transfer_buffer(vc_vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_varchar_vec_to_transfer_buffer(vc_vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_varchar_vec_to_transfer_buffer(vc_vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_scalar_vec_to_transfer_buffer(sc_vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_scalar_vec_to_transfer_buffer(sc_vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_scalar_vec_to_transfer_buffer(sc_vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
 
-          uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * (5 + 3)));
+      uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * (5 + 3)));
 
-          char* target[1] = {transfer};
+      char* target[1] = {transfer};
 
-          int res = handle_transfer(target, od);
-          CHECK(res == 0);
+      int res = handle_transfer(target, od);
+      CHECK(res == 0);
 
-          nullable_varchar_vector* varchars[3] = {vc_vec1, vc_vec2, vc_vec3};
-          NullableScalarVec<int32_t>* scalars[3] = {sc_vec1, sc_vec2, sc_vec3};
+      nullable_varchar_vector* varchars[3] = {vc_vec1, vc_vec2, vc_vec3};
+      NullableScalarVec<int32_t>* scalars[3] = {sc_vec1, sc_vec2, sc_vec3};
 
-          nullable_varchar_vector* vc_merged = nullable_varchar_vector::merge(varchars, 3);
-          NullableScalarVec<int32_t>* sc_merged = NullableScalarVec<int32_t>::merge(scalars, 3);
+      nullable_varchar_vector* vc_merged = nullable_varchar_vector::merge(varchars, 3);
+      NullableScalarVec<int32_t>* sc_merged = NullableScalarVec<int32_t>::merge(scalars, 3);
 
-          nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
+      nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
 
-          std::cout << "vc_merged = " << std::endl;
-          vc_merged->print();
-          std::cout << "transferred1 = " << std::endl;
-          transferred1->print();
-          CHECK(transferred1->equals(vc_merged));
+      std::cout << "vc_merged = " << std::endl;
+      vc_merged->print();
+      std::cout << "transferred1 = " << std::endl;
+      transferred1->print();
+      CHECK(transferred1->equals(vc_merged));
 
-          NullableScalarVec<int32_t>* transferred2 = reinterpret_cast<NullableScalarVec<int32_t>*>(od[5]);
+      NullableScalarVec<int32_t>* transferred2 = reinterpret_cast<NullableScalarVec<int32_t>*>(od[5]);
 
-          std::cout << "sc_merged = " << std::endl;
-          sc_merged->print();
-          std::cout << "transferred2 = " << std::endl;
-          transferred2->print();
-          CHECK(transferred2->equals(sc_merged));
-        }
+      std::cout << "sc_merged = " << std::endl;
+      sc_merged->print();
+      std::cout << "transferred2 = " << std::endl;
+      transferred2->print();
+      CHECK(transferred2->equals(sc_merged));
+    }
+
+    TEST_CASE_TEMPLATE("Unpacking works for three scalar vector of T=", T, int32_t, int64_t, float, double) {
+        uint64_t validity_buffers[3] = {
+          0b0000000000000000000000000000000000000000000000000110011000110010,
+    //                                                      ^ valid until here
+          0b0000000011001001011001001000100101001000011011101000001100101000,
+    //              ^ valid until here
+          0b0000011010100101101110010010101111000011010000000001100100111001
+    //           ^ valid until here
+        };
+      const std::vector <T> a{0, 4436, 0, 0, 9586, 2142, 0, 0, 0, 2149, 4297, 0, 0, 3278, 6668, 0};
+      auto *vec1 = new NullableScalarVec(a);
+      vec1->validityBuffer = &validity_buffers[0];
+      
+      const std::vector <T> b{
+        0, 0, 0, 8051, 0, 1383, 0, 0, 2256, 5785, 0, 0, 0, 0, 0, 4693, 0, 1849, 3790, 8995, 0, 6961, 7132, 0, 0, 0, 0, 6968, 0, 0, 3763, 0, 3558, 0, 0, 2011, 0, 0, 0, 3273, 0, 0, 9428, 0, 0, 6408, 7940, 0, 9521, 0, 0, 5832, 0, 0, 5817, 5949
+      };
+      auto *vec2 = new NullableScalarVec(b);
+      vec2->validityBuffer = &validity_buffers[1];
+      
+      const std::vector <T> c{
+        7319, 0, 0, 4859, 524, 406, 0, 0, 1154, 0, 0, 1650, 8040, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1146, 0, 7268, 8197, 0, 0, 0, 0, 81, 2053, 6571, 4600, 0, 3699, 0, 8404, 0, 0, 8401, 0, 0, 6234, 6281, 7367, 0, 4688, 7490, 0, 5412, 0, 0, 871, 0, 9086, 0, 5362, 6516
+      };
+      auto *vec3 = new NullableScalarVec(c);
+      vec3->validityBuffer = &validity_buffers[2];
+      
+
+
+      auto header_size = sizeof(transfer_header) + 3 * (sizeof(size_t) + sizeof(scalar_col_in));
+
+      size_t data_size = VECTOR_ALIGNED(sizeof(T) * vec1->count) + VECTOR_ALIGNED(sizeof(T) * vec2->count) + VECTOR_ALIGNED(sizeof(T) * vec3->count);
+      size_t validity_buffer_size = VECTOR_ALIGNED(frovedis::ceil_div(vec1->count, int32_t(64)) * sizeof(uint64_t))
+                                  + VECTOR_ALIGNED(frovedis::ceil_div(vec2->count, int32_t(64)) * sizeof(uint64_t))
+                                  + VECTOR_ALIGNED(frovedis::ceil_div(vec3->count, int32_t(64)) * sizeof(uint64_t));
+
+      char* transfer = static_cast<char*>(malloc(header_size + data_size + validity_buffer_size));
+
+      size_t pos = 0;
+      transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
+      header->header_size = header_size;
+      header->batch_count = 3;
+      header->column_count = 1;
+      pos += sizeof(transfer_header);
+
+      size_t data_pos = 0;
+      size_t col_pos = 0;
+      copy_scalar_vec_to_transfer_buffer(vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_scalar_vec_to_transfer_buffer(vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_scalar_vec_to_transfer_buffer(vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+
+      uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * 3));
+
+      char* target[1] = {transfer};
+
+      int res = handle_transfer(target, od);
+      CHECK(res == 0);
+
+      NullableScalarVec<T>* transferred = reinterpret_cast<NullableScalarVec<T>*>(od[0]);
+
+      NullableScalarVec<T>* scalars[3] = {vec1, vec2, vec3};
+      NullableScalarVec<T>* merged = NullableScalarVec<T>::merge(scalars, 3);
+
+      std::cout << "merged = " << std::endl;
+      merged->print();
+      std::cout << "transferred = " << std::endl;
+      transferred->print();
+
+      CHECK(transferred->equals(merged));
+    }
+    
+    TEST_CASE("Unpacking works for three varchar vectors") {
+        uint64_t validity_buffers[3] = {
+          0b0000000000000000000000000000000000000000000000000110011000110010,
+//                                                      ^ valid until here
+          0b0000000011001001011001001000100101001000011011101000001100101000,
+//              ^ valid until here
+          0b0000011010100101101110010010101111000011010000000001100100111001
+//           ^ valid until here
+        };
+      const std::vector <std::string> a{"0", "4436", "0", "0", "9586", "2142", "0", "0", "0", "2149", "4297", "0", "0", "3278", "6668", "0"};
+      auto *vec1 = new nullable_varchar_vector(a);
+      vec1->validityBuffer = &validity_buffers[0];
+      
+      const std::vector <std::string> b{
+        "0", "0", "0", "8051", "0", "1383", "0", "0", "2256", "5785", "0", "0", "0", "0", "0", "4693", "0", "1849", "3790", "8995", "0", "6961", "7132", "0", "0", "0", "0", "6968", "0", "0", "3763", "0", "3558", "0", "0", "2011", "0", "0", "0", "3273", "0", "0", "9428", "0", "0", "6408", "7940", "0", "9521", "0", "0", "5832", "0", "0", "5817", "5949"
+      };
+      auto *vec2 = new nullable_varchar_vector(b);
+      vec2->validityBuffer = &validity_buffers[1];
+      
+      const std::vector <std::string> c{
+        "7319", "0", "0", "4859", "524", "406", "0", "0", "1154", "0", "0", "1650", "8040", "0", "0", "0", "0", "0", "0", "0", "0", "0", "1146", "0", "7268", "8197", "0", "0", "0", "0", "81", "2053", "6571", "4600", "0", "3699", "0", "8404", "0", "0", "8401", "0", "0", "6234", "6281", "7367", "0", "4688", "7490", "0", "5412", "0", "0", "871", "0", "9086", "0", "5362", "6516"
+      };
+      auto *vec3 = new nullable_varchar_vector(c);
+      vec3->validityBuffer = &validity_buffers[2];
+      
+
+
+      auto header_size = sizeof(transfer_header) + 3 * (sizeof(size_t) + sizeof(varchar_col_in));
+
+      size_t data_size = VECTOR_ALIGNED(vec1->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vec2->dataSize * sizeof(int32_t)) + VECTOR_ALIGNED(vec3->dataSize * sizeof(int32_t));
+      size_t validity_buffer_size = VECTOR_ALIGNED(frovedis::ceil_div(vec1->count, int32_t(64)) * sizeof(uint64_t))
+                                  + VECTOR_ALIGNED(frovedis::ceil_div(vec2->count, int32_t(64)) * sizeof(uint64_t))
+                                  + VECTOR_ALIGNED(frovedis::ceil_div(vec3->count, int32_t(64)) * sizeof(uint64_t));
+      size_t offsets_size = VECTOR_ALIGNED(vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vec3->count * sizeof(int32_t));
+      size_t lengths_size = VECTOR_ALIGNED(vec1->count * sizeof(int32_t)) + VECTOR_ALIGNED(vec2->count * sizeof(int32_t)) + VECTOR_ALIGNED(vec3->count * sizeof(int32_t));
+
+      char* transfer = static_cast<char*>(malloc(header_size + data_size + validity_buffer_size + offsets_size + lengths_size));
+
+      size_t pos = 0;
+      transfer_header* header = reinterpret_cast<transfer_header *>(&transfer[pos]);
+      header->header_size = header_size;
+      header->batch_count = 3;
+      header->column_count = 1;
+      pos += sizeof(transfer_header);
+
+      size_t data_pos = 0;
+      size_t col_pos = 0;
+      copy_varchar_vec_to_transfer_buffer(vec1, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_varchar_vec_to_transfer_buffer(vec2, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+      copy_varchar_vec_to_transfer_buffer(vec3, &transfer[pos], &transfer[header_size], col_pos, data_pos);
+
+      uintptr_t* od = static_cast<uintptr_t*>(malloc(sizeof(uintptr_t) * 5));
+
+      char* target[1] = {transfer};
+
+      int res = handle_transfer(target, od);
+      CHECK(res == 0);
+
+      nullable_varchar_vector* transferred = reinterpret_cast<nullable_varchar_vector*>(od[0]);
+
+      nullable_varchar_vector* varchars[3] = {vec1, vec2, vec3};
+      nullable_varchar_vector* merged = nullable_varchar_vector::merge(varchars, 3);
+
+      std::cout << "merged = " << std::endl;
+      merged->print();
+      std::cout << "transferred = " << std::endl;
+      transferred->print();
+
+      CHECK(transferred->equals(merged));
+    }
   }
 }

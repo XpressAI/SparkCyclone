@@ -1,11 +1,12 @@
 package com.nec.colvector
 
-import ArrayTConversions._
+import com.nec.colvector.ArrayTConversions._
 import com.nec.spark.agile.core._
-import scala.reflect.ClassTag
-import scala.collection.mutable.{Seq => MSeq}
 import com.nec.util.FixedBitSet
 import org.bytedeco.javacpp._
+
+import scala.collection.mutable.{Seq => MSeq}
+import scala.reflect.ClassTag
 
 object SeqOptTConversions {
   private[colvector] def constructValidityBuffer[T](input: Seq[Option[T]]): BytePointer = {
