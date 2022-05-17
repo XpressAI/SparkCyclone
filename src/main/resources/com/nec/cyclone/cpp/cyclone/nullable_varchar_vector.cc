@@ -24,6 +24,7 @@
 #include "frovedis/text/dict.hpp"
 #include <stdlib.h>
 #include <iostream>
+#include <cstring>
 
 nullable_varchar_vector * nullable_varchar_vector::allocate() {
   // Allocate

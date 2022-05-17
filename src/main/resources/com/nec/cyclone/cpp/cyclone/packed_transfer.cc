@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <type_traits>
 #include <iostream>
+#include <cstring>
 
 void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;
