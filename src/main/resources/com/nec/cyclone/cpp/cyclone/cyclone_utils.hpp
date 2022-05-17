@@ -25,6 +25,7 @@
 #include <vector>
 #include <bitset>
 #include <climits>
+#include <cstring>
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 #include "frovedis/dataframe/join.hpp"
