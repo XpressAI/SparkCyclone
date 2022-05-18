@@ -508,7 +508,15 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     // we copy the whole 64 bit as if they were fully used
     wordcnt += restcnt ? 1 : 0;
 
-    uint64_t mask =  ~0 >> (64-dangling_bits);
+    uint64_t mask =  UINT64_MAX >> dangling_bits;
+    uint64_t vmask = UINT64_MAX >> (64-restcnt);
+
+    // debug
+    printf("======================\nBatch: %d\n", b);
+    printf("ox: %d\n", ox);
+    printf("dangling: %d\n=================\n", dangling_bits);
+    printf("mask: %016llx\n", mask);
+
 
     // copy whole words from source batch
     // since we might need to shift the bits by "dangling_bits" in the output
@@ -516,12 +524,23 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     // one source word might need to be split and written to 2 destination words
     for (auto i=0; i<wordcnt; i++) {
 
-      uint64_t validity_bits = inputs[b]->validityBuffer[i];
-      uint64_t lower_half = (validity_bits & mask) << dangling_bits;
-      uint64_t upper_half = (validity_bits & ~mask) >> (64-dangling_bits);
+      uint64_t validity_bits = inputs[b]->validityBuffer[i] & mask;
 
+      if (i == wordcnt - 1) validity_bits &= vmask;
+
+      uint64_t lower_half = (validity_bits & mask) << dangling_bits;
+      uint64_t upper_half = (validity_bits & ~mask) >> (64 - dangling_bits);
+
+      printf("validity: %016llx\n", validity_bits);
+      printf("lower   : %016llx\n", lower_half);
+      printf("upper   : %016llx\n", upper_half);
+     
       outbuf[ox++] |= lower_half;
       outbuf[ox] = upper_half;
+
+      printf("out[ox] : %016llx\n", outbuf[ox-1]);
+      printf("out[ox+1] %016llx\n", outbuf[ox]);
+
     }
 
     // now it might be, that the last word has not been used,
