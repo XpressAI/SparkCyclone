@@ -119,8 +119,8 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.metrics.getTimers.get(VeProcess.VeAllocTimerMetric).getCount should be (1L)
       process.metrics.getTimers.get(VeProcess.VeFreeTimerMetric).getCount should be (1L)
 
-      // Double `free()` should fail without crashing the JVM
-      intercept[IllegalArgumentException] {
+      // Double `free()` should just log error without running and crashing the JVM
+      noException should be thrownBy {
         process.free(allocation.address)
       }
     }
@@ -144,7 +144,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       }
 
       // VE memory address is valid but has never been allocated before
-      intercept[IllegalArgumentException] {
+      noException should be thrownBy {
         process.free(Random.nextInt(10000).toLong)
       }
     }

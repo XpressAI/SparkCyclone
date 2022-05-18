@@ -239,7 +239,7 @@ object VeProcess extends LazyLogging {
 
     tupleO match {
       case Some((venode, handle, tcontext)) =>
-        val identifier = s"VE Process @ ${handle.address}, Executor ${Try { context.executorID }}"
+        val identifier = s"VE Process @ ${handle.address}, Executor ${Try { context.executorID }.getOrElse("UNKNOWN")}"
         WrappingVeo(venode, identifier, handle, tcontext, context.metricRegistry)
 
       case None =>

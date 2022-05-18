@@ -112,28 +112,31 @@ final case class VeColVector private[colvector] (
   def free()(implicit dsource: VeColVectorSource,
              process: VeProcess,
              context: CallContext): Unit = {
-    if (open) {
-      require(dsource == source, s"Intended to `free` in ${source}, but got ${dsource} context.")
-      allocations.foreach(process.free(_))
-      open = false
+    open.synchronized {
+      if (open) {
+        require(source == dsource, s"Intended to `free` in ${source}, but got ${dsource} context.")
+        allocations.foreach(process.free(_))
+        open = false
 
-    } else {
-      logger.warn(s"[VE MEMORY ${container}] double free called!")
+      } else {
+        logger.warn(s"[VE MEMORY ${container}] double free called!")
+      }
     }
   }
 
   def free2(implicit process: NewVeProcess): Unit = {
-    if (open) {
-      require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
-      allocations.foreach(process.free(_))
-      open = false
+    open.synchronized {
+      if (open) {
+        require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")
+        allocations.foreach(process.free(_))
+        open = false
 
-    } else {
-      logger.warn(s"[VE MEMORY ${container}] double free called!")
+      } else {
+        logger.warn(s"[VE MEMORY ${container}] double free called!")
+      }
     }
   }
 }
-
 
 object VeColVector {
   def fromBuffer(buffer: BytePointer,
