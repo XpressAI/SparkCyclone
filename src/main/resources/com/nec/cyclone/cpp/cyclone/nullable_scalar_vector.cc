@@ -360,7 +360,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   #pragma _NEC ivdep
   for (auto b = 0; b < batches; b++) {
     for (auto i = 0; i < inputs[b]->count; i++) {
-      output->data[o] = inputs[b]->data[i];
+      output->data[o++] = inputs[b]->data[i];
     }
   }
 
