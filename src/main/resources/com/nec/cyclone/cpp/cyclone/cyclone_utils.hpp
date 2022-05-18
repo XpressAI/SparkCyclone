@@ -221,3 +221,52 @@ namespace cyclone {
     }
   }
 }
+
+template<typename T>
+void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_t batches) {
+  auto dangling_bits = 0;
+  auto ox = 0;
+  outbuf[0] = 0;
+
+  for (auto b=0; b<batches; b++) {
+
+    size_t wordcnt = inputs[b]->count / 64;
+    size_t restcnt = inputs[b]->count  % 64;
+
+    // if there is any rest bits to copy in wordcnt+1,
+    // we copy the whole 64 bit as if they were fully used
+    wordcnt += restcnt ? 1 : 0;
+
+    uint64_t mask =  UINT64_MAX >> dangling_bits;
+    uint64_t vmask = UINT64_MAX >> (64-restcnt);
+
+
+    // copy whole words from source batch
+    // since we might need to shift the bits by "dangling_bits" in the output
+    // to not overwrite the odd bits at the end of the last merged input,
+    // one source word might need to be split and written to 2 destination words
+    for (auto i=0; i<wordcnt; i++) {
+
+      uint64_t validity_bits = inputs[b]->validityBuffer[i];
+
+      if (i == wordcnt - 1) validity_bits &= vmask;
+
+      uint64_t lower_half = (validity_bits & mask) << dangling_bits;
+      uint64_t upper_half = (validity_bits & ~mask) >> (64 - dangling_bits);
+
+      outbuf[ox++] |= lower_half;
+      outbuf[ox] = upper_half;
+
+    }
+
+    // now it might be, that the last word has not been used,
+    // i.e. the upper_half above wasn't used at all and there are
+    // a few bits left in the second to last word.
+    // So, if there is at least one bit left, we need to
+    // set back the output index ox to point to that location:
+    ox = ox - 1 + (restcnt + dangling_bits) / 64;
+
+    // update dangling_bits
+    dangling_bits = (dangling_bits + restcnt) % 64;
+   }
+}
