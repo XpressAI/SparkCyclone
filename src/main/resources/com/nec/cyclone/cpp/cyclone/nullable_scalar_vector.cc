@@ -21,7 +21,6 @@
 #include "frovedis/core/utility.hpp"
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
-#include "cyclone_utils.hpp"
 #include <stdlib.h>
 #include <iostream>
 
@@ -356,7 +355,14 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   }
 
   // Copy the data and preserve the validityBuffer across the merge
-  fast_validity_merge(output->validityBuffer, inputs, batches);
+  auto o = 0;
+  #pragma _NEC ivdep
+  for (auto b = 0; b < batches; b++) {
+    for (auto i = 0; i < inputs[b]->count; i++) {
+      output->data[o] = inputs[b]->data[i];
+      output->set_validity(o++, inputs[b]->get_validity(i));
+    }
+  }
 
   return output;
 }
