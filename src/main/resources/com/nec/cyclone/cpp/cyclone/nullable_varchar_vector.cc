@@ -514,8 +514,10 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     // debug
     printf("======================\nBatch: %d\n", b);
     printf("ox: %d\n", ox);
-    printf("dangling: %d\n=================\n", dangling_bits);
+    printf("dangling: %d\n", dangling_bits);
     printf("mask: %016llx\n", mask);
+    printf("wordcnt:  %d\n", wordcnt);
+    printf("restcnt:  %d\n", restcnt);
 
 
     // copy whole words from source batch
@@ -524,7 +526,7 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     // one source word might need to be split and written to 2 destination words
     for (auto i=0; i<wordcnt; i++) {
 
-      uint64_t validity_bits = inputs[b]->validityBuffer[i] & mask;
+      uint64_t validity_bits = inputs[b]->validityBuffer[i];
 
       if (i == wordcnt - 1) validity_bits &= vmask;
 
