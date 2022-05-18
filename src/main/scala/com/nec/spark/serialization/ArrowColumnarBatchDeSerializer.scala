@@ -24,7 +24,7 @@ object ArrowColumnarBatchDeSerializer extends Serializable {
 
   def deserializeIterator(
     iterator: Iterator[Array[Byte]]
-  )(implicit bufferAllocator: BufferAllocator): Option[ColBatchWithReader] = {
+  )(implicit allocator: BufferAllocator): Option[ColBatchWithReader] = {
     if (!iterator.hasNext) {
       Option.empty
     } else {
@@ -57,9 +57,9 @@ object ArrowColumnarBatchDeSerializer extends Serializable {
 
   def deserialize(
     arr: Array[Byte]
-  )(implicit bufferAllocator: BufferAllocator): ColBatchWithReader = {
+  )(implicit allocator: BufferAllocator): ColBatchWithReader = {
     val byteArrayInputStream = new ByteArrayInputStream(arr)
-    val arrowStreamReader = new ArrowStreamReader(byteArrayInputStream, bufferAllocator)
+    val arrowStreamReader = new ArrowStreamReader(byteArrayInputStream, allocator)
     arrowStreamReader.loadNextBatch()
     val arrowColumnVectors =
       arrowStreamReader.getVectorSchemaRoot.getFieldVectors.asScala.map(vec =>

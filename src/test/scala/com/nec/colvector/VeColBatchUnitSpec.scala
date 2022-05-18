@@ -3,14 +3,13 @@ package com.nec.colvector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.ve.WithVeProcess
+import com.nec.util.CallContextOps._
 import java.io._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
-
   "VeColBatch" should {
     "correctly serialize and deserialize a batch of 2 columns through Array[Byte]" in {
       val array1 = Array[Double](1, 2, 3)

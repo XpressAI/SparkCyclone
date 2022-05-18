@@ -23,7 +23,7 @@ import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.join.JoinUtils._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
@@ -44,7 +44,7 @@ object StaticTypingTestAdditions {
   trait VeAllocator[Input] {
     def allocate(data: Input*)(implicit
       veProcess: VeProcess,
-      originalCallingContext: OriginalCallingContext,
+      context: CallContext,
       veColVectorSource: VeColVectorSource
     ): VeColBatch
     def veTypes: List[VeType]
@@ -56,7 +56,7 @@ object StaticTypingTestAdditions {
   object VeAllocator {
     implicit object DoubleAllocator extends VeAllocator[Double] {
       override def allocate(data: Double*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(data.map(Some(_)).toBytePointerColVector("_").toVeColVector)
       }
@@ -66,7 +66,7 @@ object StaticTypingTestAdditions {
 
     implicit object StringAllocator extends VeAllocator[String] {
       override def allocate(data: String*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(data.map(Some(_)).toBytePointerColVector("_").toVeColVector)
       }
@@ -76,7 +76,7 @@ object StaticTypingTestAdditions {
 
     implicit object StringDoubleAllocator extends VeAllocator[(String, Double)] {
       override def allocate(data: (String, Double)*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(
           data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
@@ -89,7 +89,7 @@ object StaticTypingTestAdditions {
 
     implicit object DoubleDoubleAllocator extends VeAllocator[(Double, Double)] {
       override def allocate(data: (Double, Double)*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(
           data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
@@ -102,7 +102,7 @@ object StaticTypingTestAdditions {
 
     implicit object DoubleDoubleDoubleAllocator extends VeAllocator[(Double, Double, Double)] {
       override def allocate(data: (Double, Double, Double)*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(
           data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
@@ -118,7 +118,7 @@ object StaticTypingTestAdditions {
     implicit object DoubleDoubleDoubleDoubleAllocator
       extends VeAllocator[(Double, Double, Double, Double)] {
       override def allocate(data: (Double, Double, Double, Double)*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(
           data.map(x => Some(x._1)).toBytePointerColVector("_").toVeColVector,
@@ -134,7 +134,7 @@ object StaticTypingTestAdditions {
 
     implicit object OptionDoubleAllocator extends VeAllocator[Option[Double]] {
       override def allocate(data: Option[Double]*)(implicit process: VeProcess,
-                                                   context: OriginalCallingContext,
+                                                   context: CallContext,
                                                    source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(data.toBytePointerColVector("_").toVeColVector)
       }
@@ -145,7 +145,7 @@ object StaticTypingTestAdditions {
     implicit object OptionDoubleDoubleDoubleAllocator
       extends VeAllocator[(Option[Double], Double, Double)] {
       override def allocate(data: (Option[Double], Double, Double)*)(implicit process: VeProcess,
-                                           context: OriginalCallingContext,
+                                           context: CallContext,
                                            source: VeColVectorSource): VeColBatch = {
         VeColBatch.from(
           data.map(x => x._1).toBytePointerColVector("_").toVeColVector,

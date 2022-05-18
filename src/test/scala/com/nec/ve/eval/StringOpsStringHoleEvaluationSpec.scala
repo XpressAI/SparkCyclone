@@ -8,7 +8,7 @@ import com.nec.spark.agile.StringHole
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
 import com.nec.ve.{VeKernelInfra, VeProcess, WithVeProcess}
@@ -23,7 +23,7 @@ final class StringOpsStringHoleEvaluationSpec
   with WithVeProcess
   with VeKernelInfra {
 
-  import OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   val list = List("this", "test", "is defi", "nitely", "tested")
 
@@ -91,7 +91,7 @@ object StringOpsStringHoleEvaluationSpec {
     veRetriever: VeRetriever[Int],
     veProcess: VeProcess,
     veKernelInfra: VeKernelInfra,
-    originalCallingContext: OriginalCallingContext,
+    context: CallContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Int] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)

@@ -2,7 +2,7 @@ package com.nec.cache
 
 import com.nec.cache.VeColColumnarVector.CachedColumnVector
 import com.nec.util.ReflectionOps._
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
@@ -94,11 +94,11 @@ object DualMode {
     arrowSchema: Schema,
     metricsFn: (() => VeColBatch) => VeColBatch = (x) => { x() }
   )(implicit
-    bufferAllocator: BufferAllocator,
+    allocator: BufferAllocator,
     veProcess: VeProcess,
     source: VeColVectorSource,
-    arrowEncodingSettings: ArrowEncodingSettings,
-    originalCallingContext: OriginalCallingContext,
+    encoding: ArrowEncodingSettings,
+    context: CallContext,
     cycloneMetrics: VeProcessMetrics
   ): Iterator[VeColBatch] =
     DualMode.unwrapInternalRows(possiblyDualModeInternalRows) match {

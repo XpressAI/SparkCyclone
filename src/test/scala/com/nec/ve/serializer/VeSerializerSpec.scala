@@ -11,7 +11,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
 final class VeSerializerSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
 
   "VeSerializer" should {
     "check serializer fully" in {

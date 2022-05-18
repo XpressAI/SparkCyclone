@@ -25,7 +25,7 @@ class VeGroupByRDD[G, T](
   def computeKeyedVe(): RDD[(G, VeColBatch)] = {
     implicit val g: ClassTag[G] = func.types.output.tag.asInstanceOf[ClassTag[G]]
     verdd.inputs.mapPartitions { batches =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
       val batchesList = batches.toList
       if (batchesList.isEmpty) {
         Nil.toIterator

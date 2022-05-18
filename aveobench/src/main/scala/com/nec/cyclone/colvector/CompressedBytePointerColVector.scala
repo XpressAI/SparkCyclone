@@ -2,7 +2,7 @@ package com.nec.cyclone.colvector
 
 import com.nec.colvector._
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import org.bytedeco.javacpp.BytePointer
 
@@ -48,7 +48,7 @@ final case class CompressedBytePointerColVector private[colvector] (
 
   def asyncToVeColVector(implicit source: VeColVectorSource,
                          process: VeProcess,
-                         context: OriginalCallingContext,
+                         context: CallContext,
                          metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     // Allocate memory on the VE
     val veLocations = Seq(veType.containerSize.toLong, buffer.limit()).map(process.allocate)
@@ -81,7 +81,7 @@ final case class CompressedBytePointerColVector private[colvector] (
 
   def toVeColVector(implicit source: VeColVectorSource,
                     process: VeProcess,
-                    context: OriginalCallingContext,
+                    context: CallContext,
                     metrics: VeProcessMetrics): VeColVector = {
     asyncToVeColVector.apply().get()
   }

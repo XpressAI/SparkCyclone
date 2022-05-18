@@ -58,6 +58,14 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.allocate(size)
   }
 
+  def registerAllocation(address: Long, size: Long): VeAllocation = {
+    underlying.registerAllocation(address, size)
+  }
+
+  def unregisterAllocation(address: Long): Unit = {
+    underlying.unregisterAllocation(address)
+  }
+
   def free(address: Long, unsafe: Boolean): Unit = {
     // If the VeProcess is not even instantiated yet, skip
     if (instantiated) {

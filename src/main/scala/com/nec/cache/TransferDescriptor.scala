@@ -7,7 +7,7 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import scala.collection.mutable.ListBuffer
 
 case class TransferDescriptor(
-  batches: List[List[BytePointerColVector]]) extends LazyLogging {
+  batches: Seq[Seq[BytePointerColVector]]) extends LazyLogging {
   lazy val isEmpty: Boolean = batches.flatten.isEmpty
   def nonEmpty: Boolean = !isEmpty
 
@@ -73,11 +73,11 @@ case class TransferDescriptor(
       header.put(startPos, columnType)
       header.put(startPos + 1, column.numItems)
       header.put(startPos + 2, buffers(0).limit())
-      if(column.veType.isString){
+      if (column.veType.isString) {
         header.put(startPos + 3, buffers(1).limit())
         header.put(startPos + 4, buffers(2).limit())
         header.put(startPos + 5, buffers(3).limit())
-      }else{
+      } else {
         header.put(startPos + 3, buffers(1).limit())
       }
     }
@@ -170,9 +170,9 @@ case class TransferDescriptor(
 
   private def vectorAlignedSize(size: Long): Long = {
     val dangling = size % 8
-    if(dangling > 0){
+    if (dangling > 0) {
       size + (8 - dangling)
-    }else{
+    } else {
       size
     }
   }

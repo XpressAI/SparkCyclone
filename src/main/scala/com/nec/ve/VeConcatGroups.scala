@@ -18,7 +18,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
 
   override def compute(split: Partition, context: TaskContext): Iterator[(K, Iterable[T])] = {
     import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-    import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+   import com.nec.util.CallContextOps._
 
     val batches = concatInputs.iterator(split, context)
     batches.map { case (key, veColBatch) =>
@@ -40,7 +40,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
     val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults, null)
 
     shuffled.mapPartitions { batchIter =>
-      import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+     import com.nec.util.CallContextOps._
       val batches = batchIter.toList
       if (batches.nonEmpty) {
         batches.groupBy(_._1).map { case (key, grouped) =>
@@ -58,7 +58,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
     concatInputs.mapPartitions { batches =>
       batches.map { case (key, veColBatch) =>
         import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
-        import com.nec.ve.VeProcess.OriginalCallingContext.Automatic.originalCallingContext
+        import com.nec.util.CallContextOps._
 
         val array = veColBatch.toCPUSeq[T]
         veColBatch.free()

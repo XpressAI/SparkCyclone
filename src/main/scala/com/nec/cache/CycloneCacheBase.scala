@@ -61,7 +61,7 @@ object CycloneCacheBase {
 
   def makeArrowSchema(
     schema: Seq[Attribute]
-  )(implicit arrowEncodingSettings: ArrowEncodingSettings): Schema =
+  )(implicit encoding: ArrowEncodingSettings): Schema =
     ArrowUtilsExposed.toArrowSchema(
       schema = StructType(
         schema.map(att =>
@@ -73,6 +73,6 @@ object CycloneCacheBase {
           )
         )
       ),
-      timeZoneId = arrowEncodingSettings.timezone
+      timeZoneId = encoding.timezone
     )
 }

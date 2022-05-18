@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.util.CallContext
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
 import com.nec.vectorengine.{VeProcess => NewVeProcess, VeAsyncResult => NewVeAsyncResult}
 import org.bytedeco.javacpp.BytePointer
@@ -46,7 +46,7 @@ final case class BytePointerColVector private[colvector] (
 
   def asyncToVeColVector(implicit source: VeColVectorSource,
                          process: VeProcess,
-                         context: OriginalCallingContext,
+                         context: CallContext,
                          metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate)
     val structPtr = veType match {
@@ -153,7 +153,7 @@ final case class BytePointerColVector private[colvector] (
 
   def toVeColVector(implicit source: VeColVectorSource,
                     process: VeProcess,
-                    context: OriginalCallingContext,
+                    context: CallContext,
                     metrics: VeProcessMetrics): VeColVector = {
     asyncToVeColVector.apply().get()
   }

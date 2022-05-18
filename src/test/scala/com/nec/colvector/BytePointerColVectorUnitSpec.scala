@@ -10,7 +10,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.bytedeco.javacpp.BytePointer
 
 final class BytePointerColVectorUnitSpec extends AnyWordSpec {
-  import com.nec.ve.VeProcess.OriginalCallingContext.Automatic._
+  import com.nec.util.CallContextOps._
   implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
 
   "BytePointerColVector" should {

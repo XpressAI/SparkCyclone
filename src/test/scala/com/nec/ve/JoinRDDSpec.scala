@@ -6,7 +6,7 @@ import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
-import com.nec.ve.VeProcess.OriginalCallingContext
+import com.nec.util.CallContext
 import org.apache.spark.sql.SparkSession
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -19,16 +19,15 @@ final class JoinRDDSpec extends AnyFreeSpec with SparkAdditions with VeKernelInf
       Seq(1 -> Seq(5, 6, 7), 2 -> Seq(8, 8, 7), 3 -> Seq(9, 6, 7))
 
     import SparkCycloneExecutorPlugin._
-    import SparkCycloneExecutorPlugin.ImplicitMetrics._
 
     VeRDDOps
       .joinExchange(
         sparkSession.sparkContext.makeRDD(partsL).map { case (i, l) =>
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           i -> VeColBatch(List(l.toArray.toBytePointerColVector("left").toVeColVector))
         },
         sparkSession.sparkContext.makeRDD(partsR).map { case (i, l) =>
-          import OriginalCallingContext.Automatic._
+          import com.nec.util.CallContextOps._
           i -> VeColBatch(List(l.toArray.toBytePointerColVector("right").toVeColVector))
         },
         cleanUpInput = true

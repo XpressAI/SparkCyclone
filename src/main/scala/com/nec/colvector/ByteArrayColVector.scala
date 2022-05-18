@@ -3,6 +3,7 @@ package com.nec.colvector
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core.{VeString, VeType}
 import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.util.CallContext
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
@@ -65,14 +66,14 @@ final case class ByteArrayColVector private[colvector] (
 
   def toVeColVector(implicit veProcess: VeProcess,
                     source: VeColVectorSource,
-                    context: VeProcess.OriginalCallingContext,
+                    context: CallContext,
                     metrics: VeProcessMetrics): VeColVector = {
     toBytePointerColVector.toVeColVector
   }
 
   def asyncToVeColVector(implicit veProcess: VeProcess,
                     source: VeColVectorSource,
-                    context: VeProcess.OriginalCallingContext,
+                    context: CallContext,
                     metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
     toBytePointerColVector.asyncToVeColVector
   }
