@@ -511,14 +511,6 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     uint64_t mask =  UINT64_MAX >> dangling_bits;
     uint64_t vmask = UINT64_MAX >> (64-restcnt);
 
-    // debug
-    printf("======================\nBatch: %d\n", b);
-    printf("ox: %d\n", ox);
-    printf("dangling: %d\n", dangling_bits);
-    printf("mask: %016llx\n", mask);
-    printf("wordcnt:  %d\n", wordcnt);
-    printf("restcnt:  %d\n", restcnt);
-
 
     // copy whole words from source batch
     // since we might need to shift the bits by "dangling_bits" in the output
@@ -533,15 +525,8 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
       uint64_t lower_half = (validity_bits & mask) << dangling_bits;
       uint64_t upper_half = (validity_bits & ~mask) >> (64 - dangling_bits);
 
-      printf("validity: %016llx\n", validity_bits);
-      printf("lower   : %016llx\n", lower_half);
-      printf("upper   : %016llx\n", upper_half);
-     
       outbuf[ox++] |= lower_half;
       outbuf[ox] = upper_half;
-
-      printf("out[ox] : %016llx\n", outbuf[ox-1]);
-      printf("out[ox+1] %016llx\n", outbuf[ox]);
 
     }
 
