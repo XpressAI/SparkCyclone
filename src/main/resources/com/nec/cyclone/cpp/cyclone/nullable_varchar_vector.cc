@@ -484,16 +484,6 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
   auto *output = from_words(frovedis::merge_multi_words(multi_words));
 
   // Preserve the validityBuffer across the merge
-  /*
-  auto o = 0;
-  #pragma _NEC ivdep
-  for (auto b = 0; b < batches; b++) {
-    for (auto i = 0; i < inputs[b]->count; i++) {
-      output->set_validity(o++, inputs[b]->get_validity(i));
-    }
-  }
-  */
-
   auto dangling_bits = 0;
   auto ox = 0;
   uint64_t* outbuf = output->validityBuffer;
