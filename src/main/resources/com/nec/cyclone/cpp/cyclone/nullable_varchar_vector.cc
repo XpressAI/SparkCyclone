@@ -470,23 +470,10 @@ const std::vector<int32_t> nullable_varchar_vector::validity_vec() const {
   return bitmask;
 }
 
-nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
-                                                         const size_t batches) {
-
-  // Construct std::vector<frovedis::words> from the inputs
-  std::vector<frovedis::words> multi_words(batches);
-  #pragma _NEC vector
-  for (auto b = 0; b < batches; b++) {
-    multi_words[b] = inputs[b]->to_words();
-  }
-
-  // Merge using Frovedis and convert back to nullable_varchar_vector
-  auto *output = from_words(frovedis::merge_multi_words(multi_words));
-
-  // Preserve the validityBuffer across the merge
+template<typename T>
+void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_t batches) {
   auto dangling_bits = 0;
   auto ox = 0;
-  uint64_t* outbuf = output->validityBuffer;
   outbuf[0] = 0;
 
   for (auto b=0; b<batches; b++) {
@@ -530,7 +517,23 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
     // update dangling_bits
     dangling_bits = (dangling_bits + restcnt) % 64;
    }
+}
 
+nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
+                                                         const size_t batches) {
+
+  // Construct std::vector<frovedis::words> from the inputs
+  std::vector<frovedis::words> multi_words(batches);
+  #pragma _NEC vector
+  for (auto b = 0; b < batches; b++) {
+    multi_words[b] = inputs[b]->to_words();
+  }
+
+  // Merge using Frovedis and convert back to nullable_varchar_vector
+  auto *output = from_words(frovedis::merge_multi_words(multi_words));
+
+ // Preserve the validityBuffer across the merge
+  fast_validity_merge(output->validityBuffer, inputs, batches);
   return output;
 }
 
