@@ -255,7 +255,7 @@ void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_
       uint64_t upper_half = (validity_bits & ~mask) >> (64 - dangling_bits);
 
       outbuf[ox++] |= lower_half;
-      outbuf[ox] = upper_half;
+      if (ox < wordcnt) outbuf[ox] = upper_half;
 
     }
 
