@@ -474,6 +474,30 @@ const std::vector<int32_t> nullable_varchar_vector::validity_vec() const {
 nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_vector * const * const inputs,
                                                          const size_t batches) {
 
+
+  // Debug
+  printf("input consists of %d batches:\n", batches);
+  for(auto b=0; b<batches; b++) {
+    printf("Batch %d:\n", b);
+    printf("input[%d]->count = %d\n", b, inputs[b]->count);
+    for (auto i=0; i<inputs[b]->count; i++) {
+      printf("input[%d][%d]:\t", b, i);
+      
+      int32_t off = inputs[b]->offsets[i];
+      int32_t len = inputs[b]->lengths[i];
+
+      for(auto j=off; j<off+len; j++) {
+	printf("0x%04x ", inputs[b]->data[j]);
+      }
+
+       printf("\n");
+
+    }
+    printf("============\n");
+  } 
+
+
+
   // Construct std::vector<frovedis::words> from the inputs
   std::vector<frovedis::words> multi_words(batches);
   #pragma _NEC vector
