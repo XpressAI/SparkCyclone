@@ -35,8 +35,6 @@ final case class GroupByPartialGenerator(
   import finalGenerator._
   import stagedGroupBy._
 
-  require(stringVectorComputations.isEmpty, "String Vector Aggregation not supported at the moment")
-
   val BatchAssignmentsId = "batch_assignments"
   val BatchGroupPositionsId = "batch_group_positions"
   val BatchCountsId = "batch_counts"
