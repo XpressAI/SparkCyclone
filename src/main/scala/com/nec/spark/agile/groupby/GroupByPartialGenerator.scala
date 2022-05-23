@@ -131,8 +131,10 @@ final case class GroupByPartialGenerator(
               computedGroupingKeys.map{
                 case (_, Right(TypedCExpression2(_, cExp))) =>
                   s"hash = 31 * hash + (${cExp.cCode});"
-                case (_, Left(StringReference(_))) =>
-                  ???
+                case (_, Left(StringReference(name))) =>
+                  CodeLines.forLoop("i", s"${name}.size()") {
+                    s"hash = 31 * hash + static_cast<int64_t>(${name}[i]);"
+                  }.cCode
               },
               // Assign the bucket based on the hash
               s"${BatchAssignmentsId}[g] = __builtin_abs(hash % ${nBuckets});"
