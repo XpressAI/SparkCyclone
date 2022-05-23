@@ -26,7 +26,6 @@ import io.sparkcyclone.spark.codegen.groupby.GroupByOutline._
 import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
 import io.sparkcyclone.native.code._
 
-
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
   computedGroupingKeys: Seq[(GroupingKey, Either[StringReference, TypedCExpression2])],
@@ -36,8 +35,6 @@ final case class GroupByPartialGenerator(
 ) {
   import finalGenerator._
   import stagedGroupBy._
-
-  require(stringVectorComputations.isEmpty, "String Vector Aggregation not supported at the moment")
 
   val BatchAssignmentsId = "batch_assignments"
   val BatchGroupPositionsId = "batch_group_positions"
@@ -129,8 +126,10 @@ final case class GroupByPartialGenerator(
               computedGroupingKeys.map{
                 case (_, Right(TypedCExpression2(_, cExp))) =>
                   s"hash = 31 * hash + (${cExp.cCode});"
-                case (_, Left(StringReference(_))) =>
-                  ???
+                case (_, Left(StringReference(name))) =>
+                  CodeLines.forLoop("j", s"${name}->count") {
+                    s"hash = ${name}->hash_at(j, hash);"
+                  }.cCode
               },
               // Assign the bucket based on the hash
               s"${BatchAssignmentsId}[g] = __builtin_abs(hash % ${nBuckets});"
@@ -178,7 +177,9 @@ final case class GroupByPartialGenerator(
           val accessor = s"${cVector.name}[b]"
           CodeLines.from(
             s"$accessor = ${cVector.veType.cVectorType}::allocate();",
-            s"if(${BatchCountsId}[b] != 0) $accessor->resize(${BatchCountsId}[b]);",
+            if (cVector.veType != VeString) {
+              s"if(${BatchCountsId}[b] != 0) $accessor->resize(${BatchCountsId}[b]);"
+            } else CodeLines.empty,
           )
         }
       },
@@ -196,10 +197,10 @@ final case class GroupByPartialGenerator(
         )
       case (groupingKey, Left(StringReference(sr))) =>
         ProductionTriplet(
-          forEach = CodeLines.empty,
-          complete = CodeLines.from(
-            s"partial_str_${groupingKey.name}->move_assign_from(${sr}->select(matching_ids));"
-          )
+          forEach = CodeLines.from(
+            s"partial_str_${groupingKey.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));"
+          ),
+          complete = CodeLines.empty
         )
     }
 
