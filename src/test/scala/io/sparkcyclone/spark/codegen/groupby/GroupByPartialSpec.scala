@@ -19,8 +19,9 @@ class GroupByPartialSpec extends AnyFreeSpec {
     val computedGroupingKeys = List(
       GroupingKey(agg, VeNullableInt) -> Right(TypedCExpression2(VeNullableInt, CExpression("foo", None))),
       GroupingKey(agg+"2", VeNullableInt) -> Right(TypedCExpression2(VeNullableInt, CExpression("foo2", None))),
+
       //TODO: String references are just not supported at the moment
-      //GroupingKey("str_key", VeNullableInt) -> Left(StringReference("some_str_col"))
+      GroupingKey("str_key", VeNullableInt) -> Left(StringReference("some_str_col"))
     )
 
     val computedProjections = List(
@@ -29,7 +30,7 @@ class GroupByPartialSpec extends AnyFreeSpec {
 
     val stringVectorComputations = List(
       //TODO: StringHole seems to not be fully supported in aggregation yet
-      //LikeStringHoleEvaluation("spam", "eggs")
+      LikeStringHoleEvaluation("spam", "eggs")
     )
 
     val finalOutputs: List[Either[GroupByOutline.StagedProjection, GroupByOutline.StagedAggregation]] = List(
