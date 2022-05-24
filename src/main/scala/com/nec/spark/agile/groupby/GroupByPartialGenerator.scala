@@ -22,7 +22,7 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.core.{CVector, CodeLines}
+import com.nec.spark.agile.core.{CVector, CodeLines, VeString}
 import com.nec.spark.agile.groupby.GroupByOutline._
 
 final case class GroupByPartialGenerator(
@@ -132,8 +132,8 @@ final case class GroupByPartialGenerator(
                 case (_, Right(TypedCExpression2(_, cExp))) =>
                   s"hash = 31 * hash + (${cExp.cCode});"
                 case (_, Left(StringReference(name))) =>
-                  CodeLines.forLoop("i", s"${name}.size()") {
-                    s"hash = 31 * hash + static_cast<int64_t>(${name}[i]);"
+                  CodeLines.forLoop("j", s"${name}->count") {
+                    s"hash = ${name}->hash_at(j, hash);"
                   }.cCode
               },
               // Assign the bucket based on the hash
@@ -182,7 +182,9 @@ final case class GroupByPartialGenerator(
           val accessor = s"${cVector.name}[b]"
           CodeLines.from(
             s"$accessor = ${cVector.veType.cVectorType}::allocate();",
-            s"if(${BatchCountsId}[b] != 0) $accessor->resize(${BatchCountsId}[b]);",
+            if (cVector.veType != VeString) {
+              s"if(${BatchCountsId}[b] != 0) $accessor->resize(${BatchCountsId}[b]);"
+            } else CodeLines.empty,
           )
         }
       },
@@ -200,10 +202,10 @@ final case class GroupByPartialGenerator(
         )
       case (groupingKey, Left(StringReference(sr))) =>
         ProductionTriplet(
-          forEach = CodeLines.empty,
-          complete = CodeLines.from(
-            s"partial_str_${groupingKey.name}->move_assign_from(${sr}->select(matching_ids));"
-          )
+          forEach = CodeLines.from(
+            s"partial_str_${groupingKey.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));"
+          ),
+          complete = CodeLines.empty
         )
     }
 
