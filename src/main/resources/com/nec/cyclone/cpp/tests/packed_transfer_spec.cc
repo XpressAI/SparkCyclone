@@ -261,7 +261,12 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
+      std::cout << "before" << std::endl;
+
       int res = handle_transfer(target, od);
+
+      std::cout << "after" << std::endl;
+
       CHECK(res == 0);
 
       nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
@@ -636,25 +641,35 @@ namespace cyclone::tests {
         size_t lengths_size = nvv_a->count * sizeof(int32_t);
         size_t validity_buffer_size = frovedis::ceil_div(nvv_a->count, int32_t(64)) * sizeof(uint64_t);
 
+        std::cout << "header_size = " << header_size << std::endl;
+
         size_t total_size = VECTOR_ALIGNED(header_size) 
                           + VECTOR_ALIGNED(data_size) 
                           + VECTOR_ALIGNED(validity_buffer_size)
                           + VECTOR_ALIGNED(offsets_size)
                           + VECTOR_ALIGNED(lengths_size);
 
+        std::cout << "total_size = " << total_size << std::endl;
+
         char *transfer = new char[total_size];
         size_t pos = 0;
 
+        std::cout << "transfer buffer has been allocated" << std::endl;
+
         // use the first bytes of the transfer as header
-        transfer_header* header = reinterpret_cast<transfer_header*>(transfer[0]);
+        transfer_header* header = reinterpret_cast<transfer_header*>(&transfer[0]);
         header->header_size = 0;
         header->batch_count = 1;
         header->column_count = 1;
         pos += sizeof(transfer_header);
 
+        std::cout << "header at 0x" << std::hex << header << " has been written, pos is now " << pos << std::endl << std::flush;
+
         size_t* column_type = reinterpret_cast<size_t *>(&transfer[pos]);
         *column_type = COL_TYPE_VARCHAR;
         pos += sizeof(size_t);
+
+        std::cout << "column_type has been written, pos is now " << pos << std::endl;
 
         varchar_col_in* col_header = reinterpret_cast<varchar_col_in *>(&transfer[pos]);
 
@@ -665,27 +680,42 @@ namespace cyclone::tests {
         col_header->validity_buffer_size = frovedis::ceil_div(nvv_a->count, int32_t(64)) * sizeof(uint64_t);
         pos += sizeof(varchar_col_in);
 
+        std::cout << "col_header has been written, pos is now " << pos << std::endl;
+
         // align pos for data
         pos = VECTOR_ALIGNED(pos);
 
+        std::cout << "pos is now vector aligned at " << pos << std::endl << std::flush;
+	std::cout << "header at 0x" << std::hex << header << " will be corrected " << std::endl << std::flush;
+
         // set header size
-        header->header_size = pos;
+        header->header_size = pos; // this SIGSEGVs
+
+        std::cout << "Will write " << data_size << " bytes starting from position " << pos << std::endl << std::flush;
 
         // copy data (aligned)
         std::memcpy(&transfer[pos], nvv_a->data, data_size);
         pos += VECTOR_ALIGNED(data_size);
 
+        std::cout << "data has been written, pos is now " << pos << std::endl << std::flush;
+
         // copy offsets (aligned)
         std::memcpy(&transfer[pos], nvv_a->offsets, offsets_size);
         pos += VECTOR_ALIGNED(offsets_size);
+
+        std::cout << "offsets has been written, pos is now " << pos << std::endl << std::flush;
 
          // copy lengths (alinged)
         std::memcpy(&transfer[pos], nvv_a->lengths, lengths_size);
         pos += VECTOR_ALIGNED(lengths_size);
 
+        std::cout << "lengths has been written, pos is now " << pos << std::endl << std::flush;
+
         // copy validity buffer
         std::memcpy(&transfer[pos], nvv_a->lengths, validity_buffer_size);
         pos += VECTOR_ALIGNED(validity_buffer_size);
+
+        std::cout << "validity buffer has been written, pos is now " << pos << std::endl << std::flush;
 
         // transfer
         char* target[1] = {transfer};
