@@ -598,4 +598,107 @@ namespace cyclone::tests {
       CHECK(transferred->equals(merged));
     }
   }
+
+  std::vector<std::string> gen_words(size_t word_len, size_t word_cnt, char c = '*') {
+
+    std::string a_str = std::string(word_len, c);
+
+    std::vector<std::string> words(word_cnt);
+    for (int i=0; i<word_cnt; i++) {
+        words.push_back(std::string(a_str));
+    }
+    return words;
+  }
+
+   TEST_CASE("transfer very big nullable_varchar_vec") {
+
+        // at least 64 mb
+        std::vector<std::string> strs_a = gen_words(2048, 32768, 'a')
+        std::vector<std::string> strs_b = gen_words(2048, 32768, 'b')
+
+        // copy generated words into nullable_varchar_vec
+        nullable_varchar_vec* nvv_a = new nullable_varchar_vec(strs_a);
+        nullable_varchar_vec* nvv_b = new nullable_varchar_vec(strs_b);
+
+        // src words are not needed anymore
+        strs_a.clear();
+        strs_a.shrink_to_fit();
+        strs_b.clear();
+        strs_b.shrink_to_fit();
+
+        // create output descriptor for handle_transfer
+        uintptr_t od[3];
+
+
+        // create column descriptor for handle_transfer
+        size_t column_type = COL_TYPE_VARCHAR;
+        size_t element_count =  nvv_a->count;
+
+        // prepare transfer buf
+        size_t header_size = sizeof(transfer_header) + sizeof(size_t) + sizeof(varchar_col_in);
+
+        size_t total_size = header_size + data_size + validity_buffer_size + offsets_size + lengths_size;
+        char transfer[] = new char[total_size];
+        char *pos = transfer;
+
+        // use the first bytes of the transfer as header
+        transfer_header* header = reinterpret_cast<transfer_header>(transfer[0]);
+        header->header_size = 0;
+        header->batch_count = 1;
+        header->column_count = 1;
+        pos += sizeof(transfer_header);
+
+        size_t* column_type = reinterpret_cast<size_t *>(&transfer[pos]);
+        *column_type = COL_TYPE_VARCHAR;
+        pos += sizeof(size_t);
+
+        varchar_col_in* col_header = reinterpret_cast<size_t *>(&transfer[pos]);
+
+        col_header->element_count = nvv_a->count;
+        col_header->data_size = nvv_a->dataSize * sizeof(int32_t);
+        col_header->offsets_size = nvv_a->count * sizeof(int32_t);
+        col_header->lengths_size = nvv_a->count * sizeof(int32_t);
+        col_header->validity_buffer_size = frovedis::ceil_div(nvv_a->count, int32_t(64)) * sizeof(uint64_t);
+        pos += sizeof(varchar_col_in);
+
+        // align pos for data
+        pos = VECTOR_ALIGNED(pos);
+
+        // set header size
+        header->header_size = pos;
+
+        // copy data (aligned)
+        size_t cpy_cnt = nvv_a->dataSize*sizeof(int32_t);
+        std::memcpy(&transfer[pos], nvv_a->data, cpy_cnt);
+        pos += VECTOR_ALIGNED(cpy_cnt);
+
+        // copy offsets (aligned)
+        cpy_cnt = nvv_a->count * sizeof(int32_t);
+        std::memcpy(&transfer[pos], nvv_a->offsets, cpy_cnt);
+        pos += VECTOR_ALIGNED(cpy_cnt);
+
+         // copy lengths (alinged)
+        std::memcpy(&transfer[pos], nvv_a->lengths, cpy_cnt);
+        pos += VECTOR_ALIGNED(cpy_cnt);
+
+        // copy validity buffer
+        cpy_cnt = frovedis::ceil_div(nvv_a->count, int32_t(64)) * sizeof(uint64_t);
+        std::memcpy(&transfer[pos], nvv_a->lengths, cpy_cnt);
+        pos += VECTOR_ALIGNED(cpy_cnt);
+
+        // transfer
+        char* target[1] = {transfer};
+
+        int res = handle_transfer(target, od);
+        CHECK(res == 0);
+
+        // cleanup
+        delete [] transfer;
+
+        nvv_b->reset();
+        delete nvv_b;
+
+        nvv_a->reset();
+        delete nvv_a;
+   }
 }
