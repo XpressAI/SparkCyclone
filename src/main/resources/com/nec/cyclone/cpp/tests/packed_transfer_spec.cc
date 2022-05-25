@@ -724,7 +724,7 @@ namespace cyclone::tests {
         CHECK(res == 0);
 
         // cleanup
-        delete [] transfer;
+        //delete [] transfer; <- wird von handler_transfer freigegeben.
 
         nvv_b->reset();
         delete nvv_b;
