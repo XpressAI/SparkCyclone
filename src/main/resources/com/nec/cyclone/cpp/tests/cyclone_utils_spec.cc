@@ -20,6 +20,9 @@
 #include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
 #include <tuple>
+#include <iostream>
+
+using namespace std;
 
 namespace cyclone::tests {
   TEST_CASE("bitmask_to_matching_ids() works") {
@@ -419,16 +422,16 @@ namespace cyclone::tests {
 
   TEST_CASE("Merging two LARGE bitsets works") {
 
-       size_t testsize1 = 65 * 1024 * 1024; // 65 MB
-       size_t testsize2 = 68 * 1024 * 1024; // 68 MB
+       size_t testsize1 = 128 * 1024 * 1024; // 65 MB
+       size_t testsize2 = 256 * 1024 * 1024; // 68 MB
 
       // two large bitsets
-      uint64_t* bitset1 = reinterpret_cast<uint64_t *>(calloc(testsize1+testsize2+1));
+      uint64_t* bitset1 = reinterpret_cast<uint64_t *>(calloc(testsize1+testsize2+1, 1));
       uint64_t* bitset2 = reinterpret_cast<uint64_t *>(malloc(testsize2));
 
       // with some data
       memset(bitset1, 0xaf, testsize1);
-      memset(bitest2, 0xfe, testsize2);
+      memset(bitset2, 0xfe, testsize2);
 
       size_t dangle = 17;
 
@@ -436,8 +439,18 @@ namespace cyclone::tests {
 
       CHECK(dangle == 17);
 
-      CHECK(output[0] == 0xafafafafafafafaf);
-      CHECK(output[testsize1/8 + 2] == 0x7f7f7f7f);
+      CHECK(bitset1[0] == 0xafafafafafafafaf);
+      CHECK(bitset1[testsize1/8 + 2] == 0xfdfdfdfdfdfdfdfd);
+
+      cout << "End of bitset 1:" << endl;
+      cout << hex << bitset1[testsize1/8-3] << endl;
+      cout << hex << bitset1[testsize1/8-2] << endl;
+      cout << hex << bitset1[testsize1/8-1] << endl;
+      cout << hex << bitset1[testsize1/8] << endl;
+      cout << hex << bitset1[testsize1/8+1] << endl;
+      cout << hex << bitset1[testsize1/8+2] << endl;
+      cout << hex << bitset1[testsize1/8+3] << endl;
+
 
       free(bitset2);
       free(bitset1);
