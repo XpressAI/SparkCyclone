@@ -357,14 +357,15 @@ class VectorEngineImpl(val process: VeProcess,
     // Unpack and construct nullabble_t_struct's from the VE side
     execFn(lib, LibCyclone.HandleTransferFn, Seq(
       BuffArg(VeArgIntent.In, new LongPointer(1).put(allocation.address)),
-      BuffArg(VeArgIntent.Out, descriptor.outputBuffer)
+      BuffArg(VeArgIntent.Out, descriptor.resultBuffer)
     ))
 
     // Construct VeColBatch from the output buffer
-    val batch = descriptor.outputBufferToColBatch
+    val batch = descriptor.resultToColBatch
 
     // Close the output buffer
     descriptor.closeOutputBuffer
+    // descriptor.close
 
     // Register the allocations made from the VE
     batch.columns.foreach(_.register)

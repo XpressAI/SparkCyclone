@@ -11,7 +11,7 @@ case class TransferDescriptor(
   lazy val isEmpty: Boolean = batches.flatten.isEmpty
   def nonEmpty: Boolean = !isEmpty
 
-  def closeTransferBuffer(): Unit = buffer.close()
+  def closeTransferBuffer: Unit = buffer.close
   lazy val buffer: BytePointer = {
     require(nonEmpty, "Can not create transfer buffer for empty TransferDescriptor!")
 
@@ -106,8 +106,9 @@ case class TransferDescriptor(
     println(arr.mkString("[", ", ", "]"))
   }
 
-  def closeOutputBuffer(): Unit = outputBuffer.close()
-  lazy val outputBuffer: BytePointer = {
+  def closeOutputBuffer: Unit = resultBuffer.close
+
+  lazy val resultBuffer: BytePointer = {
     require(nonEmpty, "Can not create output buffer for empty TransferDescriptor!")
 
     val sizeOfUIntPtr = 8
@@ -121,8 +122,8 @@ case class TransferDescriptor(
     logger.debug(s"Allocating transfer output pointer of $bufferSize bytes")
     new BytePointer(bufferSize)
   }
-  def outputBufferToColBatch(): VeColBatch = {
-    val od = new LongPointer(outputBuffer)
+  def resultToColBatch: VeColBatch = {
+    val od = new LongPointer(resultBuffer)
     val startingPositions = batches.head.map(_.veType.isString).map{
       case true => 5
       case false => 3
@@ -175,6 +176,17 @@ case class TransferDescriptor(
     } else {
       size
     }
+  }
+
+  def toSeq: Seq[Byte] = {
+    val array = Array.ofDim[Byte](buffer.limit().toInt)
+    buffer.get(array)
+    array.toSeq
+  }
+
+  def print: Unit = {
+    val hex = toSeq.map { b => String.format("%02x", Byte.box(b)) }
+    println("Transfer Buffer = \n" + hex.sliding(16, 16).map { chunk => chunk.mkString(" ") }.mkString("\n") + "\n")
   }
 }
 
