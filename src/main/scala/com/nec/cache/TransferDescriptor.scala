@@ -11,7 +11,7 @@ case class TransferDescriptor(
   lazy val isEmpty: Boolean = batches.flatten.isEmpty
   def nonEmpty: Boolean = !isEmpty
 
-  def closeTransferBuffer: Unit = buffer.close
+  // def closeTransferBuffer: Unit = buffer.close
   lazy val buffer: BytePointer = {
     require(nonEmpty, "Can not create transfer buffer for empty TransferDescriptor!")
 
@@ -106,7 +106,12 @@ case class TransferDescriptor(
     println(arr.mkString("[", ", ", "]"))
   }
 
-  def closeOutputBuffer: Unit = resultBuffer.close
+  // def closeOutputBuffer: Unit = resultBuffer.close
+
+  def close: Unit = {
+    buffer.close
+    resultBuffer.close
+  }
 
   lazy val resultBuffer: BytePointer = {
     require(nonEmpty, "Can not create output buffer for empty TransferDescriptor!")

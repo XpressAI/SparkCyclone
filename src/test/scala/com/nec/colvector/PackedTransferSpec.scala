@@ -41,85 +41,85 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     descriptor
   }
 
-  // "TransferDescriptor" should {
-  //   "correctly create the transfer buffer header" in {
-  //     val descriptor = transferDescriptor()
-  //     descriptor.print
-  //     val buffer = descriptor.buffer
-  //     val longBuffer = new LongPointer(buffer)
-  //     val header = new Array[Long](3)
-  //     longBuffer.get(header)
+  "TransferDescriptor" should {
+    "correctly create the transfer buffer header" in {
+      val descriptor = transferDescriptor()
+      descriptor.print
+      val buffer = descriptor.buffer
+      val longBuffer = new LongPointer(buffer)
+      val header = new Array[Long](3)
+      longBuffer.get(header)
 
-  //     val expectedBatchCount = 3
-  //     val expectedColumnCount = 2
-  //     val expectedHeaderSize = (3 + (expectedBatchCount * (4  + 6))) * 8
-  //     val expectedHeader = Array[Long](expectedHeaderSize, expectedBatchCount, expectedColumnCount)
+      val expectedBatchCount = 3
+      val expectedColumnCount = 2
+      val expectedHeaderSize = (3 + (expectedBatchCount * (4  + 6))) * 8
+      val expectedHeader = Array[Long](expectedHeaderSize, expectedBatchCount, expectedColumnCount)
 
-  //     header should be (expectedHeader)
-  //   }
+      header should be (expectedHeader)
+    }
 
-  //   "correctly read the output buffer" in {
-  //     val descriptor = transferDescriptor()
-  //     val outputBuffer = descriptor.resultBuffer
+    "correctly read the output buffer" in {
+      val descriptor = transferDescriptor()
+      val outputBuffer = descriptor.resultBuffer
 
-  //     val expectedOutputBufferSize = (5 + 3) * 8
-  //     outputBuffer.limit() should be (expectedOutputBufferSize)
+      val expectedOutputBufferSize = (5 + 3) * 8
+      outputBuffer.limit() should be (expectedOutputBufferSize)
 
-  //     // put up some imaginary values
-  //     val longOD = new LongPointer(outputBuffer)
-  //     // Col 1
-  //       .put(0, 1)
-  //       .put(1, 2)
-  //       .put(2, 3)
-  //     // Col 2
-  //       .put(3, 4)
-  //       .put(4, 5)
-  //       .put(5, 6)
-  //       .put(6, 7)
-  //       .put(7, 8)
+      // put up some imaginary values
+      val longOD = new LongPointer(outputBuffer)
+      // Col 1
+        .put(0, 1)
+        .put(1, 2)
+        .put(2, 3)
+      // Col 2
+        .put(3, 4)
+        .put(4, 5)
+        .put(5, 6)
+        .put(6, 7)
+        .put(7, 8)
 
-  //     val batch = descriptor.resultToColBatch
-  //     batch.numRows should be (8)
-  //     batch.columns.size should be (2)
-
-  //     val col1 = batch.columns(0)
-  //     val col2 = batch.columns(1)
-
-  //     col1.numItems should be (8)
-  //     col2.numItems should be (8)
-
-  //     col1.container should be (1)
-  //     col1.buffers should be (Seq(2, 3))
-
-  //     col2.container should be (4)
-  //     col2.buffers should be (Seq(5, 6, 7, 8))
-  //   }
-  // }
-
-  "handle_transfer" should {
-   import com.nec.util.CallContextOps._
-
-
-    "correctly unpack a single batch of mixed vector types" in {
-      val cols = batch1()
-      val descriptor = new TransferDescriptor.Builder()
-        .newBatch().addColumns(cols)
-        .build()
-
-      val batch = veProcess.executeTransfer(libRef, descriptor)
-
-      batch.numRows should be (3)
+      val batch = descriptor.resultToColBatch
+      batch.numRows should be (8)
       batch.columns.size should be (2)
 
       val col1 = batch.columns(0)
       val col2 = batch.columns(1)
 
-      col1.numItems should be(3)
-      col2.numItems should be(3)
+      col1.numItems should be (8)
+      col2.numItems should be (8)
 
-      col1.toBytePointerColVector.toBytes should equal (cols(0).toBytes)
-      col2.toBytePointerColVector.toBytes should equal (cols(1).toBytes)
+      col1.container should be (1)
+      col1.buffers should be (Seq(2, 3))
+
+      col2.container should be (4)
+      col2.buffers should be (Seq(5, 6, 7, 8))
     }
+  }
+
+  // "handle_transfer" should {
+  //  import com.nec.util.CallContextOps._
+
+
+  //   "correctly unpack a single batch of mixed vector types" in {
+  //     val cols = batch1()
+  //     val descriptor = new TransferDescriptor.Builder()
+  //       .newBatch().addColumns(cols)
+  //       .build()
+
+  //     val batch = veProcess.executeTransfer(libRef, descriptor)
+
+  //     batch.numRows should be (3)
+  //     batch.columns.size should be (2)
+
+  //     val col1 = batch.columns(0)
+  //     val col2 = batch.columns(1)
+
+  //     col1.numItems should be(3)
+  //     col2.numItems should be(3)
+
+  //     col1.toBytePointerColVector.toBytes should equal (cols(0).toBytes)
+  //     col2.toBytePointerColVector.toBytes should equal (cols(1).toBytes)
+  //   }
 
     // "correctly unpack multiple batches of mixed vector types" in {
     //   val descriptor = transferDescriptor()
@@ -386,5 +386,5 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         }
       }
     }*/
-  }
+  // }
 }

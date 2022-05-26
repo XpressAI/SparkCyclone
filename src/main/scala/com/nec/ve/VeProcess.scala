@@ -708,12 +708,12 @@ object VeProcess {
       logger.debug(s"[executeTransfer] Transfer of $transferBufferSize bytes took $transferDuration ms = ${transferThroughput} MB/s")
 
       // Free transfer buffer, as it has been transferred to the VE now.
-      transferDescriptor.closeTransferBuffer
+      // transferDescriptor.closeTransferBuffer
 
       logger.debug("[executeTransfer] Calling handle_transfer")
       val our_args = veo.veo_args_alloc()
       veo.veo_args_set_stack(our_args, veo.VEO_INTENT_IN, 0, new BytePointer(veInputPointer), veInputPointer.sizeof())
-      veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, 1, new BytePointer(transferDescriptor.resultBuffer), transferDescriptor.resultBuffer.limit())
+      veo.veo_args_set_stack(our_args, veo.VEO_INTENT_OUT, 1, new BytePointer(transferDescriptor.resultBuffer), transferDescriptor.resultBuffer.limit() * transferDescriptor.resultBuffer.sizeof)
 
       val fnCallResult = new LongPointer(1)
       val functionAddr = veo.veo_get_sym(veo_proc_handle, libraryReference.value, "handle_transfer")
@@ -745,7 +745,8 @@ object VeProcess {
       veo.veo_args_free(our_args);
 
       val colBatch = transferDescriptor.resultToColBatch
-      transferDescriptor.closeOutputBuffer
+      // transferDescriptor.closeOutputBuffer
+      transferDescriptor.close
 
       colBatch.columns.foreach(_.register())
 

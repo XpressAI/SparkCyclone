@@ -352,7 +352,7 @@ class VectorEngineImpl(val process: VeProcess,
     process.unregisterAllocation(allocation.address)
 
     // Free the transfer buffer on the VH side
-    descriptor.closeTransferBuffer
+    // descriptor.closeTransferBuffer
 
     // Unpack and construct nullabble_t_struct's from the VE side
     execFn(lib, LibCyclone.HandleTransferFn, Seq(
@@ -364,8 +364,8 @@ class VectorEngineImpl(val process: VeProcess,
     val batch = descriptor.resultToColBatch
 
     // Close the output buffer
-    descriptor.closeOutputBuffer
-    // descriptor.close
+    // descriptor.closeOutputBuffer
+    descriptor.close
 
     // Register the allocations made from the VE
     batch.columns.foreach(_.register)

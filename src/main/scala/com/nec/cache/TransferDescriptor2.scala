@@ -2,12 +2,26 @@ package com.nec.cache
 
 import com.nec.colvector.{BytePointerColVector, VeColBatch, VeColVector}
 import com.nec.spark.agile.core.{VeScalarType, VeString}
+import com.nec.util.PointerOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 case class TransferDescriptor2(batches: Seq[Seq[BytePointerColVector]]) extends LazyLogging {
-  lazy val isEmpty: Boolean = batches.flatten.isEmpty
-  lazy val nonEmpty: Boolean = !isEmpty
+  lazy val isEmpty: Boolean = {
+    batches.flatten.isEmpty
+  }
+
+  lazy val nonEmpty: Boolean = {
+    !isEmpty
+  }
+
+  lazy val nbatches: Long = {
+    batches.size.toLong
+  }
+
+  lazy val ncolumns: Long = {
+    batches.headOption.map(_.size.toLong).getOrElse(0L)
+  }
 
   private[cache] lazy val batchwiseColumns: Seq[Seq[BytePointerColVector]] = {
     batches.transpose
@@ -72,9 +86,6 @@ case class TransferDescriptor2(batches: Seq[Seq[BytePointerColVector]]) extends 
   }
 
   lazy val buffer: BytePointer = {
-    val nbatches: Long = batches.size.toLong
-    val ncolumns: Long = batches.headOption.map(_.size.toLong).getOrElse(0L)
-
     require(nbatches > 0, "Need more than 0 batches for transfer!")
     require(ncolumns > 0, "Need more than 0 columns for transfer!")
     require(batches.forall(_.size == ncolumns), "All batches must have the same column count!")
@@ -91,6 +102,7 @@ case class TransferDescriptor2(batches: Seq[Seq[BytePointerColVector]]) extends 
     Pointer.memset(outbuffer, 0, outbuffer.limit)
 
     // Write the descriptor header
+    // Total header size is in bytes
     header.put(0, headerOffsets.last * 8)
     header.put(1, nbatches)
     header.put(2, ncolumns)
@@ -121,9 +133,6 @@ case class TransferDescriptor2(batches: Seq[Seq[BytePointerColVector]]) extends 
   }
 
   lazy val resultBuffer: LongPointer = {
-    val nbatches: Long = batches.size.toLong
-    val ncolumns: Long = batches.headOption.map(_.size.toLong).getOrElse(0L)
-
     require(nbatches > 0, "Need more than 0 batches for creating a result buffer!")
     require(ncolumns > 0, "Need more than 0 columns for creating a result buffer!")
 
@@ -174,14 +183,12 @@ case class TransferDescriptor2(batches: Seq[Seq[BytePointerColVector]]) extends 
 
   def toSeq: Seq[Byte] = {
     val buf = buffer
-    val array = Array.ofDim[Byte](buf.limit().toInt)
+    val array = Array.ofDim[Byte](buffer.limit().toInt)
     buf.get(array)
-    buf.close
     array.toSeq
   }
 
   def print: Unit = {
-    val hex = toSeq.map { b => String.format("%02x", Byte.box(b)) }
-    println("Transfer Buffer = \n" + hex.sliding(16, 16).map { chunk => chunk.mkString(" ") }.mkString("\n") + "\n")
+    println(s"Transfer Buffer = \n${buffer.hexdump}\n")
   }
 }

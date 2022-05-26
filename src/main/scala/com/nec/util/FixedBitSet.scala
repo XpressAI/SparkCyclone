@@ -4,16 +4,12 @@ import java.util.BitSet
 import org.bytedeco.javacpp.BytePointer
 
 object FixedBitSet {
-  def ones(size: Int): BytePointer = {
-    /*
-      The buffer is created in 8-byte boundary sizes to be consistent for use by
-      the column vector classes that depend on this property for Arrow compatibility.
-    */
-    val buffer = new BytePointer((size / 64.0).ceil.toLong * 8L)
-    for (i <- 0L until buffer.capacity()) {
-      buffer.put(i, -1.toByte)
+  def ones(size: Int): FixedBitSet = {
+    val bitset = FixedBitSet(size)
+    for (i <- 0 until size) {
+      bitset.set(i, true)
     }
-    buffer
+    bitset
   }
 
   def from(buffer: BytePointer): FixedBitSet = {
