@@ -3,11 +3,11 @@ package com.nec.cache
 import com.nec.colvector.BytePointerColVector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
+import com.nec.util.CallContextOps._
 import com.nec.util.FixedBitSet
 import com.nec.util.PointerOps._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.WithVeProcess
-import com.nec.vectorengine.LibCyclone
+import com.nec.vectorengine.{LibCyclone, WithVeProcess}
 import org.bytedeco.javacpp._
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers._
@@ -18,8 +18,6 @@ import scala.reflect.ClassTag
 
 @VectorEngineTest
 final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
-  private lazy val lib = veProcess.loadLibrary(LibCyclone.SoPath)
-
   private def batch1: Seq[BytePointerColVector] = {
     Seq(
       Array[Short](1, 2).toBytePointerColVector("1a"),
@@ -47,8 +45,8 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
     )
   }
 
-  private def sampleDescriptor: TransferDescriptor2 = {
-    TransferDescriptor2(Seq(batch1, batch2, batch3))
+  private def sampleDescriptor: TransferDescriptor = {
+    TransferDescriptor(Seq(batch1, batch2, batch3))
   }
 
   "TransferDescriptor" should {
@@ -207,6 +205,29 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
 
       col4.container should be (10)
       col4.buffers should be (Seq(11, 12, 13, 14))
+    }
+
+    "correctly unpack multiple batches of mixed vector types" in {
+      val descriptor = sampleDescriptor
+      val batch = engine.executeTransfer(descriptor)
+
+      batch.numRows should be (9)
+      batch.columns.size should be (4)
+
+      val col1 = batch.columns(0)
+      val col2 = batch.columns(1)
+      val col3 = batch.columns(2)
+      val col4 = batch.columns(3)
+
+      col1.numItems should be (9)
+      col2.numItems should be (9)
+      col3.numItems should be (9)
+      col4.numItems should be (9)
+
+      col1.toBytePointerColVector2.toArray[Short] should be (Array[Short](1, 2, 3, 4, 5, 6, 7, 8, 9))
+      col2.toBytePointerColVector2.toArray[Float] should be (Array[Float](10, 20, 30, 40, 50, 60, 70, 80, 90))
+      col3.toBytePointerColVector2.toArray[Double] should be (Array[Double](100, 200, 300, 400, 500, 600, 700, 800, 900))
+      col4.toBytePointerColVector2.toArray[String] should be (Array[String]("apple", "banana", "carrot", "durian", "eggplant", "fig", "grape", "hawthorn", "ichigo"))
     }
   }
 }

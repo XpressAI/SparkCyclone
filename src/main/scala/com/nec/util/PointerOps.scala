@@ -18,6 +18,9 @@ object PointerOps {
     }
 
     def slice(offset: Long, size: Long): BytePointer = {
+      require(offset > 0, "offset must be > 0")
+      require(size >= 0, "size must be >= 0")
+
       val outbuffer = new BytePointer(size)
       Pointer.memcpy(outbuffer, buffer.position(offset), size)
       buffer.position(0)

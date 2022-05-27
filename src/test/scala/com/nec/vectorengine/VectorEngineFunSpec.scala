@@ -340,33 +340,33 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" ignore {
+    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" in {
       // Batch A
-      val sizeA = Random.nextInt(50) + 10
+      val sizeA = Random.nextInt(100) + 10
       val a1 = InputSamples.seqOpt[Int](sizeA)
       val a2 = InputSamples.seqOpt[Double](sizeA)
       val a3 = InputSamples.seqOpt[String](sizeA)
-      println(s"a1 = ${a1}")
-      println(s"a2 = ${a2}")
-      println(s"a3 = ${a3}")
+      // println(s"a1 = ${a1}")
+      // println(s"a2 = ${a2}")
+      // println(s"a3 = ${a3}")
 
       // Batch B
-      val sizeB = Random.nextInt(50) + 10
+      val sizeB = Random.nextInt(100) + 10
       val b1 = InputSamples.seqOpt[Int](sizeB)
       val b2 = InputSamples.seqOpt[Double](sizeB)
       val b3 = InputSamples.seqOpt[String](sizeB)
-      println(s"b1 = ${b1}")
-      println(s"b2 = ${b2}")
-      println(s"b3 = ${b3}")
+      // println(s"b1 = ${b1}")
+      // println(s"b2 = ${b2}")
+      // println(s"b3 = ${b3}")
 
       // Batch C
-      val sizeC = Random.nextInt(50) + 10
+      val sizeC = Random.nextInt(100) + 10
       val c1 = InputSamples.seqOpt[Int](sizeC)
       val c2 = InputSamples.seqOpt[Double](sizeC)
       val c3 = InputSamples.seqOpt[String](sizeC)
-      println(s"c1 = ${c1}")
-      println(s"c2 = ${c2}")
-      println(s"c3 = ${c3}")
+      // println(s"c1 = ${c1}")
+      // println(s"c2 = ${c2}")
+      // println(s"c3 = ${c3}")
 
       // Create batch of batches
       val descriptor = TransferDescriptor(Seq(
@@ -424,7 +424,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" ignore {
+    "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [2]" in {
       // Batch A
       val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142), None, None, None, Some(2149), Some(4297), None, None, Some(3278), Some(6668), None)
 
