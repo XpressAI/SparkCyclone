@@ -1,12 +1,43 @@
 package com.nec.util
 
 import scala.reflect.ClassTag
+import java.lang.{Long => JLong}
 import org.bytedeco.javacpp._
 
 object PointerOps {
-  implicit class ExtendedPointer(buffer: Pointer) {
+  implicit class ExtendedPointer[T <: Pointer : ClassTag](buffer: T) {
     def nbytes: Long = {
       buffer.limit * buffer.sizeof
+    }
+
+    def slice(offset: Long, size: Long): T = {
+      require(offset >= 0, "offset must be >= 0")
+      require(size >= 0, "size must be >= 0")
+      val klass = implicitly[ClassTag[T]].runtimeClass
+
+      val outbuffer = klass.getConstructor(classOf[Long]).newInstance(size: JLong).asInstanceOf[T]
+      Pointer.memcpy(outbuffer, buffer.position(offset * buffer.sizeof), size * buffer.sizeof)
+      buffer.position(0)
+      outbuffer
+    }
+
+    def asBytePointer: BytePointer = {
+      /*
+        Set the capacity value after cast to account for the size difference
+        between the source and destination pointer types (casting JavaCPP
+        pointers literally copies the capacity value over as is).
+      */
+      new BytePointer(buffer).capacity(buffer.limit * buffer.sizeof)
+    }
+
+    def toHex: Array[String] = {
+      asBytePointer.toArray.map { b => String.format("%02x", Byte.box(b)) }
+    }
+
+    def hexdump: String = {
+      toHex.sliding(16, 16)
+        .map { chunk => chunk.mkString(" ") }
+        .mkString("\n")
     }
   }
 
@@ -17,30 +48,10 @@ object PointerOps {
       array
     }
 
-    def slice(offset: Long, size: Long): BytePointer = {
-      require(offset > 0, "offset must be > 0")
-      require(size >= 0, "size must be >= 0")
-
-      val outbuffer = new BytePointer(size)
-      Pointer.memcpy(outbuffer, buffer.position(offset), size)
-      buffer.position(0)
-      outbuffer
-    }
-
-    def toHex: Array[String] = {
-      toArray.map { b => String.format("%02x", Byte.box(b)) }
-    }
-
-    def hexdump: String = {
-      toHex.sliding(16, 16)
-        .map { chunk => chunk.mkString(" ") }
-        .mkString("\n")
-    }
-
     def as[T <: Pointer : ClassTag]: T = {
       val klass = implicitly[ClassTag[T]].runtimeClass
       val cbuffer = klass.getConstructor(classOf[Pointer]).newInstance(buffer).asInstanceOf[T]
-      cbuffer.limit(buffer.limit() / cbuffer.sizeof)
+      cbuffer.capacity(buffer.limit() / cbuffer.sizeof)
     }
   }
 

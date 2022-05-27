@@ -24,6 +24,49 @@ class PointerOpsUnitSpec extends AnyWordSpec {
       val buffer5 = new DoublePointer(Random.nextInt(1000).toLong)
       buffer5.nbytes should be (buffer5.limit() * 8)
     }
+
+    "correctly create slices (BytePointer)" in {
+      val buffer = new BytePointer(100L)
+      0.until(100).foreach { i => buffer.put(i.toLong, i.toByte) }
+
+      val offset = Random.nextInt(30)
+      val size = Random.nextInt(30)
+      buffer.slice(offset, size).toArray.toSeq should be (offset.until(offset + size).toSeq)
+    }
+
+    "correctly create slices (IntPointer)" in {
+      val buffer = new IntPointer(100L)
+      0.until(100).foreach { i => buffer.put(i.toLong, i.toByte) }
+
+      val offset = Random.nextInt(30)
+      val size = Random.nextInt(30)
+      buffer.slice(offset, size).toArray.toSeq should be (offset.until(offset + size).toSeq)
+    }
+
+    "correctly convert to hex array (BytePointer)" in {
+      val size = Random.nextInt(100) + 1
+      val buffer = new BytePointer(size.toLong)
+      0.until(size).foreach { i => buffer.put(i.toLong, i.toByte) }
+
+      buffer.toHex should be (0.until(size).toSeq.map { i => String.format("%02x", Byte.box(i.toByte)) })
+    }
+
+    "correctly convert to hex array (DoublePointer)" in {
+      val size = Random.nextInt(100) + 1
+      val buffer = new DoublePointer(size.toLong)
+      0.until(size).foreach { i => buffer.put(i.toLong, i.toByte) }
+
+      buffer.toHex should be (buffer.asBytePointer.toArray.map { i => String.format("%02x", Byte.box(i.toByte)) })
+    }
+
+    "correctly be materialized into an equivalent BytePointer" in {
+      val size = Random.nextInt(100) + 1
+      val buffer = new IntPointer(size.toLong)
+      val array = 0.until(size).toArray.map(_ => Random.nextInt(10000))
+
+      buffer.put(array, 0, array.size)
+      buffer.asBytePointer.as[IntPointer].toArray should be (array)
+    }
   }
 
   "ExtendedBytePointer" should {
@@ -35,31 +78,14 @@ class PointerOpsUnitSpec extends AnyWordSpec {
       buffer.toArray.toSeq should be (0.until(size).toSeq)
     }
 
-    "correctly create ByteBuffer slices" in {
-      val buffer = new BytePointer(100L)
-      0.until(100).foreach { i => buffer.put(i.toLong, i.toByte) }
 
-      val offset = Random.nextInt(30)
-      val size = Random.nextInt(30)
-      buffer.slice(offset, size).toArray.toSeq should be (offset.until(offset + size).toSeq)
-    }
-
-    "correctly convert to hex array" in {
-      val size = Random.nextInt(100) + 1
-      val buffer = new BytePointer(size.toLong)
-      0.until(size).foreach { i => buffer.put(i.toLong, i.toByte) }
-
-      buffer.toHex should be (0.until(size).toSeq.map { i => String.format("%02x", Byte.box(i.toByte)) })
-    }
-
-    "correctly be materialized into another Pointer class" in {
+    "correctly be materialized into an equivalent T <: Pointer" in {
       val size = Random.nextInt(100) + 1
       val buffer = new BytePointer(size * 4)
       val ibuf = new IntPointer(buffer)
-
       val array = 0.until(size).toArray.map(_ => Random.nextInt(10000))
-      ibuf.put(array, 0, array.size)
 
+      ibuf.put(array, 0, array.size)
       buffer.as[IntPointer].toArray should be (array)
     }
   }

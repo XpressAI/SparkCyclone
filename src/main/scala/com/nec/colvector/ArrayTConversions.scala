@@ -2,9 +2,9 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import org.bytedeco.javacpp._
-
+import com.nec.util.PointerOps._
 import scala.reflect.ClassTag
+import org.bytedeco.javacpp._
 
 object ArrayTConversions {
   implicit class ArrayTToBPCV[T : ClassTag](input: Array[T]) {
@@ -38,12 +38,7 @@ object ArrayTConversions {
         throw new NotImplementedError(s"Primitive type not supported: ${klass}")
       }
 
-        /*
-          Cast to BytePointer and manually set the capacity value to account for
-          the size difference between the two pointer types (casting JavaCPP
-          pointers literally copies the capacity value over as is).
-        */
-      new BytePointer(buffer).capacity(input.size.toLong * VeScalarType.fromJvmType[T].cSize)
+      buffer.asBytePointer
     }
 
     private[colvector] def validityBuffer: BytePointer = {
@@ -92,13 +87,8 @@ object ArrayTConversions {
 
       (
         dataBuffer,
-        /*
-          Cast to BytePointer and manually set the capacity value to account for
-          the size difference between the two pointer types (casting JavaCPP
-          pointers literally copies the capacity value over as is).
-        */
-        new BytePointer(startsBuffer).capacity(bytesAA.size.toLong * 4),
-        new BytePointer(lensBuffer).capacity(bytesAA.size.toLong * 4),
+        startsBuffer.asBytePointer,
+        lensBuffer.asBytePointer
       )
     }
   }

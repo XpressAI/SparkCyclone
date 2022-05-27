@@ -82,8 +82,9 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
       ))
     }
 
-    "correctly compute the data offsets to be vector-aligned (8-byte aligned)" in {
-      val offsets = sampleDescriptor.dataOffsets
+    "correctly have vector-aligned (8-byte aligned) data offsets" in {
+      val descriptor = sampleDescriptor
+      val offsets = descriptor.dataOffsets
 
       offsets.foreach { x =>
         x % 8 should be (0)
@@ -92,6 +93,9 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
       offsets.sliding(2).foreach { case x :: y :: _ =>
         (y - x) % 8 should be (0)
       }
+
+      // The generated buffer should 8-byte aligned
+      descriptor.buffer.limit() % 8 should be (0)
     }
 
     "correctly write scalar columns into the data buffers" in {
