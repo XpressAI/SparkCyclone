@@ -274,9 +274,9 @@ namespace cyclone::tests {
     const auto vbytes = sizeof(uint64_t) * frovedis::ceil_div(lengths[0] + lengths[1] + lengths[2], size_t(64));
     uint64_t* output = static_cast<uint64_t *>(calloc(vbytes, 1));
 
-    cyclone::append_bitsets(&output[0],  0, &inputs[0], lengths[0]);
-    cyclone::append_bitsets(&output[0], lengths[0], &inputs[1], lengths[1]);
-    cyclone::append_bitsets(&output[1], lengths[0] + lengths[1], &inputs[2], lengths[2]);
+    cyclone::append_bitsets(output,  0, &inputs[0], lengths[0]);
+    cyclone::append_bitsets(output, lengths[0], &inputs[1], lengths[1]);
+    cyclone::append_bitsets(output, lengths[0] + lengths[1], &inputs[2], lengths[2]);
 
     uint64_t expected[3] = {
       0b0110010010001001010010000110111010000011001010000110011000110010,
