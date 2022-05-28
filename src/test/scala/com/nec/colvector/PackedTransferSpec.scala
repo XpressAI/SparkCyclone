@@ -7,6 +7,8 @@ import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
 import com.nec.ve.WithVeProcess
 import com.nec.vectorengine.LibCyclone
+import scala.reflect.runtime.universe._
+import scala.util.Random
 import org.bytedeco.javacpp.LongPointer
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers._
@@ -116,13 +118,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       }
     }
 
-    // TODO: Ignore the property based tests for now, they sometimes find ways to crash the JVM without any good reason.
-    //       We will have to address that problem after the bugfixes contained in this branch.
-
-    // def generatedColumn[T: ClassTag]: Gen[Seq[Option[T]]] = {
-    //   Gen.choose[Int](1, 1024).map(InputSamples.seqOpt[T](_))
-    // }
-
     def generatedColumns[T: ClassTag]: Gen[Seq[Seq[Option[T]]]] = {
       Gen.zip(Gen.choose[Int](1, 37), Gen.choose[Int](1, 1024))
         .map { case (ncolumns, length) =>
@@ -141,27 +136,43 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         }
     }
 
-    // def generatedMixedBatches(klasses: Class[_]*) = {
-    //   Gen.zip(Gen.choose[Int](1, 10), Gen.choose[Int](1, 10)).map{ case (batchCount, colLength) =>
-    //     (0 until batchCount).map{batch =>
-    //       klasses.map{ klass =>
-    //         InputSamples.seqOpt(colLength)(ClassTag(klass))
-    //       }.toSeq
-    //     }.toSeq
-    //   }
-    // }
+    def generatedMixedBatches(typetags: TypeTag[_]*): Gen[Seq[Seq[BytePointerColVector]]] = {
+      Gen.zip(Gen.choose[Int](1, 1024), Gen.choose[Int](1, 10)).map { case (nbatches, size) =>
+        (0 until nbatches).toSeq.map { batch =>
+          typetags.toSeq.map { tag =>
+            if (tag.tpe =:= typeOf[Short]) {
+              InputSamples.seqOpt[Short](size).toBytePointerColVector("_")
 
-    // def generatedAnyMixBatches = {
-    //   Gen.choose[Int](1, 25).flatMap{ colCount =>
-    //     Gen.pick(colCount,
-    //       Stream.continually(Seq(classOf[Int], classOf[Short], classOf[Long], classOf[Float], classOf[Double], classOf[String])).flatten
-    //     ).flatMap{ colClasses =>
-    //       generatedMixedBatches(colClasses.toArray:_*)
-    //     }
-    //   }
-    // }
+            } else if (tag.tpe =:= typeOf[Int]) {
+              InputSamples.seqOpt[Int](size).toBytePointerColVector("_")
 
-    "satisfy the property: All single scalar batches unpack correctly" ignore {
+            } else if (tag.tpe =:= typeOf[Long]) {
+              InputSamples.seqOpt[Long](size).toBytePointerColVector("_")
+
+            } else if (tag.tpe =:= typeOf[Float]) {
+              InputSamples.seqOpt[Float](size).toBytePointerColVector("_")
+
+            } else if (tag.tpe =:= typeOf[Double]) {
+              InputSamples.seqOpt[Double](size).toBytePointerColVector("_")
+
+            } else {
+              InputSamples.seqOpt[String](size).toBytePointerColVector("_")
+            }
+          }
+        }
+      }
+    }
+
+    def generatedAnyMixBatches: Gen[Seq[Seq[BytePointerColVector]]] = {
+      Gen.choose[Int](1, 32).flatMap { ncolumns =>
+        val typetags = Stream.continually(Seq(typeTag[Int], typeTag[Short], typeTag[Long], typeTag[Float], typeTag[Double], typeTag[String])).flatten
+          .take(ncolumns)
+
+        generatedMixedBatches(Random.shuffle(typetags).toArray: _*)
+      }
+    }
+
+    "satisfy the property: All single scalar batches unpack correctly" in {
       forAll (generatedColumns[Int]) { cols =>
         whenever (cols.nonEmpty && cols.forall(_.nonEmpty)) {
           val descriptor = new TransferDescriptor(Seq(cols.map(_.toBytePointerColVector("_"))))
@@ -177,7 +188,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       }
     }
 
-    "satisfy the property: All single varchar batches unpack correctly" ignore {
+    "satisfy the property: All single varchar batches unpack correctly" in {
       forAll (generatedColumns[String]) { cols =>
         whenever(cols.nonEmpty && cols.forall(_.nonEmpty)) {
           val descriptor = new TransferDescriptor(List(cols.map(_.toBytePointerColVector("_"))))
@@ -187,24 +198,15 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
           batch.columns.zipWithIndex.foreach { case (col, i) =>
             col.toBytePointerColVector.toBytes should equal(cols(i).toBytePointerColVector("_").toBytes)
           }
+
           batch.free()
         }
       }
     }
 
-    "satisfy the property: All sets of scalar batches unpack correctly" ignore {
-      // import java.io._
-
-      // val file = new File(s"${getClass.getName}.log")
-      // val bw = new BufferedWriter(new FileWriter(file))
-
-      forAll (generatedBatches[Int](1024)) { batches =>
+    "satisfy the property: All sets of scalar batches unpack correctly" in {
+      forAll (generatedBatches[Int](2048)) { batches =>
         whenever (batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)) {
-          // bw.write(batches.size.toString)
-          // bw.write("\n")
-          // bw.write(batches.toString)
-          // bw.write("\n\n")
-
           val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
           val batch = veProcess.executeTransfer(libRef, descriptor)
           val mergedCols = batches.transpose.map(_.flatten)
@@ -214,70 +216,47 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
           batch.columns.zipWithIndex.foreach { case (col, i) =>
             col.toBytePointerColVector.toBytes should equal (mergedCols(i).toBytePointerColVector("_").toBytes)
           }
+
           batch.free()
         }
       }
-
-      // bw.close
     }
 
-    "satisfy the property: All sets of varchar batches unpack correctly" ignore {
-      forAll (generatedBatches[String](128)) { (batches) =>
+    "satisfy the property: All sets of varchar batches unpack correctly" in {
+      forAll (generatedBatches[String](2048)) { batches =>
         whenever(batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)){
-          val descriptor = new TransferDescriptor(batches.map(_.map(_.toArray.toBytePointerColVector("_"))))
-
-          val mergedCols = batches.transpose.map(_.flatten)
-
-          //println(s"batches: ${batches}")
-          //descriptor.printBuffer()
-
+          val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
           val batch = veProcess.executeTransfer(libRef, descriptor)
+          val mergedCols = batches.transpose.map(_.flatten)
 
           batch.columns.size should be(batches.head.length)
           batch.numRows should be(mergedCols.head.size)
-
           batch.columns.zipWithIndex.foreach{ case (col, i) =>
             col.toBytePointerColVector.toBytes should equal(mergedCols(i).toBytePointerColVector("_").toBytes)
           }
+
           batch.free()
         }
       }
     }
 
-    // Doesn't compile with SeqOpt, need to figure out a better way of doing this.
-    /*"satisfy the property: All sets of mixed batches unpack correctly" ignore {
-      forAll(generatedAnyMixBatches) { batches =>
-        whenever(batches.nonEmpty && batches.forall { b => b.nonEmpty && b.forall(_.nonEmpty) } && batches.forall(_.size == batches.head.size)) {
-          println("before descriptor")
-          val descriptor = new TransferDescriptor(batches.map(_.map(_.toArray.toBytePointerColVector("_"))))
+    "satisfy the property: All sets of mixed batches unpack correctly" in {
+      forAll (generatedAnyMixBatches) { batches =>
+        whenever (batches.nonEmpty && batches.forall { b => b.nonEmpty && b.forall(_.numItems > 0) } && batches.forall(_.size == batches.head.size)) {
+          val descriptor = new TransferDescriptor(batches)
+          val transposed = batches.transpose
 
-          println("before merge")
-          val mergedCols = batches.transpose.map(_.flatten)
-
-          println("before transfer")
           val batch = veProcess.executeTransfer(libRef, descriptor)
-
-          println("before sanity")
           batch.columns.size should be(batches.head.length)
-          batch.numRows should be(mergedCols.head.size)
+          batch.numRows should be (transposed.head.map(_.numItems).sum)
 
-          println("before actual")
-          batch.columns.zipWithIndex.foreach { case (col, i) =>
-            println(s"printing $i")
-            val curCol = mergedCols(i)
-            val curFirst = curCol.filter(_.isDefined).headOption
-            if(curFirst.isDefined && curFirst.get.get.isInstanceOf[String]){
-              val bytes = SeqOptStringToBPCV(curCol).toBytePointerColVector("_").toBytes
-              col.toBytePointerColVector.toBytes should equal(bytes)
-            }else{
-              val tag: ClassTag[_] = ClassTag(curFirst.get.get.getClass)
-              val bytes = SeqOptTToBPCV(curCol)(tag).toBytePointerColVector("_").toBytes
-              col.toBytePointerColVector.toBytes should equal(bytes)
-            }
+          (batch.columns, transposed).zipped.foreach { case (column, vecs) =>
+            column.toBytePointerColVector.toSeqOptAny should be (vecs.map(_.toSeqOptAny).flatten)
           }
+
           batch.free()
         }
       }
-    }*/
+    }
   }
 }

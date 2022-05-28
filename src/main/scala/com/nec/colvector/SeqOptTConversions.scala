@@ -193,5 +193,9 @@ object SeqOptTConversions {
         throw new NotImplementedError(s"Conversion of BytePointerColVector to Seq[Option[${klass.getName}]] not supported")
       }
     }
+
+    def toSeqOptAny: Seq[Option[Any]] = {
+      toSeqOpt(ClassTag(input.veType.scalaType)).asInstanceOf[Seq[Option[Any]]]
+    }
   }
 }
