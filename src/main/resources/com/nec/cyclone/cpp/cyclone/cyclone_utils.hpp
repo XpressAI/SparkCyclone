@@ -189,28 +189,35 @@ namespace cyclone {
     uint64_t* tail = &first[tail_pos];
 
     size_t spilled_bits = first_bit_count % bits_per_container;
-    size_t prev_space = bits_per_container - spilled_bits;
+    // when spilled_bits = 0, we can directly copy the data without any shifting
+    // (also shifting by > 63 is undefined, so we should take a defined route anyway)
+    if(spilled_bits == 0){
+      size_t bytes = frovedis::ceil_div(second_bit_count, bits_per_container) * sizeof(uint64_t);
+      std::memcpy(tail, second, bytes);
+    }else{
+      size_t prev_space = bits_per_container - spilled_bits;
 
-    size_t step_count = frovedis::ceil_div(second_bit_count, bits_per_container);
-    size_t additional_container_count = second_bit_count < prev_space ? 0 : frovedis::ceil_div(second_bit_count - prev_space, bits_per_container);
+      size_t step_count = frovedis::ceil_div(second_bit_count, bits_per_container);
+      size_t additional_container_count = second_bit_count < prev_space ? 0 : frovedis::ceil_div(second_bit_count - prev_space, bits_per_container);
 
-    // Apply mask to ensure empty space is zero initialized
-    uint64_t mask = ~0; // Initialize to all 1
-    mask = mask >> prev_space; // Move by empty space to zero out empty spaces
-    tail[0] &= mask;
+      // Apply mask to ensure empty space is zero initialized
+      uint64_t mask = ~0; // Initialize to all 1
+      mask = mask >> prev_space; // Move by empty space to zero out empty spaces
+      tail[0] &= mask;
 
-    // Prepare additional containers, by setting their initial value to the spill-over from the previous container
+      // Prepare additional containers, by setting their initial value to the spill-over from the previous container
 #pragma _NEC vector
 #pragma _NEC ivdep
-    for(size_t i = 0; i < additional_container_count; i++){
-      tail[i + 1] = second[i] >> prev_space;
-    }
+      for(size_t i = 0; i < additional_container_count; i++){
+        tail[i + 1] = second[i] >> prev_space;
+      }
 
-    // Set values into empty space
+      // Set values into empty space
 #pragma _NEC vector
 #pragma _NEC ivdep
-    for(size_t i = 0; i < step_count; i++){
-      tail[i] |= second[i] << spilled_bits;
+      for(size_t i = 0; i < step_count; i++){
+        tail[i] |= second[i] << spilled_bits;
+      }
     }
   }
 }
