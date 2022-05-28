@@ -37,7 +37,6 @@ void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_da
   size_t cur_out_data_pos = 0;
   size_t cur_out_lengths_pos = 0;
   size_t cur_out_offsets_pos = 0;
-  size_t dangling_bits = 0;
   size_t processed_elements = 0;
 
   for(auto b = 0; b < batch_count; b++){
@@ -82,15 +81,13 @@ void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_da
     cur_out_lengths_pos += col_in->lengths_size;
 
     //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
-    size_t cur_out_validity_data_pos = processed_elements / 64;
-    //std::cout << "merge_varchar_transfer: cur_out_validity_data_pos=" << cur_out_validity_data_pos << std::endl;
-    //std::cout << "merge_varchar_transfer: dangling_bits=" << dangling_bits << std::endl;
-
     uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-
+    cyclone::append_bitsets(
+      out_validity_buffer,
+      processed_elements,
+      batch_validity_buffer,
+      col_in->element_count
+    );
     processed_elements += col_in->element_count;
     cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
@@ -120,8 +117,6 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
   size_t cur_col_pos = 0;
   size_t cur_data_pos = 0;
   size_t cur_out_data_pos = 0;
-  size_t dangling_bits = 0;
-
   size_t processed_elements = 0;
 
   for(auto b = 0; b < batch_count; b++){
@@ -137,15 +132,13 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
     //std::cout << "merge_scalar_transfer: copy validity" << std::endl;
     //std::cout << "merge_scalar_transfer: cur_data_pos=" << cur_data_pos << std::endl;
 
-    size_t cur_out_validity_data_pos = processed_elements / 64;
-    //std::cout << "merge_scalar_transfer: cur_out_validity_data_pos=" << cur_out_validity_data_pos << std::endl;
-    //std::cout << "merge_scalar_transfer: dangling_bits=" << dangling_bits << std::endl;
-
     uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    dangling_bits = cyclone::append_bitsets(
-        &out_validity_buffer[cur_out_validity_data_pos], dangling_bits,
-        batch_validity_buffer, col_in->element_count);
-
+    cyclone::append_bitsets(
+      out_validity_buffer,
+      processed_elements,
+      batch_validity_buffer,
+      col_in->element_count
+    );
     processed_elements += col_in->element_count;
     cur_data_pos += VECTOR_ALIGNED(col_in->validity_buffer_size);
   }
