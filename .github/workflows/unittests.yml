@@ -14,7 +14,7 @@ on:
       - ready_for_review
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: "ve"
     steps:
       - uses: actions/checkout@v2
       - name: Coursier cache
