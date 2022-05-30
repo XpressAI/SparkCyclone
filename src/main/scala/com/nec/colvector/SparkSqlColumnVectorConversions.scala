@@ -4,11 +4,12 @@ import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
 import com.nec.util.PointerOps._
 import com.nec.util.ReflectionOps._
-import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
 import org.bytedeco.javacpp._
+
+import java.nio.charset.StandardCharsets
 
 object SparkSqlColumnVectorConversions {
   val SparkToVeScalarTypeMap = Map[DataType, VeScalarType](
@@ -39,41 +40,71 @@ object SparkSqlColumnVectorConversions {
     }
 
     private[colvector] def scalarDataBuffer(size: Int): BytePointer = {
+      //ColumnVectorUtils.populate()
       val buffer = vector.dataType match {
         case IntegerType =>
           val ptr = new IntPointer(size.toLong)
-          // Check for nullability first is required, or else a value fetch on a row marked as null will throw an exception
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
+          if (!vector.hasNull) {
+            ptr.put(vector.getInts(0, size), 0, size)
+          } else {
+            // Check for nullability first is required, or else a value fetch on a row marked as null will throw an exception
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
+          }
           ptr
 
         case LongType =>
           val ptr = new LongPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
+          if (!vector.hasNull) {
+            ptr.put(vector.getLongs(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
+          }
           ptr
 
         case FloatType =>
           val ptr = new FloatPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getFloat(i)))
+
+          if (!vector.hasNull) {
+            ptr.put(vector.getFloats(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getFloat(i)))
+          }
           ptr
 
         case DoubleType =>
           val ptr = new DoublePointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getDouble(i)))
+          if (!vector.hasNull) {
+            ptr.put(vector.getDoubles(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getDouble(i)))
+          }
           ptr
 
         case ShortType =>
           val ptr = new IntPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getShort(i).toInt))
+          if (!vector.hasNull) {
+            ptr.put(vector.getInts(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getShort(i).toInt))
+          }
           ptr
 
         case TimestampType =>
           val ptr = new LongPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
+          if (!vector.hasNull) {
+            ptr.put(vector.getLongs(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getLong(i)))
+          }
           ptr
 
         case DateType =>
           val ptr = new IntPointer(size.toLong)
-          (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
+          if (!vector.hasNull) {
+            ptr.put(vector.getInts(0, size), 0, size)
+          } else {
+            (0 until size).foreach(i => ptr.put(i.toLong, if (vector.isNullAt(i)) 0 else vector.getInt(i)))
+          }
           ptr
       }
 
