@@ -2,6 +2,7 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core._
 import com.nec.util.{FixedBitSet, CallContext}
+import com.nec.util.PointerOps._
 import com.nec.util.ReflectionOps._
 import com.nec.ve.{VeProcess, VeProcessMetrics}
 import java.nio.charset.StandardCharsets
@@ -203,12 +204,7 @@ object ArrowVectorConversions {
         VeNullableShort,
         vector.getValueCount,
         Seq(
-          /*
-            Cast to BytePointer and manually set the capacity value to account
-            for the size difference between the two pointer types (casting
-            JavaCPP pointers literally copies the capacity value over as is).
-          */
-          new BytePointer(buffer).capacity(vector.getValueCount.toLong * 4),
+          buffer.asBytePointer,
           new BytePointer(vector.getValidityBuffer.nioBuffer)
         )
       )
@@ -258,13 +254,8 @@ object ArrowVectorConversions {
 
       (
         dataBuffer,
-        /*
-          Cast to BytePointer and manually set the capacity value to account for
-          the size difference between the two pointer types (casting JavaCPP
-          pointers literally copies the capacity value over as is).
-        */
-        new BytePointer(startsBuffer).capacity(vector.getValueCount.toLong * 4),
-        new BytePointer(lensBuffer).capacity(vector.getValueCount.toLong * 4)
+        startsBuffer.asBytePointer,
+        lensBuffer.asBytePointer
       )
     }
 

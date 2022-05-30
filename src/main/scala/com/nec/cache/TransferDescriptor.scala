@@ -1,180 +1,196 @@
 package com.nec.cache
 
 import com.nec.colvector.{BytePointerColVector, VeColBatch, VeColVector}
-import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-
+import com.nec.spark.agile.core.{VeScalarType, VeString}
+import com.nec.util.PointerOps._
 import scala.collection.mutable.ListBuffer
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import com.typesafe.scalalogging.LazyLogging
 
-case class TransferDescriptor(
-  batches: Seq[Seq[BytePointerColVector]]) extends LazyLogging {
-  lazy val isEmpty: Boolean = batches.flatten.isEmpty
-  def nonEmpty: Boolean = !isEmpty
+case class TransferDescriptor(batches: Seq[Seq[BytePointerColVector]]) extends LazyLogging {
+  lazy val isEmpty: Boolean = {
+    batches.flatten.isEmpty
+  }
 
-  def closeTransferBuffer(): Unit = buffer.close()
+  lazy val nonEmpty: Boolean = {
+    !isEmpty
+  }
+
+  private[cache] lazy val nbatches: Long = {
+    batches.size.toLong
+  }
+
+  private[cache] lazy val ncolumns: Long = {
+    batches.headOption.map(_.size.toLong).getOrElse(0L)
+  }
+
+  private[cache] lazy val batchwiseColumns: Seq[Seq[BytePointerColVector]] = {
+    batches.transpose
+  }
+
+  private[cache] lazy val columns: Seq[BytePointerColVector] = {
+    // Transpose the columns such that the first column of each batch comes first, followed by the second column of each batch, etc.
+    batchwiseColumns.flatten
+  }
+
+  private[cache] lazy val headerOffsets: Seq[Long] = {
+    columns.map(_.veType)
+      .map {
+        case _: VeScalarType =>
+          // The header info for a scalar column contains 4 uint64_t values:
+          // [column_type][element_count][data_size][validity_buffer_size]
+          4L
+
+        case VeString =>
+          // The header info for a scalar column contains 6 uint64_t values:
+          // [column_type][element_count][data_size][offsets_size][lengths_size][validity_buffer_size]
+          6L
+      }
+      // The transfer descriptor header contains 3 uint64_t values:
+      // [header_size, batch_count, column_count]
+      // Offsets are in uint64_t
+      .scanLeft(3L)(_ + _)
+  }
+
+  private[cache] lazy val dataOffsets: Seq[Long] = {
+    columns.flatMap(_.buffers)
+      // Get the size of each buffer in bytes
+      .map { buf => vectorAlignedSize(buf.limit) }
+      // Start the accumulation from header total size
+      // Offsets are in bytes
+      .scanLeft(headerOffsets.last * 8)(_ + _)
+  }
+
+  private[cache] lazy val resultOffsets: Seq[Long] = {
+    batches.head.map(_.veType)
+      .map {
+        case _: VeScalarType =>
+          // scalar vectors prodduce 3 pointers (struct, data buffer, validity buffer)
+          3L
+
+        case VeString =>
+          // nullable_varchar_vector produce 5 pointers (struct, data buffer, offsets, lengths, validity buffer)
+          5L
+      }
+      // Accumulate the offsets (offsets are in uint64_t)
+      .scanLeft(0L)(_ + _)
+  }
+
+  private[cache] def vectorAlignedSize(size: Long): Long = {
+    val dangling = size % 8
+    if (dangling > 0) {
+      // If the size is not aligned on 8 bytes, add some padding
+      size + (8 - dangling)
+    } else {
+      size
+    }
+  }
+
   lazy val buffer: BytePointer = {
-    require(nonEmpty, "Can not create transfer buffer for empty TransferDescriptor!")
+    require(nbatches > 0, "Need more than 0 batches for transfer!")
+    require(ncolumns > 0, "Need more than 0 columns for transfer!")
+    require(batches.forall(_.size == ncolumns), "All batches must have the same column count!")
+    logger.debug(s"Preparing transfer buffer for ${nbatches} batches of ${ncolumns} columns")
 
-    val batchCount: Long = batches.size
-    val columnCount: Long = batches.head.size
+    // Total size of the buffer is computed from scan-left of the header and data sizes
+    val tsize = (headerOffsets.last * 8) + dataOffsets.last
 
-    require(batchCount > 0, "Need more than 0 batches for transfer!")
-    require(columnCount > 0, "Need more than 0 columns for transfer!")
-    require(batches.forall(_.size == columnCount), "All batches must have the same column count!")
+    logger.debug(s"Allocating transfer buffer of ${tsize} bytes")
+    val outbuffer = new BytePointer(tsize)
+    val header = new LongPointer(outbuffer)
 
-    logger.debug(s"Preparing transfer buffer for ${batchCount} batches of ${columnCount} columns")
+    // Zero out the memory for consistency
+    Pointer.memset(outbuffer, 0, outbuffer.limit)
 
-    val sizeOfSizeT = 8
+    // Write the descriptor header
+    // Total header size is in bytes
+    header.put(0, headerOffsets.last * 8)
+    header.put(1, nbatches)
+    header.put(2, ncolumns)
 
-    // Columns are arranged such that the first column of all batches comes first, then the second one of all batches
-    val columns = batches.transpose.flatten
-
-    // 3 size_t fields: [header_size, batch_count, column_count]
-    val transferHeaderFieldCount = 3
-    val startingPositions = columns.map(_.veType.isString).map{
-      case true => 1 + 5 // [column_type][element_count][data_size][offsets_size][lengths_size][validity_buffer_size]
-      case false => 1 + 3 // [column_type][element_count][data_size][validity_buffer_size]
-    }.foldLeft(ListBuffer(transferHeaderFieldCount)){ case (acc, size) =>
-      acc += acc.last + size
-    }.toList
-    // As startingPositions starts after the header, its cum-sum reflects the total number of elements in the header
-    val totalHeaderSize: Long = startingPositions.last * sizeOfSizeT
-
-    val dataSize = batches.flatten.flatMap(_.buffers).map(it => vectorAlignedSize(it.limit())).sum
-
-    val totalBufferSize = totalHeaderSize + dataSize
-
-    logger.debug(s"Allocating transfer buffer of $totalBufferSize bytes")
-    val buffer = new BytePointer(totalBufferSize)
-
-    logger.debug(s"Writing header")
-    // Setup header values in buffer
-    val header = new LongPointer(buffer)
-    header.put(0, totalHeaderSize)
-    header.put(1, batchCount)
-    header.put(2, columnCount)
-
-    columns.zipWithIndex.foreach{ case (column, idx) =>
+    // Write the column headers
+    columns.zipWithIndex.foreach { case (column, i) =>
       val buffers = column.buffers.toList
+      val start = headerOffsets(i)
 
-      val startPos = startingPositions(idx)
+      header.put(start, column.veType.cEnumValue)
+      header.put(start + 1, column.numItems)
+      header.put(start + 2, buffers(0).limit())
+      header.put(start + 3, buffers(1).limit())
 
-      val columnType: Long = column.veType.cVectorType match {
-        case "nullable_short_vector" => 0
-        case "nullable_int_vector" => 1
-        case "nullable_bigint_vector" => 2
-        case "nullable_float_vector" => 3
-        case "nullable_double_vector" => 4
-        case "nullable_varchar_vector" => 5
-      }
-
-      logger.debug(s"Writing column header for column $idx")
-
-      header.put(startPos, columnType)
-      header.put(startPos + 1, column.numItems)
-      header.put(startPos + 2, buffers(0).limit())
       if (column.veType.isString) {
-        header.put(startPos + 3, buffers(1).limit())
-        header.put(startPos + 4, buffers(2).limit())
-        header.put(startPos + 5, buffers(3).limit())
-      } else {
-        header.put(startPos + 3, buffers(1).limit())
+        header.put(start + 4, buffers(2).limit())
+        header.put(start + 5, buffers(3).limit())
       }
     }
 
-    // copy data into buffer
-    val bufferPointers = columns.flatMap(_.buffers)
-    val dataPositions = bufferPointers.map(it => vectorAlignedSize(it.limit()))
-      .foldLeft(ListBuffer(totalHeaderSize)){ case (acc, size) =>
-        acc += acc.last + size
-      }
-
-    bufferPointers.zipWithIndex.foreach{ case (ptr, idx) =>
-      val startPos = dataPositions(idx)
-
-      logger.debug(s"Copying data for buffer $idx")
-      Pointer.memcpy(buffer.position(startPos), ptr, ptr.limit())
+    // Write the data from the individual column buffers
+    columns.flatMap(_.buffers).zipWithIndex.foreach { case (buf, i) =>
+      val start = dataOffsets(i)
+      Pointer.memcpy(outbuffer.position(start), buf, buf.limit)
     }
 
-    buffer.position(0)
+    outbuffer.position(0)
   }
 
-  def printBuffer(): Unit = {
-    println("Transfer Buffer = ")
-    val arr = Array.ofDim[Byte](buffer.limit().toInt)
-    buffer.get(arr)
-    println(arr.mkString("[", ", ", "]"))
+  lazy val resultBuffer: LongPointer = {
+    require(nbatches > 0, "Need more than 0 batches for creating a result buffer!")
+    require(ncolumns > 0, "Need more than 0 columns for creating a result buffer!")
+
+    // Total size of the buffer is computed from scan-left of the result sizes
+    logger.debug(s"Allocating transfer output pointer of ${resultOffsets.last} bytes")
+    new LongPointer(resultOffsets.last)
   }
 
-  def closeOutputBuffer(): Unit = outputBuffer.close()
-  lazy val outputBuffer: BytePointer = {
-    require(nonEmpty, "Can not create output buffer for empty TransferDescriptor!")
+  def resultToColBatch: VeColBatch = {
+    val vcolumns = batches.head.zipWithIndex.map { case (column, i) =>
+      logger.debug(s"Reading output pointers for column ${i}")
 
-    val sizeOfUIntPtr = 8
-    val bufferSize = batches.head.map(_.veType.isString).map{
-      // varchar vectors produce 5 pointers (pointer to structure + data buffer + offsets + lengths + validity buffer)
-      case true => 5
-      // scalar vectors prodduce 3 pointers (pointer to structure + data buffer + validity buffer)
-      case false => 3
-    }.sum * sizeOfUIntPtr
+      val batch = batchwiseColumns(i)
+      val cbuf = resultBuffer.position(resultOffsets(i))
 
-    logger.debug(s"Allocating transfer output pointer of $bufferSize bytes")
-    new BytePointer(bufferSize)
-  }
-  def outputBufferToColBatch(): VeColBatch = {
-    val od = new LongPointer(outputBuffer)
-    val startingPositions = batches.head.map(_.veType.isString).map{
-      case true => 5
-      case false => 3
-    }.foldLeft(ListBuffer(0)){ case (acc, size) =>
-      acc += acc.last + size
-    }
+      // Fetch the pointers to the nullable_t_vector
+      val buffers = (if (column.veType.isString) 1.to(4) else 1.to(2))
+        .toSeq
+        .map(cbuf.get(_))
 
-    val batchwiseColumns = batches.transpose
-
-    val vectors = batches.head.zipWithIndex.map{ case (column, idx) =>
-      logger.debug(s"Reading output pointers for column $idx")
-      val curOd = od.position(startingPositions(idx))
-      val buffers = if (column.veType.isString) {
-        Seq(
-          curOd.get(1), curOd.get(2), curOd.get(3), curOd.get(4),
-        )
-      } else {
-        Seq(
-          curOd.get(1), curOd.get(2)
-        )
-      }
-
-      val batch = batchwiseColumns(idx)
-      val items = batch.map(_.numItems).sum
-      val dataSize = batch.map(_.dataSize).foldLeft(Option(0)){ case (acc, v) =>
-        v match {
-          case None => acc
-          case Some(value) => acc.map(_ + value)
-        }
+      // Compute the dataSize
+      val dataSizeO = column.veType match {
+        case _: VeScalarType =>
+          None
+        case VeString =>
+          Some(batch.map(_.dataSize).flatten.foldLeft(0)(_ + _))
       }
 
       VeColVector(
         column.source,
         column.name,
         column.veType,
-        items,
+        // Compute the total size of the column
+        batch.map(_.numItems).sum,
         buffers,
-        dataSize,
-        curOd.get(0)
+        dataSizeO,
+        cbuf.get(0)
       )
     }
 
-    VeColBatch(vectors)
+    VeColBatch(vcolumns)
   }
 
-  private def vectorAlignedSize(size: Long): Long = {
-    val dangling = size % 8
-    if (dangling > 0) {
-      size + (8 - dangling)
-    } else {
-      size
-    }
+  def close: Unit = {
+    buffer.close
+    resultBuffer.close
+  }
+
+  def toSeq: Seq[Byte] = {
+    val buf = buffer
+    val array = Array.ofDim[Byte](buffer.limit().toInt)
+    buf.get(array)
+    array.toSeq
+  }
+
+  def print: Unit = {
+    println(s"Transfer Buffer = \n${buffer.hexdump}\n")
   }
 }
 
@@ -189,6 +205,7 @@ object TransferDescriptor {
       batches += empty
       this
     }
+
     def addColumns(columns: Seq[BytePointerColVector]): Builder = {
       if(curBatch.isEmpty) newBatch()
       curBatch.get ++= columns

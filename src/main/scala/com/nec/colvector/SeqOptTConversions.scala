@@ -3,10 +3,10 @@ package com.nec.colvector
 import com.nec.colvector.ArrayTConversions._
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import org.bytedeco.javacpp._
-
+import com.nec.util.PointerOps._
 import scala.collection.mutable.{Seq => MSeq}
 import scala.reflect.ClassTag
+import org.bytedeco.javacpp._
 
 object SeqOptTConversions {
   private[colvector] def constructValidityBuffer[T](input: Seq[Option[T]]): BytePointer = {
@@ -60,12 +60,7 @@ object SeqOptTConversions {
         throw new NotImplementedError(s"Primitive type not supported: ${klass}")
       }
 
-        /*
-          Cast to BytePointer and manually set the capacity value to account for
-          the size difference between the two pointer types (casting JavaCPP
-          pointers literally copies the capacity value over as is).
-        */
-      new BytePointer(buffer).capacity(input.size.toLong * VeScalarType.fromJvmType[T].cSize)
+      buffer.asBytePointer
     }
 
     def toBytePointerColVector(name: String)(implicit source: VeColVectorSource): BytePointerColVector = {
@@ -197,6 +192,10 @@ object SeqOptTConversions {
       } else {
         throw new NotImplementedError(s"Conversion of BytePointerColVector to Seq[Option[${klass.getName}]] not supported")
       }
+    }
+
+    def toSeqOptAny: Seq[Option[Any]] = {
+      toSeqOpt(ClassTag(input.veType.scalaType)).asInstanceOf[Seq[Option[Any]]]
     }
   }
 }

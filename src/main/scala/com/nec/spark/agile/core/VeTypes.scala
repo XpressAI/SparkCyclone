@@ -11,6 +11,7 @@ sealed trait VeType {
   def isString: Boolean
   def cVectorType: String
   def cScalarType: String
+  def cEnumValue: Long
   def scalaType: Class[_]
   def toSparkType: DataType
 }
@@ -27,7 +28,8 @@ case object VeString extends VeType {
   def toSparkType: DataType = StringType
   final def isString: Boolean = true
 
-  override def cScalarType: String = "int32_t"
+  def cScalarType: String = "int32_t"
+  def cEnumValue: Long = 5
 }
 
 sealed trait VeScalarType extends VeType {
@@ -61,6 +63,7 @@ object VeScalarType {
 case object VeNullableDouble extends VeScalarType {
   def cScalarType: String = "double"
   def cVectorType: String = "nullable_double_vector"
+  def cEnumValue: Long = 4
   def scalaType: Class[_] = classOf[Double]
   def toSparkType: DataType = DoubleType
   def cSize: Int = 8
@@ -69,6 +72,7 @@ case object VeNullableDouble extends VeScalarType {
 case object VeNullableFloat extends VeScalarType {
   def cScalarType: String = "float"
   def cVectorType: String = "nullable_float_vector"
+  def cEnumValue: Long = 3
   def scalaType: Class[_] = classOf[Float]
   def toSparkType: DataType = FloatType
   def cSize: Int = 4
@@ -78,6 +82,7 @@ case object VeNullableShort extends VeScalarType {
   // Since VE is not optimized for shorts, we use int32_t instead
   def cScalarType: String = "int32_t"
   def cVectorType: String = "nullable_short_vector"
+  def cEnumValue: Long = 0
   def scalaType: Class[_] = classOf[Short]
   def toSparkType: DataType = ShortType
   def cSize: Int = 4
@@ -86,6 +91,7 @@ case object VeNullableShort extends VeScalarType {
 case object VeNullableInt extends VeScalarType {
   def cScalarType: String = "int32_t"
   def cVectorType: String = "nullable_int_vector"
+  def cEnumValue: Long = 1
   def scalaType: Class[_] = classOf[Int]
   def toSparkType: DataType = IntegerType
   def cSize: Int = 4
@@ -94,6 +100,7 @@ case object VeNullableInt extends VeScalarType {
 case object VeNullableLong extends VeScalarType {
   def cScalarType: String = "int64_t"
   def cVectorType: String = "nullable_bigint_vector"
+  def cEnumValue: Long = 2
   def scalaType: Class[_] = classOf[Long]
   def toSparkType: DataType = LongType
   def cSize: Int = 8
