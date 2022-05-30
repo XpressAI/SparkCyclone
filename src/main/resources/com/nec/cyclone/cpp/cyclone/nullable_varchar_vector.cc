@@ -22,8 +22,10 @@
 #include "frovedis/text/char_int_conv.hpp"
 #include "frovedis/text/datetime_utility.hpp"
 #include "frovedis/text/dict.hpp"
+#include "cyclone_utils.hpp"
 #include <stdlib.h>
 #include <iostream>
+#include <cstring>
 
 nullable_varchar_vector * nullable_varchar_vector::allocate() {
   // Allocate
@@ -482,15 +484,8 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
   // Merge using Frovedis and convert back to nullable_varchar_vector
   auto *output = from_words(frovedis::merge_multi_words(multi_words));
 
-  // Preserve the validityBuffer across the merge
-  auto o = 0;
-  #pragma _NEC ivdep
-  for (auto b = 0; b < batches; b++) {
-    for (auto i = 0; i < inputs[b]->count; i++) {
-      output->set_validity(o++, inputs[b]->get_validity(i));
-    }
-  }
-
+ // Preserve the validityBuffer across the merge
+  fast_validity_merge(output->validityBuffer, inputs, batches);
   return output;
 }
 
