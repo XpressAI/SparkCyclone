@@ -224,21 +224,20 @@ namespace cyclone {
 
 template<typename T>
 void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_t batches) {
-  size_t dangling_bits = 0;
-  auto bit_output_cnt = 0;
+  size_t bit_output_cnt = 0;
 
   for (auto b=0; b<batches; b++) {
 
-      auto current_output_pos = bit_output_cnt / 64;
+      size_t inputs_cnt = inputs[b]->count;
 
-      dangling_bits = cyclone::append_bitsets(
-        &outbuf[current_output_pos],
-        dangling_bits,
+      cyclone::append_bitsets(
+        outbuf,
+        bit_output_cnt,
         inputs[b]->validityBuffer,
-        inputs[b]->count
+        inputs_cnt
        );
 
-      bit_output_cnt += inputs[b]->count;
+      bit_output_cnt += inputs_cnt;
    }
 }
 
