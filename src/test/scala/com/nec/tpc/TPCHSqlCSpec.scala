@@ -61,9 +61,9 @@ abstract class TPCHSqlCSpec
 
   protected var failFast = false
 
-  protected override def beforeAll(configMap: ConfigMap): Unit = {
-    printMarkup = configMap.getOptional[String]("markup").contains("true")
-    failFast = configMap.getOptional[String]("failFast").contains("true")
+  protected override def beforeAll(config: ConfigMap): Unit = {
+    printMarkup = config.getOptional[String]("markup").contains("true")
+    failFast = config.getOptional[String]("failFast").contains("true")
   }
 
   def configuration: SparkSession.Builder => SparkSession.Builder

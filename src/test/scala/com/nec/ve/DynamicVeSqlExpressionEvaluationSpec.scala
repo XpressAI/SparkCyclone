@@ -46,6 +46,7 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
   override def afterAll: Unit = {
     SparkCycloneExecutorPlugin.veProcess.freeAll
     SparkCycloneExecutorPlugin.veProcess.close
+    super.afterAll
   }
 
   "Use cyclone with spark streaming" in withSparkSession2(configuration) { (sparkSession: SparkSession) =>

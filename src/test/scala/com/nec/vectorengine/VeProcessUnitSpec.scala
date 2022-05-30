@@ -25,11 +25,11 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
   // Don't open the process here because the ScalaTest classes are initialized
   var process: VeProcess = _
 
-  override def beforeAll(): Unit = {
+  override def beforeAll: Unit = {
     process = VeProcess.create(getClass.getName)
   }
 
-  override def afterAll(): Unit = {
+  override def afterAll: Unit = {
     // Free all unreleased allocations and close the process
     process.freeAll
     process.close

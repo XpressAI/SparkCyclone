@@ -18,7 +18,7 @@ trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
 
   /*
     Initialization is explicitly deferred to avoid creation of VeProcess when
-    running tests in non-VE scope, because the the instantiation of ScalaTest
+    running tests in non-VE scope, because the instantiation of ScalaTest
     classes is eager even if annotated with @VectorEngineTest
   */
   implicit val process: VeProcess = DeferredVeProcess { () =>
