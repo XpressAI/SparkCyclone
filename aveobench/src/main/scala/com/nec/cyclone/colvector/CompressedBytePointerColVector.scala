@@ -47,12 +47,9 @@ final case class CompressedBytePointerColVector private[colvector] (
     }
   }
 
-  def asyncToVeColVector(implicit source: VeColVectorSource,
-                         process: VeProcess,
-                         context: CallContext,
-                         metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
+  def asyncToVeColVector(implicit process: VeProcess): () => VeAsyncResult[VeColVector] = {
     // Allocate memory on the VE
-    val veLocations = Seq(veType.containerSize.toLong, buffer.limit()).map(process.allocate)
+    val veLocations = Seq(veType.containerSize.toLong, buffer.limit()).map(process.allocate).map(_.address)
 
     // Build the struct on VH with the correct pointers to VE memory locations
     val struct = newStruct(veLocations(1))
@@ -73,7 +70,7 @@ final case class CompressedBytePointerColVector private[colvector] (
         process.putAsync(buf, to)
       }
 
-      VeAsyncResult(handles) { () =>
+      VeAsyncResult(handles: _*) { () =>
         struct.close()
         vector
       }
@@ -84,6 +81,6 @@ final case class CompressedBytePointerColVector private[colvector] (
                     process: VeProcess,
                     context: CallContext,
                     metrics: VeProcessMetrics): VeColVector = {
-    asyncToVeColVector.apply().get()
+    asyncToVeColVector.apply().get
   }
 }

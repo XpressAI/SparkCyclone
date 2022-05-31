@@ -69,10 +69,6 @@ final class ProcessExecutorMetrics(val allocationTracker: AllocationTracker, reg
     arrowConversionHist.update(timeTaken)
   }
 
-  override def registerTransferTime(timeTaken: Long): Unit = {
-    totalTransferTime += timeTaken
-  }
-
   override def registerSerializationTime(timeTaken: Long): Unit = {
     serializationHist.update(timeTaken)
   }

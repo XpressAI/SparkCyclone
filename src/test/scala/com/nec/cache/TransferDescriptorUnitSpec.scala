@@ -228,10 +228,10 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
       col3.numItems should be (9)
       col4.numItems should be (9)
 
-      col1.toBytePointerColVector2.toArray[Short] should be (Array[Short](1, 2, 3, 4, 5, 6, 7, 8, 9))
-      col2.toBytePointerColVector2.toArray[Float] should be (Array[Float](10, 20, 30, 40, 50, 60, 70, 80, 90))
-      col3.toBytePointerColVector2.toArray[Double] should be (Array[Double](100, 200, 300, 400, 500, 600, 700, 800, 900))
-      col4.toBytePointerColVector2.toArray[String] should be (Array[String]("apple", "banana", "carrot", "durian", "eggplant", "fig", "grape", "hawthorn", "ichigo"))
+      col1.toBytePointerColVector.toArray[Short] should be (Array[Short](1, 2, 3, 4, 5, 6, 7, 8, 9))
+      col2.toBytePointerColVector.toArray[Float] should be (Array[Float](10, 20, 30, 40, 50, 60, 70, 80, 90))
+      col3.toBytePointerColVector.toArray[Double] should be (Array[Double](100, 200, 300, 400, 500, 600, 700, 800, 900))
+      col4.toBytePointerColVector.toArray[String] should be (Array[String]("apple", "banana", "carrot", "durian", "eggplant", "fig", "grape", "hawthorn", "ichigo"))
     }
   }
 }

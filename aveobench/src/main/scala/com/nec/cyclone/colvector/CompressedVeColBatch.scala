@@ -7,9 +7,7 @@ import com.nec.vectorengine.VeProcess
 final case class CompressedVeColBatch private[colvector] (columns: Seq[UnitColVector],
                                                           struct: Long,
                                                           buffer: Long) {
-  def free()(implicit source: VeColVectorSource,
-             process: VeProcess,
-             context: CallContext): Unit = {
-    Seq(struct, buffer).foreach(process.free)
+  def free()(implicit process: VeProcess): Unit = {
+    Seq(struct, buffer).foreach(process.free(_))
   }
 }

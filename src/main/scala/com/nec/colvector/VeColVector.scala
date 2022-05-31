@@ -5,7 +5,6 @@ import com.nec.spark.agile.core._
 import com.nec.util.CallContext
 import com.nec.vectorengine.{VeAsyncResult, VeProcess}
 import com.nec.ve.VeProcessMetrics
-import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.veoffload.global.veo
@@ -51,7 +50,7 @@ final case class VeColVector private[colvector] (
     buffers.zip(bufferSizes).map { case (location, size) =>
       val buffer = new BytePointer(size)
       val handle = process.getAsync(buffer, location)
-      VeAsyncResult(handle){ () => buffer }
+      VeAsyncResult(handle) { () => buffer }
     }
   }
 
@@ -60,26 +59,6 @@ final case class VeColVector private[colvector] (
   }
 
   def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {
-    val nbuffers = buffers.zip(bufferSizes)
-      .map { case (location, size) =>
-        val buffer = new BytePointer(size)
-        (buffer, process.getAsync(buffer, location))
-      }
-      .map{ case (buffer, handle) =>
-        require(process.awaitResult(handle).get == veo.VEO_COMMAND_OK)
-        buffer
-      }
-
-    BytePointerColVector(
-      source,
-      name,
-      veType,
-      numItems,
-      nbuffers
-    )
-  }
-
-  def toBytePointerColVector2(implicit process: NewVeProcess): BytePointerColVector = {
     val nbuffers = buffers.zip(bufferSizes)
       .map { case (location, size) =>
         val buffer = new BytePointer(size)
@@ -109,22 +88,7 @@ final case class VeColVector private[colvector] (
     )
   }
 
-  def free()(implicit dsource: VeColVectorSource,
-             process: VeProcess,
-             context: CallContext): Unit = {
-    open.synchronized {
-      if (open) {
-        require(source == dsource, s"Intended to `free` in ${source}, but got ${dsource} context.")
-        allocations.foreach(process.free(_))
-        open = false
-
-      } else {
-        logger.warn(s"[VE MEMORY ${container}] double free called!")
-      }
-    }
-  }
-
-  def free2(implicit process: NewVeProcess): Unit = {
+  def free()(implicit process: VeProcess): Unit = {
     open.synchronized {
       if (open) {
         require(source == process.source, s"Intended to `free` in ${source}, but got ${process.source} context.")

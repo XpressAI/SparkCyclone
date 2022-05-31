@@ -58,7 +58,7 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
       columns.map(_.veType.containerSize.toLong).foldLeft(0L)(_ + _),
       // Size of the combined data
       buffer.limit()
-    ).map(process.allocate)
+    ).map(process.allocate).map(_.address)
 
     // Build the compressed struct on VH with the correct pointers to VE memory locations
     val struct = newCompressedStruct(veLocations(1))
@@ -71,7 +71,7 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
         process.putAsync(buf, to)
       }
 
-      VeAsyncResult(handles) { () =>
+      VeAsyncResult(handles: _*) { () =>
         struct.close
         batch
       }
@@ -82,6 +82,6 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
                              process: VeProcess,
                              context: CallContext,
                              metrics: VeProcessMetrics): CompressedVeColBatch = {
-    asyncToCompressedVeColBatch.apply().get()
+    asyncToCompressedVeColBatch.apply().get
   }
 }
