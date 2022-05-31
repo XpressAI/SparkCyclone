@@ -1,9 +1,7 @@
 package com.nec.spark.planning
 
-import com.nec.ve.VeProcess
-import com.nec.ve.VeProcess.LibraryReference
+import com.nec.vectorengine.{LibraryReference, VeProcess}
 import org.apache.spark.sql.execution.SparkPlan
-
 import java.nio.file.Paths
 
 object PlanCallsVeFunction {
@@ -20,6 +18,6 @@ trait PlanCallsVeFunction {
   def updateVeFunction(f: VeFunction => VeFunction): SparkPlan
 
   def withVeLibrary[T](f: LibraryReference => T)(implicit veProcess: VeProcess): T =
-    f(veProcess.loadLibrary(Paths.get(veFunction.libraryPath)))
+    f(veProcess.load(Paths.get(veFunction.libraryPath)))
 
 }

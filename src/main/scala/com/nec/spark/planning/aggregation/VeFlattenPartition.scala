@@ -1,7 +1,7 @@
 package com.nec.spark.planning.aggregation
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
@@ -36,7 +36,6 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
           withInvocationMetrics(PLAN){
             collectBatchMetrics(OUTPUT, Iterator
               .continually {
-                import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
                 val inputBatches = collectBatchMetrics(INPUT, veColBatches).toList
                 //logger.debug(s"Fetched all the data: ${inputBatches}")
                 inputBatches match {
@@ -48,18 +47,14 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
 
                       withInvocationMetrics(VE){
                         VeColBatch(
-                          try veMetrics.measureRunningTime(
-                            veProcess.executeMultiIn(
-                              libraryReference = libRefExchange,
-                              functionName = flattenFunction.functionName,
-                              batches = VeBatchOfBatches(inputBatches),
-                              results = flattenFunction.namedResults
+                          try {
+                            vectorEngine.executeMultiIn(
+                              libRefExchange,
+                              flattenFunction.functionName,
+                              VeBatchOfBatches(inputBatches),
+                              flattenFunction.namedResults
                             )
-                          )(
-                            veMetrics
-                              .registerFunctionCallTime(_, veFunction.functionName)
-                          )
-                          finally {
+                          } finally {
                             logger.debug("Transformed input.")
                             inputBatches
                               .foreach(child.asInstanceOf[SupportsVeColBatch].dataCleanup.cleanup)

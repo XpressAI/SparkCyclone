@@ -4,6 +4,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin.source
 import com.nec.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import com.nec.colvector.{VeColBatch, VeColVector}
 import com.nec.util.CallContext
+import com.nec.vectorengine.VeProcess
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.serializer.{DualBatchOrBytes, VeSerializer}
 import com.typesafe.scalalogging.LazyLogging

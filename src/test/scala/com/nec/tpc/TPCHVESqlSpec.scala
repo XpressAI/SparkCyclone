@@ -23,16 +23,15 @@ import com.nec.spark.LocalVeoExtension.compilerRule
 import com.nec.spark.SparkCycloneExecutorPlugin.CloseAutomatically
 import com.nec.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
 import com.nec.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
+import com.nec.vectorengine.VeProcess
+import java.io.File
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.internal.SQLConf.{CODEGEN_FALLBACK, WHOLESTAGE_CODEGEN_ENABLED}
 import org.scalatest.ConfigMap
 import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.time.{Minutes, Span}
 
-import java.io.File
-
 object TPCHVESqlSpec {
-
   def VeConfiguration(failFast: Boolean): SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
@@ -43,20 +42,21 @@ object TPCHVESqlSpec {
       .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
   }
-
 }
 
 final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
 
-  override def configuration: SparkSession.Builder => SparkSession.Builder =
+  override def configuration: SparkSession.Builder => SparkSession.Builder = {
     TPCHVESqlSpec.VeConfiguration(failFast = failFast)
-
-  override protected def afterAll(configMap: ConfigMap): Unit = {
-    SparkCycloneExecutorPlugin.closeProcAndCtx()
   }
 
-  override protected def beforeAll(configMap: ConfigMap): Unit = {
-    // reuse the process
+  override def beforeAll(config: ConfigMap): Unit = {
+    super.beforeAll(config)
+
+    // Set up the process
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
+
+    // Reuse the process
     CloseAutomatically = false
 
     val dbGenFile = new File("src/test/resources/dbgen/dbgen")
@@ -68,10 +68,15 @@ final class TPCHVESqlSpec extends TPCHSqlCSpec with TimeLimitedTests {
     if (!tableFile.exists()) {
       //s"cd ${dbGenFile.getParent} && ./dbgen && popd".!
     }
-
-    super.beforeAll(configMap)
   }
 
-  override def timeLimit: Span = Span(35, Minutes)
+  override def afterAll(config: ConfigMap): Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
+    SparkCycloneExecutorPlugin.veProcess.close
+    super.afterAll(config)
+  }
 
+  override def timeLimit: Span = {
+    Span(35, Minutes)
+  }
 }

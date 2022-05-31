@@ -2,8 +2,8 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.util.CallContext
-import com.nec.util.CallContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeAsyncResult, VeProcess}
+import com.nec.ve.VeProcessMetrics
 import com.nec.vectorengine.{VeProcess => NewVeProcess, VeAsyncResult => NewVeAsyncResult}
 import org.bytedeco.javacpp.BytePointer
 
@@ -48,7 +48,7 @@ final case class BytePointerColVector private[colvector] (
                          process: VeProcess,
                          context: CallContext,
                          metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
-    val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate)
+    val veMemoryPositions = (Seq(veType.containerSize.toLong) ++ buffers.map(_.limit())).map(process.allocate).map(_.address)
     val structPtr = veType match {
       case stype: VeScalarType =>
         require(buffers.size == 2, s"Exactly 2 VE buffer pointers are required to construct container for ${stype}")
@@ -90,7 +90,7 @@ final case class BytePointerColVector private[colvector] (
       val handles = (Seq(structPtr) ++ buffers).zipWithIndex.map{case (ptr, idx) =>
         process.putAsync(ptr, veMemoryPositions(idx))
       }
-      VeAsyncResult(handles){ () =>
+      VeAsyncResult(handles: _*) { () =>
         structPtr.close()
         vector
       }
@@ -155,7 +155,7 @@ final case class BytePointerColVector private[colvector] (
                     process: VeProcess,
                     context: CallContext,
                     metrics: VeProcessMetrics): VeColVector = {
-    asyncToVeColVector.apply().get()
+    asyncToVeColVector.apply().get
   }
 
   def toVeColVector2(implicit process: NewVeProcess): VeColVector = {

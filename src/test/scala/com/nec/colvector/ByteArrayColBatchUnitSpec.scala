@@ -32,7 +32,7 @@ final class ByteArrayColBatchUnitSpec extends AnyWordSpec {
     }
 
     "correctly return the number of rows" in {
-      val size = Random.nextInt(100) + 1
+      val size = Random.nextInt(100) + 10
       val batch = ByteArrayColBatch(
         Seq(
           InputSamples.seqOpt[Int](size).toBytePointerColVector("_"),

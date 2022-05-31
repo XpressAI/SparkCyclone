@@ -337,12 +337,10 @@ class VectorEngineImpl(val process: VeProcess,
     }
   }
 
-  def executeTransfer(descriptor: TransferDescriptor)
+  def executeTransfer(lib: LibraryReference,
+                      descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch = {
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
-
-    // Load libcyclone if not already loaded
-    val lib = process.load(LibCyclone.SoPath)
 
     // Allocate the buffer in VE and transfer the data over
     logger.debug("Allocating VE memory and transferring data over using TransferDescriptor...")
@@ -366,5 +364,15 @@ class VectorEngineImpl(val process: VeProcess,
     // Register the allocations made from the VE
     batch.columns.foreach(_.register)
     batch
+  }
+
+  def executeTransfer(descriptor: TransferDescriptor)
+                     (implicit context: CallContext): VeColBatch = {
+    require(descriptor.nonEmpty, "TransferDescriptor is empty")
+
+    // Load libcyclone if not already loaded
+    val lib = process.load(LibCyclone.SoPath)
+
+    executeTransfer(lib, descriptor)
   }
 }

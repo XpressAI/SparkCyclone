@@ -26,7 +26,8 @@ import com.nec.spark.agile.join.JoinUtils._
 import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.util.CallContext
-import com.nec.ve._
+import com.nec.ve.VeKernelInfra
+import com.nec.vectorengine.{VeProcess, VectorEngine}
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions._
 import org.apache.arrow.memory.RootAllocator
@@ -40,6 +41,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Output] = {
@@ -65,6 +67,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Output] = {
@@ -90,6 +93,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Output] = {
@@ -110,6 +114,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veRetriever: VeRetriever[Output],
     veColVectorSource: VeColVectorSource,
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veKernelInfra: VeKernelInfra
   ): Seq[Output] = {
     val cFunction =
@@ -127,6 +132,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
 
   def evalProject[Input, Output](input: List[Input])(expressions: CExpression*)(implicit
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veColVectorSource: VeColVectorSource,
@@ -150,17 +156,18 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veKernelInfra: VeKernelInfra,
     context: CallContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
     veKernelInfra.withCompiled(cFunction.toCodeLinesSPtr(functionName).cCode) { path =>
-      val libRef = veProcess.loadLibrary(path)
+      val libRef = veProcess.load(path)
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =
-          veProcess.execute(libRef, functionName, inputVectors.columns.toList, outputs)
+          vectorEngine.execute(libRef, functionName, inputVectors.columns.toList, outputs)
         veRetriever.retrieve(VeColBatch(resultingVectors))
       } finally inputVectors.free()
     }
@@ -171,17 +178,18 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Input],
     veRetriever: VeRetriever[Output],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veKernelInfra: VeKernelInfra,
     context: CallContext,
     veColVectorSource: VeColVectorSource
   ): Seq[Output] = {
     implicit val allocator = new RootAllocator(Integer.MAX_VALUE)
     veKernelInfra.compiledWithHeaders(cFunction) { path =>
-      val libRef = veProcess.loadLibrary(path)
+      val libRef = veProcess.load(path)
       val inputVectors = veAllocator.allocate(input: _*)
       try {
         val resultingVectors =
-          veProcess.execute(libRef, cFunction.name, inputVectors.columns.toList, outputs)
+          vectorEngine.execute(libRef, cFunction.name, inputVectors.columns.toList, outputs)
         veRetriever.retrieve(VeColBatch(resultingVectors))
       } finally inputVectors.free()
     }
@@ -191,6 +199,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Data] = {
@@ -215,6 +224,7 @@ object RealExpressionEvaluationUtils extends LazyLogging {
     veAllocator: VeAllocator[Data],
     veRetriever: VeRetriever[Data],
     veProcess: VeProcess,
+    vectorEngine: VectorEngine,
     veColVectorSource: VeColVectorSource,
     veKernelInfra: VeKernelInfra
   ): Seq[Data] = {

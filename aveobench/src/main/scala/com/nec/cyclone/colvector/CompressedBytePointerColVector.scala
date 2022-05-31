@@ -3,7 +3,8 @@ package com.nec.cyclone.colvector
 import com.nec.colvector._
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 import com.nec.util.CallContext
-import com.nec.ve.{VeAsyncResult, VeProcess, VeProcessMetrics}
+import com.nec.vectorengine.{VeAsyncResult, VeProcess}
+import com.nec.ve.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 final case class CompressedBytePointerColVector private[colvector] (

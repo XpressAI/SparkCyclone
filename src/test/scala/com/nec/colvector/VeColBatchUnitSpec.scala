@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.colvector.ArrayTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import com.nec.util.CallContextOps._
 import java.io._
 import org.scalatest.matchers.should.Matchers._

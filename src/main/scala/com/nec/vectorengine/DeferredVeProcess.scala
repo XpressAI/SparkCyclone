@@ -10,7 +10,7 @@ import org.bytedeco.veoffload.veo_proc_handle
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
   private var instantiated = false
 
-  private lazy val underlying = {
+  private lazy val underlying = synchronized {
     logger.info("Creating the underlying VeProcess")
     val proc = newproc()
     logger.info(s"New underlying VeProcess created: ${proc.source}")

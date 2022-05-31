@@ -49,6 +49,10 @@ trait VectorEngine {
                                    outputs: Seq[CVector])
                                   (implicit context: CallContext): Seq[(K, Seq[VeColVector])]
 
+  def executeTransfer(lib: LibraryReference,
+                      descriptor: TransferDescriptor)
+                     (implicit context: CallContext): VeColBatch
+
   def executeTransfer(descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch
 }

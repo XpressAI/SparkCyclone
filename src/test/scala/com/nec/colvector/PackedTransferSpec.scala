@@ -5,7 +5,8 @@ import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
-import com.nec.ve.WithVeProcess
+import com.nec.util.FixedBitSet
+import com.nec.vectorengine.WithVeProcess
 import com.nec.vectorengine.LibCyclone
 import scala.reflect.runtime.universe._
 import scala.util.Random
@@ -19,7 +20,7 @@ import scala.reflect.ClassTag
 
 @VectorEngineTest
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
-  private lazy val libRef = veProcess.loadLibrary(LibCyclone.SoPath)
+  private lazy val libRef = process.load(LibCyclone.SoPath)
 
   "C++ handle_transfer()" should {
     "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [1]" in {
@@ -39,7 +40,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         Seq(c1.toBytePointerColVector("_"))
       ))
 
-      val batch = veProcess.executeTransfer(libRef, descriptor)
+      val batch = engine.executeTransfer(libRef, descriptor)
 
       batch.columns.size should be (1)
       batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
@@ -67,7 +68,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
         Seq(c1v)
       ))
 
-      val batch = veProcess.executeTransfer(libRef, descriptor)
+      val batch = engine.executeTransfer(libRef, descriptor)
 
       batch.columns.size should be (1)
       val output = batch.columns(0).toBytePointerColVector
@@ -77,8 +78,6 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
 
       // The lengths match as well
       output.toArray[Int].size should be (a1.size + b1.size + c1.size)
-
-      import com.nec.util.FixedBitSet
 
       val a1bits = FixedBitSet.from(a1v.buffers(1))
       val b1bits = FixedBitSet.from(b1v.buffers(1))
@@ -93,7 +92,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val inputBatch = List(input.map(_.toBytePointerColVector("_")))
       val descriptor = new TransferDescriptor(inputBatch)
 
-      val batch = veProcess.executeTransfer(libRef, descriptor)
+      val batch = engine.executeTransfer(libRef, descriptor)
 
       batch.numRows should be(1)
       batch.columns.size should be(2)
@@ -108,7 +107,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val inputBatch = List(input.map(_.toBytePointerColVector("_")))
       val descriptor = new TransferDescriptor(inputBatch)
 
-      val batch = veProcess.executeTransfer(libRef, descriptor)
+      val batch = engine.executeTransfer(libRef, descriptor)
 
       batch.numRows should be(3)
       batch.columns.size should be(2)
@@ -176,7 +175,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       forAll (generatedColumns[Int]) { cols =>
         whenever (cols.nonEmpty && cols.forall(_.nonEmpty)) {
           val descriptor = new TransferDescriptor(Seq(cols.map(_.toBytePointerColVector("_"))))
-          val batch = veProcess.executeTransfer(libRef, descriptor)
+          val batch = engine.executeTransfer(libRef, descriptor)
 
           batch.columns.size should be (cols.length)
           batch.columns.zipWithIndex.foreach{ case (col, i) =>
@@ -192,7 +191,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       forAll (generatedColumns[String]) { cols =>
         whenever(cols.nonEmpty && cols.forall(_.nonEmpty)) {
           val descriptor = new TransferDescriptor(List(cols.map(_.toBytePointerColVector("_"))))
-          val batch = veProcess.executeTransfer(libRef, descriptor)
+          val batch = engine.executeTransfer(libRef, descriptor)
 
           batch.columns.size should be(cols.length)
           batch.columns.zipWithIndex.foreach { case (col, i) =>
@@ -208,7 +207,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       forAll (generatedBatches[Int](2048)) { batches =>
         whenever (batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)) {
           val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
-          val batch = veProcess.executeTransfer(libRef, descriptor)
+          val batch = engine.executeTransfer(libRef, descriptor)
           val mergedCols = batches.transpose.map(_.flatten)
 
           batch.columns.size should be (batches.head.length)
@@ -226,7 +225,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       forAll (generatedBatches[String](2048)) { batches =>
         whenever(batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)){
           val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
-          val batch = veProcess.executeTransfer(libRef, descriptor)
+          val batch = engine.executeTransfer(libRef, descriptor)
           val mergedCols = batches.transpose.map(_.flatten)
 
           batch.columns.size should be(batches.head.length)
@@ -246,7 +245,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
           val descriptor = new TransferDescriptor(batches)
           val transposed = batches.transpose
 
-          val batch = veProcess.executeTransfer(libRef, descriptor)
+          val batch = engine.executeTransfer(libRef, descriptor)
           batch.columns.size should be(batches.head.length)
           batch.numRows should be (transposed.head.map(_.numItems).sum)
 

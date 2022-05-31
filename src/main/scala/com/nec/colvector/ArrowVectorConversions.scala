@@ -4,7 +4,8 @@ import com.nec.spark.agile.core._
 import com.nec.util.{FixedBitSet, CallContext}
 import com.nec.util.PointerOps._
 import com.nec.util.ReflectionOps._
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._

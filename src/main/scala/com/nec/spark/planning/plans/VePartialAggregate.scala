@@ -1,9 +1,10 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.VeColBatch
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -28,7 +29,6 @@ case class VePartialAggregate(
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
-    import com.nec.util.CallContextOps._
     initializeMetrics()
 
     child
@@ -42,21 +42,15 @@ case class VePartialAggregate(
             collectBatchMetrics(INPUT, veColBatch)
 
             withInvocationMetrics(BATCH) {
-              import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
               logger.debug(s"Mapping a VeColBatch $veColBatch")
 
               try {
                 val result = withInvocationMetrics(VE) {
-                  veMetrics.measureRunningTime(
-                    veProcess.executeMulti(
-                      libraryReference = libRef,
-                      functionName = partialFunction.functionName,
-                      cols = veColBatch.columns.toList,
-                      results = partialFunction.namedResults
-                    )
-                  )(
-                    veMetrics
-                      .registerFunctionCallTime(_, veFunction.functionName)
+                  vectorEngine.executeMulti(
+                    libRef,
+                    partialFunction.functionName,
+                    veColBatch.columns.toList,
+                    partialFunction.namedResults
                   )
                 }
                 logger.debug(s"Mapped $veColBatch to $result")

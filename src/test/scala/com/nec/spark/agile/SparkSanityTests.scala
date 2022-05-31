@@ -39,7 +39,7 @@ final class SparkSanityTests
     markup("<b>yes</b>")
     assert(!SparkCycloneDriverPlugin.launched, "Expect the driver to have not been launched")
     assert(
-      !SparkCycloneExecutorPlugin.launched && SparkCycloneExecutorPlugin.params.isEmpty,
+      SparkCycloneExecutorPlugin.params.isEmpty,
       "Expect the executor plugin to have not been launched"
     )
   }
@@ -49,5 +49,4 @@ final class SparkSanityTests
     val result = sparkSession.sql("SELECT 1 + 2").as[Int].collect().toList
     assert(result == List(3))
   }
-
 }

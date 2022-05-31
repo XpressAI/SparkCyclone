@@ -1,9 +1,10 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -34,7 +35,6 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
           withVeLibrary { libRefExchange =>
             collectBatchMetrics(OUTPUT, Iterator
               .continually {
-                import com.nec.spark.SparkCycloneExecutorPlugin.veProcess
                 logger.info(s"About to fetch VeColBatches for flattening a partition...")
                 val inputBatches = collectBatchMetrics(INPUT, veColBatches).toList
                 //logger.info(s"Fetched all the data: ${inputBatches.toString().take(80)}")
@@ -42,15 +42,14 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                   case one :: Nil => Iterator(one)
                   case Nil        => Iterator.empty
                   case _ =>
-                    import com.nec.util.CallContextOps._
                     Iterator {
                       VeColBatch(try {
                         val res = withInvocationMetrics(VE){
-                          veProcess.executeMultiIn(
-                            libraryReference = libRefExchange,
-                            functionName = flattenFunction.functionName,
-                            batches = VeBatchOfBatches(inputBatches),
-                            results = flattenFunction.namedResults
+                          vectorEngine.executeMultiIn(
+                            libRefExchange,
+                            flattenFunction.functionName,
+                            VeBatchOfBatches(inputBatches),
+                            flattenFunction.namedResults
                           )
                         }
                         logger.info(s"Transformed input, got ${res}")

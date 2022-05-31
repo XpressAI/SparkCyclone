@@ -22,8 +22,8 @@ package com.nec.ve
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.tpc.TPCHVESqlSpec
+import com.nec.vectorengine.VeProcess
 import org.apache.spark.sql.SparkSession
-import org.bytedeco.veoffload.global.veo
 
 import java.util.{Timer, TimerTask}
 
@@ -38,17 +38,16 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
   override def configuration: SparkSession.Builder => SparkSession.Builder =
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
 
-  override protected def afterAll(): Unit = {
-    SparkCycloneExecutorPlugin.closeProcAndCtx()
+  override def beforeAll: Unit = {
+    super.beforeAll
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
   }
 
-  override protected def beforeAll(): Unit = {
-    SparkCycloneExecutorPlugin._veo_proc = veo.veo_proc_create(-1)
-    SparkCycloneExecutorPlugin._veo_thr_ctxt = veo.veo_context_open(SparkCycloneExecutorPlugin._veo_proc)
-    super.beforeAll()
+  override def afterAll: Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
+    SparkCycloneExecutorPlugin.veProcess.close
+    super.afterAll
   }
-
-
 
   "Use cyclone with spark streaming" in withSparkSession2(configuration) { (sparkSession: SparkSession) =>
     import sparkSession.implicits._

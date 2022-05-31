@@ -3,7 +3,7 @@ package com.nec.colvector
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.util.CallContext
-import com.nec.ve.WithVeProcess
+import com.nec.vectorengine.WithVeProcess
 import com.nec.vectorengine.{WithVeProcess => WithNewVeProcess}
 import scala.reflect.ClassTag
 import scala.util.Random

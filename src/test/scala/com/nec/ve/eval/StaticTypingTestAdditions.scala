@@ -27,7 +27,8 @@ import com.nec.util.CallContext
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColVectorSource
 import com.nec.colvector.VeColBatch
-import com.nec.ve.{VeProcess, VeProcessMetrics}
+import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.VeProcess
 
 /**
  * Boilerplate to deal with making the tests nice and tight.

@@ -1,7 +1,9 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.{VeBatchOfBatches, VeColBatch}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning._
+import com.nec.util.CallContextOps._
 import com.nec.ve.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -34,8 +36,6 @@ case class VectorEngineJoinPlan(
         cleanUpInput = true
       )
       .mapPartitions { tupleIterator =>
-        import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
-
         withInvocationMetrics(PLAN){
           val (leftBatchesIter, rightBatchesIter) = tupleIterator.fold((Seq.empty, Seq.empty)){ case ((accLeft, accRight), (left, right)) =>
             (accLeft ++ left, accRight ++ right)
@@ -55,18 +55,15 @@ case class VectorEngineJoinPlan(
               val rightBatchesBatch = VeBatchOfBatches(rightBatches)
 
               withVeLibrary { libRefJoin =>
-                import com.nec.util.CallContextOps._
                 val outputBatch = try {
                   withInvocationMetrics(VE){
-                    veMetrics.measureRunningTime {
-                      veProcess.executeJoin(
-                        libraryReference = libRefJoin,
-                        functionName = joinFunction.functionName,
-                        left = leftBatchesBatch,
-                        right = rightBatchesBatch,
-                        results = joinFunction.namedResults
-                      )
-                    }(veMetrics.registerFunctionCallTime(_, veFunction.functionName))
+                    vectorEngine.executeJoin(
+                      libRefJoin,
+                      joinFunction.functionName,
+                      leftBatchesBatch,
+                      rightBatchesBatch,
+                      joinFunction.namedResults
+                    )
                   }
                 } finally {
                   leftBatches.foreach(dataCleanup.cleanup(_))

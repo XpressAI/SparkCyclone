@@ -20,10 +20,10 @@
 package com.nec.spark.planning.plans
 
 import com.nec.colvector.{VeColBatch, VeColVector}
-import com.nec.spark.SparkCycloneExecutorPlugin
-import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, veMetrics}
+import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -70,8 +70,6 @@ final case class VeProjectEvaluationPlan(
           withInvocationMetrics(BATCH){
             veColBatches.map { veColBatch =>
               collectBatchMetrics(INPUT, veColBatch)
-              import com.nec.util.CallContextOps._
-              import SparkCycloneExecutorPlugin.veProcess
               try {
                 val canPassThroughall = columnIndicesToPass.size == outputExpressions.size
 
@@ -79,19 +77,13 @@ final case class VeProjectEvaluationPlan(
                   if (canPassThroughall) Nil
                   else {
                     withInvocationMetrics(VE){
-                      veMetrics.measureRunningTime(
-                        veProcess.execute(
-                          libraryReference = libRef,
-                          functionName = veFunction.functionName,
-                          cols = veColBatch.columns.toList,
-                          results = veFunction.namedResults
-                        )
-                      )(
-                        veMetrics
-                          .registerFunctionCallTime(_, veFunction.functionName)
+                      vectorEngine.execute(
+                        libRef,
+                        veFunction.functionName,
+                        veColBatch.columns.toList,
+                        veFunction.namedResults
                       )
                     }
-
                   }
                 val outBatch = createOutputBatch(cols, veColBatch)
 

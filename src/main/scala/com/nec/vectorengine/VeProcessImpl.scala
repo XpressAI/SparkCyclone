@@ -4,7 +4,7 @@ import com.nec.colvector.{VeColVectorSource => VeSource}
 import scala.collection.concurrent.{TrieMap => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
@@ -67,9 +67,9 @@ final case class WrappingVeo private (val node: Int,
     }
   )
 
-  logger.info(s"Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
-  logger.info(s"Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
-  logger.info(s"VEO version ${version}; API version ${apiVersion}")
+  logger.info(s"[${handle.address}] Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
+  logger.info(s"[${handle.address}] Opened VEO asynchronous context @ ${tcontext.address}: ${tcontext}")
+  logger.info(s"[${handle.address}] VEO version ${version}; API version ${apiVersion}")
 
   private[vectorengine] def requireValidBufferForPut(buffer: Pointer): Unit = {
     require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
@@ -141,7 +141,7 @@ final case class WrappingVeo private (val node: Int,
       val address = ptr.get
       require(result == 0, s"Memory allocation failed with code: ${result}")
       require(address > 0, s"Memory allocation returned an invalid address: ${ptr.get}")
-      logger.trace(s"Allocated ${size} bytes ==> ${ptr}")
+      logger.trace(s"[${handle.address}] Allocated ${size} bytes ==> ${ptr}")
       ptr.close
 
       // Record metrics
@@ -156,76 +156,89 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def registerAllocation(address: Long, size: Long): VeAllocation = {
-    require(address > 0L, s"Memory address ${address} is invalid; cannot register allocation!")
+    // Explicitly allow address of 0
+    require(address >= 0L, s"Memory address ${address} is invalid; cannot register allocation!")
     // Explicitly allow registrations of zero-sized allocations
     require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
-    logger.trace(s"Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
 
-    heapRecords.get(address) match {
-      case Some(allocation) if allocation.size == size =>
-        logger.warn(s"Allocation for ${size} bytes @ ${address} is already registered")
-        allocation
+    heapRecords.synchronized {
+      heapRecords.get(address) match {
+        case Some(allocation) if allocation.size == size =>
+          logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+          allocation
 
-      case Some(allocation) =>
-        throw new IllegalArgumentException(s"Allocation @ ${address} is already registered but with different byte sizes!")
+        case Some(allocation) =>
+          throw new IllegalArgumentException(s"Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
 
-      case None =>
-        if (size <= 0) { logger.debug(s"Allocation @ ${address} is of size 0") }
+        case None =>
+          logger.debug(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
 
-        // Record metrics
-        allocSizesHistogram.update(size)
+          // Record metrics
+          allocSizesHistogram.update(size)
 
-        // Register the allocation
-        val allocation = VeAllocation(address, size, new Exception().getStackTrace)
-        heapRecords.put(address, allocation)
-        allocation
+          // Register the allocation
+          val allocation = VeAllocation(address, size, new Exception().getStackTrace)
+          heapRecords.put(address, allocation)
+          allocation
+      }
     }
   }
 
   def unregisterAllocation(address: Long): Unit = {
-    require(address > 0L, s"Invalid VE memory address ${address}")
+    // Explicitly allow address of 0
+    require(address >= 0L, s"Invalid VE memory address ${address}")
 
-    heapRecords.get(address) match {
-      case Some(allocation) =>
-        logger.trace(s"Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
-        heapRecords.remove(address)
+    heapRecords.synchronized {
+      heapRecords.get(address) match {
+        case Some(allocation) =>
+          logger.debug(s"[${handle.address}] Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
+          heapRecords.remove(address)
 
-      case None =>
-        logger.warn(s"VE memory location @ ${address} is not tracked by ${getClass.getSimpleName}; no allocation to unregister")
+        case None =>
+          logger.warn(s"[${handle.address}] VE memory location @ ${address} is not tracked by ${getClass.getSimpleName}; no allocation to unregister")
+      }
     }
   }
 
   def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
-      require(address > 0L, s"Invalid VE memory address ${address}")
+      // Explicitly allow address of 0
+      require(address >= 0L, s"Invalid VE memory address ${address}")
 
-      heapRecords.get(address) match {
-        case Some(allocation) =>
-          logger.trace(s"Deallocating pointer @ ${address}")
-          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
-          require(result == 0, s"Memory release failed with code: ${result}")
-          // Remove only after the free() was successful
-          heapRecords.remove(address)
-          freeTimer.update(Duration.ofNanos(duration))
+      heapRecords.synchronized {
+        heapRecords.get(address) match {
+          case Some(allocation) =>
+            logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
+            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+            require(result == 0, s"Memory release failed with code: ${result}")
+            // Remove only after the free() was successful
+            heapRecords.remove(address)
+            freeTimer.update(Duration.ofNanos(duration))
 
-        case None if unsafe =>
-          logger.warn(s"Releasing VE memory @ ${address} without safety checks!")
-          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
-          require(result == 0, s"Memory release failed with code: ${result}")
-          freeTimer.update(Duration.ofNanos(duration))
+          case None if unsafe =>
+            logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
+            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+            require(result == 0, s"Memory release failed with code: ${result}")
+            freeTimer.update(Duration.ofNanos(duration))
 
-        case None =>
-          throw new IllegalArgumentException(s"VE memory address does not correspond to a tracked allocation: ${address}")
+          case None if address == 0 =>
+            // Do nothing for free(0)
+            ()
+
+          case None =>
+            logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
+            ()
+        }
       }
     }
   }
 
   def freeAll: Unit = {
     withVeoProc {
-      logger.debug(s"Releasing all ${heapRecords.size} heap allocations held by the process")
+      logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} heap allocations held by the process")
       heapRecords.keys.foreach(free(_))
 
-      logger.debug(s"Releasing all ${heapRecords.size} veo_args allocations held by the process")
+      logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} veo_args allocations held by the process")
       stackRecords.values.foreach(freeArgsStack)
     }
   }
@@ -244,7 +257,7 @@ final case class WrappingVeo private (val node: Int,
       val throughput = (buffer.nbytes / 1024 / 1024) / (duration / 1e9)
       putThroughputsHistogram.update(throughput.toLong)
       putSizesHistogram.update(buffer.nbytes)
-      logger.debug(s"Transfer of ${buffer.nbytes} bytes to the VE took ${duration / 1e6} ms (${throughput} MB/s")
+      logger.debug(s"[${handle.address}] Transfer of ${buffer.nbytes} bytes to the VE took ${duration / 1e6} ms (${throughput} MB/s")
 
       allocation
     }
@@ -308,32 +321,34 @@ final case class WrappingVeo private (val node: Int,
 
   def load(path: Path): LibraryReference = {
     withVeoProc {
-      val npath = path.normalize
-      loadedLibRecords.get(npath.toString) match {
-        case Some(lib) =>
-          logger.debug(s"Library .SO has already been loaded: ${npath}")
-          lib
+      loadedLibRecords.synchronized {
+        val npath = path.normalize
+        loadedLibRecords.get(npath.toString) match {
+          case Some(lib) =>
+            logger.debug(s"[${handle.address}] Library .SO has already been loaded: ${npath}")
+            lib
 
-        case None =>
-          require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
-          logger.info(s"Loading from path as .SO: ${npath}...")
-          val result = veo.veo_load_library(handle, npath.toString)
-          require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
+          case None =>
+            require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
+            logger.info(s"[${handle.address}] Loading from path as .SO: ${npath}...")
+            val result = veo.veo_load_library(handle, npath.toString)
+            require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
 
-          // Create a library load record to track
-          val lib = LibraryReference(npath, result)
-          loadedLibRecords.put(npath.toString, lib)
-          lib
+            // Create a library load record to track
+            val lib = LibraryReference(npath.toString, result)
+            loadedLibRecords.put(npath.toString, lib)
+            lib
+        }
       }
     }
   }
 
   def unload(lib: LibraryReference): Unit = {
     withVeoProc {
-      val npath = lib.path.normalize
+      val npath = Paths.get(lib.path).normalize
       loadedLibRecords.get(npath.toString) match {
         case Some(lib) =>
-          logger.info(s"Unloading library from the VE process: ${npath}...")
+          logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")
           val result = veo.veo_unload_library(handle, lib.value)
           require(result == 0, s"Failed to unload library from the VE process, got ${result} (library at: ${npath})")
           // Remove only after the veo_unload_library() was successful
@@ -358,18 +373,18 @@ final case class WrappingVeo private (val node: Int,
     withVeoProc {
       val args = veo.veo_args_alloc
       require(! args.isNull,  s"Fail to allocate arguments stack")
-      logger.trace(s"Allocated veo_args @ ${args.address}")
+      logger.trace(s"[${handle.address}] Allocated veo_args @ ${args.address}")
 
       inputs.zipWithIndex.foreach {
         case (I32Arg(value), i) =>
           val result = veo.veo_args_set_i32(args, i, value)
           require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
-          logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
+          logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
         case (U64Arg(value), i) =>
           val result = veo.veo_args_set_u64(args, i, value)
           require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
-          logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
+          logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
         case (BuffArg(intent, buffer), i) =>
           val icode = intent match {
@@ -379,7 +394,7 @@ final case class WrappingVeo private (val node: Int,
           }
           val result = veo.veo_args_set_stack(args, icode, i, new BytePointer(buffer), buffer.nbytes)
           require(result == 0, s"Failed to set arguments stack at position ${i} to: ${buffer}")
-          logger.trace(s"[veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${buffer.nbytes} bytes)")
+          logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${buffer.nbytes} bytes)")
       }
 
       // Create an allocation record to track the allocation
@@ -393,7 +408,7 @@ final case class WrappingVeo private (val node: Int,
     withVeoProc {
       stackRecords.get(stack.args.address) match {
         case Some(allocation) =>
-          logger.trace(s"Releasing veo_args @ ${stack.args.address}")
+          logger.trace(s"[${handle.address}] Releasing veo_args @ ${stack.args.address}")
           veo.veo_args_free(stack.args)
           // Remove only after the free() was successful
           stackRecords.remove(stack.args.address)
@@ -406,7 +421,7 @@ final case class WrappingVeo private (val node: Int,
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer = {
     withVeoProc {
-      logger.trace(s"Sync call '${func.name}' with veo_args @ ${stack.args.address}; argument values: ${stack.inputs}")
+      logger.trace(s"[${handle.address}] Sync call '${func.name}' with veo_args @ ${stack.args.address}; argument values: ${stack.inputs}")
 
       // Set the output buffer
       val retp = new LongPointer(1)
@@ -426,7 +441,7 @@ final case class WrappingVeo private (val node: Int,
       syncFnCallTimer.update(Duration.ofNanos(duration))
 
       logger.debug(
-        s"Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
+        s"[${handle.address}] Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
       )
 
       retp
@@ -435,7 +450,7 @@ final case class WrappingVeo private (val node: Int,
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     withVeoProc {
-      logger.trace(s"Async call '${func.name}' with veo_args @ ${stack.args.address}")
+      logger.trace(s"[${handle.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
 
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(
@@ -458,6 +473,8 @@ final case class WrappingVeo private (val node: Int,
         hRecords.foreach { case (_, record) =>
           logger.error(s"Position: ${record.address}", record.toThrowable)
         }
+      } else {
+        logger.info(s"[${handle.address}] There are no unreleased heap allocations; this is good.")
       }
 
       // Complain about un-released args stack allocations
@@ -467,22 +484,24 @@ final case class WrappingVeo private (val node: Int,
         sRecords.foreach { case (_, record) =>
           logger.error(s"Position: ${record.args.address}")
         }
+      } else {
+        logger.info(s"[${handle.address}] There are no unreleased stack allocations; this is good.")
       }
 
       Try {
-        logger.info(s"Closing VEO asynchronous context @ ${tcontext.address}")
+        logger.info(s"[${handle.address}] Closing VEO asynchronous context @ ${tcontext.address}")
         veo.veo_context_close(tcontext)
 
-        logger.info(s"Closing VE process (Node ${node}) @ ${handle.address}")
+        logger.info(s"[${handle.address}] Closing VE process (Node ${node}) @ ${handle.address}")
         veo.veo_proc_destroy(handle)
 
-        logger.info(s"Clearing allocation records held by the VE process")
+        logger.info(s"[${handle.address}] Clearing allocation records held by the VE process")
         heapRecords.clear
 
-        logger.info(s"Clearing veo_args allocations records held by the VE process")
+        logger.info(s"[${handle.address}] Clearing veo_args allocations records held by the VE process")
         stackRecords.clear
 
-        logger.info(s"Clearing loaded libraries records held by the VE process")
+        logger.info(s"[${handle.address}] Clearing loaded libraries records held by the VE process")
         loadedLibRecords.clear
       }
 

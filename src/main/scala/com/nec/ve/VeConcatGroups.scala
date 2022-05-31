@@ -45,7 +45,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
       if (batches.nonEmpty) {
         batches.groupBy(_._1).map { case (key, grouped) =>
           val batchOfBatches = VeBatchOfBatches(grouped.map(_._2))
-          val merged: List[VeColVector] = func.evalMultiInFunction(batchOfBatches)
+          val merged: Seq[VeColVector] = func.evalMultiInFunction(batchOfBatches)
           (key, VeColBatch(merged))
         }.toIterator
       } else {

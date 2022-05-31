@@ -6,8 +6,8 @@ import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import com.nec.ve.VeProcess.{DeferredVeProcess, WrappingVeo}
-import com.nec.util.CallContext
+import com.nec.util.CallContextOps._
+import com.nec.vectorengine._
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
 import org.apache.spark.SparkEnv
@@ -16,12 +16,11 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.IntegerType
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, Ignore}
 import org.scalatest.freespec.AnyFreeSpec
-
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-@org.scalatest.Ignore()
+@Ignore
 @VectorEngineTest
 final class DualModeVESpec
   extends AnyFreeSpec
@@ -29,19 +28,23 @@ final class DualModeVESpec
   with VeKernelInfra
   with BeforeAndAfterAll {
 
-  import com.nec.util.CallContextOps._
+  override def beforeAll: Unit = {
+    super.beforeAll
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
+  }
+
+  override def afterAll(): Unit = {
+    SparkCycloneExecutorPlugin.veProcess.freeAll
+    SparkCycloneExecutorPlugin.veProcess.close
+    super.afterAll
+  }
 
   "A dataset from ColumnarBatches can be read via the carrier columnar vector" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
-    implicit val source: VeColVectorSource = VeColVectorSource(
-      s"Process ${SparkCycloneExecutorPlugin._veo_proc}, executor ${SparkEnv.get.executorId}"
-    )
 
-    implicit val veProc: VeProcess =
-      DeferredVeProcess(() =>
-        WrappingVeo(SparkCycloneExecutorPlugin._veo_proc, SparkCycloneExecutorPlugin._veo_thr_ctxt, source, VeProcessMetrics.noOp)
-      )
+    implicit val source = SparkCycloneExecutorPlugin.source
+    implicit val veProcess: VeProcess = SparkCycloneExecutorPlugin.veProcess
 
     def makeColumnarBatch1() = {
       val vec1 = {

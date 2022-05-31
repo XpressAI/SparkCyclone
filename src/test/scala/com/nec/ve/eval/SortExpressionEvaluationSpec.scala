@@ -27,6 +27,7 @@ import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.spark.agile.sort.VeSortExpression
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast}
 import com.nec.ve._
+import com.nec.vectorengine.WithVeProcess
 import org.scalatest.freespec.AnyFreeSpec
 
 /**
