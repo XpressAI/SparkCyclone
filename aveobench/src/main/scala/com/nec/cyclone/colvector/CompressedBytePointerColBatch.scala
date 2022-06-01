@@ -2,9 +2,7 @@ package com.nec.cyclone.colvector
 
 import com.nec.colvector._
 import com.nec.spark.agile.core.{VeScalarType, VeString}
-import com.nec.util.CallContext
 import com.nec.vectorengine.{VeAsyncResult, VeProcess}
-import com.nec.ve.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[UnitColVector],
@@ -48,10 +46,7 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
     combined
   }
 
-  def asyncToCompressedVeColBatch(implicit source: VeColVectorSource,
-                                  process: VeProcess,
-                                  context: CallContext,
-                                  metrics: VeProcessMetrics): () => VeAsyncResult[CompressedVeColBatch] = {
+  def asyncToCompressedVeColBatch(implicit process: VeProcess): () => VeAsyncResult[CompressedVeColBatch] = {
     // Allocate memory on the VE
     val veLocations = Seq(
       // Size of the compressed struct
@@ -78,10 +73,7 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
     }
   }
 
-  def toCompressedVeColBatch(implicit source: VeColVectorSource,
-                             process: VeProcess,
-                             context: CallContext,
-                             metrics: VeProcessMetrics): CompressedVeColBatch = {
+  def toCompressedVeColBatch(implicit process: VeProcess): CompressedVeColBatch = {
     asyncToCompressedVeColBatch.apply().get
   }
 }
