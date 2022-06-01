@@ -33,7 +33,6 @@ final case class VeColVector private[colvector] (
   def toBytes(implicit process: VeProcess,
               metrics: VeProcessMetrics): Array[Byte] = {
     val bytes = metrics.measureRunningTime {
-      // toBytePointerColVector.toByteArrayColVector.serialize
       toBytePointerColVector.toBytes
     }(metrics.registerSerializationTime)
 

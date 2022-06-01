@@ -95,8 +95,8 @@ final class ByteArrayColVectorUnitSpec extends AnyWordSpec {
           VeNullableInt,
           Random.nextInt(100),
           Seq(
-            Random.nextString(Random.nextInt(100) + 1).getBytes,
-            Random.nextString(Random.nextInt(100) + 1).getBytes
+            Random.nextString(Random.nextInt(100) + 100).getBytes,
+            Random.nextString(Random.nextInt(100) + 100).getBytes
           )
         )
       }

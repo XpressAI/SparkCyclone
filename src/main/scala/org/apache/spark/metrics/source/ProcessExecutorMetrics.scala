@@ -9,7 +9,6 @@ final class ProcessExecutorMetrics(registry: MetricRegistry) extends VeProcessMe
   private val arrowConversionHist = new Histogram(new UniformReservoir())
   private val serializationHist = new Histogram(new UniformReservoir())
   private val deserializationHist = new Histogram(new UniformReservoir())
-  private val perFunctionHistograms: scala.collection.mutable.Map[String, Histogram] = MMap.empty
 
   override def measureRunningTime[T](toMeasure: => T)(registerTime: Long => Unit): T = {
     val start = System.currentTimeMillis()

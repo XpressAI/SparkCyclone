@@ -1,6 +1,7 @@
 package com.nec.vectorengine
 
 import com.nec.colvector.{VeColVectorSource => VeSource}
+import com.nec.util.PointerOps._
 import scala.collection.concurrent.{TrieMap => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
@@ -18,13 +19,6 @@ final case class WrappingVeo private (val node: Int,
                                       tcontext: veo_thr_ctxt,
                                       val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
-
-  implicit class ExtendedPointer(buffer: Pointer) {
-    def nbytes: Long = {
-      buffer.limit * buffer.sizeof
-    }
-  }
-
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
 
