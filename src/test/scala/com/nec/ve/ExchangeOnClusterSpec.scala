@@ -4,8 +4,8 @@ import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
-import com.nec.ve.PureVeFunctions.PartitioningFunction
-import com.nec.ve.VERDDSpec.{MultiFunctionName, exchangeBatches}
+import com.nec.vectorengine.SampleVeFunctions.PartitioningFunction
+import com.nec.ve.VERDDSpec.exchangeBatches
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec
 
@@ -20,7 +20,7 @@ final class ExchangeOnClusterSpec
     VeClusterConfig.andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
   ) { sparkSession =>
     val result =
-      compiledWithHeaders(PartitioningFunction, MultiFunctionName) { path =>
+      compiledWithHeaders(PartitioningFunction) { path =>
         val pathStr = path.toString
         exchangeBatches(sparkSession, pathStr)
           .collect()
