@@ -132,9 +132,7 @@ final case class GroupByPartialGenerator(
                 case (_, Right(TypedCExpression2(_, cExp))) =>
                   s"hash = 31 * hash + (${cExp.cCode});"
                 case (_, Left(StringReference(name))) =>
-                  CodeLines.forLoop("j", s"${name}->count") {
-                    s"hash = ${name}->hash_at(j, hash);"
-                  }.cCode
+                  s"hash = ${name}->hash_at(i, hash);"
               },
               // Assign the bucket based on the hash
               s"${BatchAssignmentsId}[g] = __builtin_abs(hash % ${nBuckets});"
