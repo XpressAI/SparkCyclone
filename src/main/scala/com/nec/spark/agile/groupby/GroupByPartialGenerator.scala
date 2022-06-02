@@ -165,7 +165,7 @@ final case class GroupByPartialGenerator(
               },
               // Assign to the counts table
               s"${BatchCountsId}[b] = count;",
-              s"std::vector<size_t> group_indexes(count);",
+              s"std::vector<size_t> groups_indexes(count);",
               s"batch_group_indexes.push_back(groups_indexes);"
             )
           },
