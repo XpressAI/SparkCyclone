@@ -7,6 +7,7 @@ import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
@@ -21,6 +22,7 @@ final case class WrappingVeo private (val node: Int,
                                       extends VeProcess with LazyLogging {
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
+  private val openlock = new ReentrantReadWriteLock(true)
 
   // Internal allocation and library records for tracking
   private var heapRecords = MMap.empty[Long, VeAllocation]
@@ -80,8 +82,14 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def withVeoProc[T](thunk: => T): T = {
-    require(opened, "VE process is closed")
-    thunk
+    openlock.readLock.lock
+
+    try {
+      require(opened, "VE process is closed")
+      thunk
+    } finally {
+      openlock.readLock.unlock
+    }
   }
 
   private[vectorengine] def measureTime[T](thunk: => T): (T, Long) = {
@@ -339,17 +347,19 @@ final case class WrappingVeo private (val node: Int,
 
   def unload(lib: LibraryReference): Unit = {
     withVeoProc {
-      val npath = Paths.get(lib.path).normalize
-      loadedLibRecords.get(npath.toString) match {
-        case Some(lib) =>
-          logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")
-          val result = veo.veo_unload_library(handle, lib.value)
-          require(result == 0, s"Failed to unload library from the VE process, got ${result} (library at: ${npath})")
-          // Remove only after the veo_unload_library() was successful
-          loadedLibRecords.remove(npath.toString)
+      loadedLibRecords.synchronized {
+        val npath = Paths.get(lib.path).normalize
+        loadedLibRecords.get(npath.toString) match {
+          case Some(lib) =>
+            logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")
+            val result = veo.veo_unload_library(handle, lib.value)
+            require(result == 0, s"Failed to unload library from the VE process, got ${result} (library at: ${npath})")
+            // Remove only after the veo_unload_library() was successful
+            loadedLibRecords.remove(npath.toString)
 
-        case None =>
-          throw new IllegalArgumentException(s"VE process does not have library loaded; nothing to unload: ${npath}")
+          case None =>
+            throw new IllegalArgumentException(s"VE process does not have library loaded; nothing to unload: ${npath}")
+        }
       }
     }
   }
@@ -400,15 +410,17 @@ final case class WrappingVeo private (val node: Int,
 
   def freeArgsStack(stack: VeCallArgsStack): Unit = {
     withVeoProc {
-      stackRecords.get(stack.args.address) match {
-        case Some(allocation) =>
-          logger.trace(s"[${handle.address}] Releasing veo_args @ ${stack.args.address}")
-          veo.veo_args_free(stack.args)
-          // Remove only after the free() was successful
-          stackRecords.remove(stack.args.address)
+      stackRecords.synchronized {
+        stackRecords.get(stack.args.address) match {
+          case Some(allocation) =>
+            logger.trace(s"[${handle.address}] Releasing veo_args @ ${stack.args.address}")
+            veo.veo_args_free(stack.args)
+            // Remove only after the free() was successful
+            stackRecords.remove(stack.args.address)
 
-        case None =>
-          throw new IllegalArgumentException(s"VeCallArgsStack does not correspond to a tracked veo_args allocation: ${stack.args.address}")
+          case None =>
+            throw new IllegalArgumentException(s"VeCallArgsStack does not correspond to a tracked veo_args allocation: ${stack.args.address}")
+        }
       }
     }
   }
@@ -457,49 +469,59 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def close: Unit = {
-    if (opened) {
-      val MaxToShow = 5
+    openlock.writeLock.lock
 
-      // Complain about un-released heap allocations
-      val hRecords = heapRecords.take(MaxToShow)
-      if (hRecords.nonEmpty) {
-        logger.error(s"There were some unreleased heap allocations. First ${MaxToShow}:")
-        hRecords.foreach { case (_, record) =>
-          logger.error(s"Position: ${record.address}", record.toThrowable)
+    try {
+      if (opened) {
+        val MaxToShow = 5
+
+        // Complain about un-released heap allocations
+        val hRecords = heapRecords.take(MaxToShow)
+        if (hRecords.nonEmpty) {
+          logger.error(s"There were some unreleased heap allocations. First ${MaxToShow}:")
+          hRecords.foreach { case (_, record) =>
+            logger.error(s"Position: ${record.address}", record.toThrowable)
+          }
+        } else {
+          logger.info(s"[${handle.address}] There are no unreleased heap allocations; this is good.")
         }
-      } else {
-        logger.info(s"[${handle.address}] There are no unreleased heap allocations; this is good.")
-      }
 
-      // Complain about un-released args stack allocations
-      val sRecords = stackRecords.take(MaxToShow)
-      if (sRecords.nonEmpty) {
-        logger.error(s"There were some unreleased stack allocations. First ${MaxToShow}:")
-        sRecords.foreach { case (_, record) =>
-          logger.error(s"Position: ${record.args.address}")
+        // Complain about un-released args stack allocations
+        val sRecords = stackRecords.take(MaxToShow)
+        if (sRecords.nonEmpty) {
+          logger.error(s"There were some unreleased stack allocations. First ${MaxToShow}:")
+          sRecords.foreach { case (_, record) =>
+            logger.error(s"Position: ${record.args.address}")
+          }
+        } else {
+          logger.info(s"[${handle.address}] There are no unreleased stack allocations; this is good.")
         }
+
+        Try {
+          logger.info(s"[${handle.address}] Closing VEO asynchronous context @ ${tcontext.address}")
+          veo.veo_context_close(tcontext)
+
+          logger.info(s"[${handle.address}] Closing VE process (Node ${node}) @ ${handle.address}")
+          veo.veo_proc_destroy(handle)
+
+          logger.info(s"[${handle.address}] Clearing allocation records held by the VE process")
+          heapRecords.clear
+
+          logger.info(s"[${handle.address}] Clearing veo_args allocations records held by the VE process")
+          stackRecords.clear
+
+          logger.info(s"[${handle.address}] Clearing loaded libraries records held by the VE process")
+          loadedLibRecords.clear
+        }
+
+        opened = false
+
       } else {
-        logger.info(s"[${handle.address}] There are no unreleased stack allocations; this is good.")
+        logger.info(s"[${handle.address}] Process has already been closed!")
       }
 
-      Try {
-        logger.info(s"[${handle.address}] Closing VEO asynchronous context @ ${tcontext.address}")
-        veo.veo_context_close(tcontext)
-
-        logger.info(s"[${handle.address}] Closing VE process (Node ${node}) @ ${handle.address}")
-        veo.veo_proc_destroy(handle)
-
-        logger.info(s"[${handle.address}] Clearing allocation records held by the VE process")
-        heapRecords.clear
-
-        logger.info(s"[${handle.address}] Clearing veo_args allocations records held by the VE process")
-        stackRecords.clear
-
-        logger.info(s"[${handle.address}] Clearing loaded libraries records held by the VE process")
-        loadedLibRecords.clear
-      }
-
-      opened = false
+    } finally {
+      openlock.writeLock.unlock
     }
   }
 }

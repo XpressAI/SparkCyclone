@@ -67,14 +67,14 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def free(address: Long, unsafe: Boolean): Unit = {
-    // If the VeProcess is not even instantiated yet, skip
+    // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
       underlying.free(address, unsafe)
     }
   }
 
   def freeAll: Unit = {
-    // If the VeProcess is not even instantiated yet, skip
+    // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
       underlying.freeAll
     }
@@ -113,7 +113,7 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def unload(lib: LibraryReference): Unit = {
-    // If the VeProcess is not even instantiated yet, skip
+    // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
       underlying.unload(lib)
     }
@@ -140,7 +140,7 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
   }
 
   def close: Unit = {
-    // Don't instantiate an underlying VeProcess instance just for closing
+    // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
       underlying.close
     }
