@@ -177,7 +177,7 @@ final case class GroupByPartialGenerator(
               CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
                 CodeLines.ifStatement("${BatchAssignmentsId}[g] == b") {
                   CodeLines.from(
-                    s"group_indexes = sorted_idx[groups_indices[g]];"
+                    s"group_indexes[i++] = sorted_idx[groups_indices[g]];"
                   )
                   }
               }
