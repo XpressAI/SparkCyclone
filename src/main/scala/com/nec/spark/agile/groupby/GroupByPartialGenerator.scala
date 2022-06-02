@@ -147,6 +147,7 @@ final case class GroupByPartialGenerator(
     CodeLines.from(
       s"std::vector<size_t> ${BatchCountsId}(${nBuckets});",
       s"std::vector<size_t> ${BatchGroupPositionsId}(${groupingCodeGenerator.groupsCountOutName});",
+      s"std::vector<std::vector<size_t>> batch_group_indexes;",
       CodeLines.scoped("Compute the value counts for each batch") {
         CodeLines.from(
           "#pragma _NEC vector",
@@ -163,10 +164,25 @@ final case class GroupByPartialGenerator(
                 }
               },
               // Assign to the counts table
-              s"${BatchCountsId}[b] = count;"
+              s"${BatchCountsId}[b] = count;",
+              s"std::vector<size_t> group_indexes(count);",
+              s"batch_group_indexes.push_back(groups_indexes);"
             )
-          }
-        )
+          },
+          "",
+          CodeLines.forLoop("b", s"${nBuckets}") {
+            CodeLines.from(
+              s"size_t* group_indexes = batch_group_indexes[b].data();",
+              s"size_t i=0;",
+              CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
+                CodeLines.ifStatement("${BatchAssignmentsId}[g] == b") {
+                  CodeLines.from(
+                    s"group_indexes = sorted_idx[groups_indices[g]];"
+                  )
+                  }
+              }
+            )
+          })
       },
       ""
     )
@@ -192,23 +208,33 @@ final case class GroupByPartialGenerator(
 
   def computeGroupingKeysPerGroup: CodeLines = {
     final case class ProductionTriplet(forEach: CodeLines, complete: CodeLines)
+
     val initVars = computedGroupingKeys.map {
       case (groupingKey, Right(TypedCExpression2(_, cExp))) =>
         ProductionTriplet(
           forEach = storeTo(s"partial_${groupingKey.name}[${BatchAssignmentsId}[g]]", cExp, s"${BatchGroupPositionsId}[g]"),
           complete = CodeLines.empty
         )
+    }
+    val initVars2 = computedGroupingKeys.map {
       case (groupingKey, Left(StringReference(sr))) =>
         ProductionTriplet(
           forEach = CodeLines.from(
-            s"partial_str_${groupingKey.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));"
+            s"partial_str_${groupingKey.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
+            //s"partial_str_${groupingKey.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));"
           ),
           complete = CodeLines.empty
         )
     }
 
     CodeLines.scoped("Compute grouping keys per group") {
+
       CodeLines.from(
+        "#pragma _NEC vector",
+        CodeLines.forLoop("b", s"${nBuckets}") {
+            initVars2.map(_.forEach)
+        },
+        "",
         groupingCodeGenerator.forHeadOfEachGroup(initVars.map(_.forEach)),
         initVars.map(_.complete)
       )
@@ -221,7 +247,10 @@ final case class GroupByPartialGenerator(
   ): CodeLines = r match {
     case Left(StringReference(sr)) =>
       groupingCodeGenerator.forHeadOfEachGroup(
-        CodeLines.from(s"partial_str_${stagedProjection.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));")
+        CodeLines.from(
+          s"partial_str_${stagedProjection.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
+        )
+        //CodeLines.from(s"partial_str_${stagedProjection.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));")
       )
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
