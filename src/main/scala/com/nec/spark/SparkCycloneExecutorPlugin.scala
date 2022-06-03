@@ -31,7 +31,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
-import org.apache.spark.metrics.source.ProcessExecutorMetrics.AllocationTracker
 
 object SparkCycloneExecutorPlugin {
   var pluginContext: PluginContext = _
@@ -58,7 +57,7 @@ object SparkCycloneExecutorPlugin {
 
   @transient implicit lazy val veMetrics: ProcessExecutorMetrics = {
     require(pluginContext != null, s"${classOf[PluginContext].getSimpleName} is not yet set!")
-    new ProcessExecutorMetrics(AllocationTracker.simple, pluginContext.metricRegistry)
+    new ProcessExecutorMetrics(pluginContext.metricRegistry)
   }
 
   @transient implicit lazy val vectorEngine: VectorEngine = {

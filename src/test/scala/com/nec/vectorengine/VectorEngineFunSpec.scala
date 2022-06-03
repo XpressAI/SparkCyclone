@@ -27,7 +27,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val lib = process.load(path)
 
         val inputs = InputSamples.seqOpt[Double](Random.nextInt(20) + 10)
-        val colvec = inputs.toBytePointerColVector("_").toVeColVector2
+        val colvec = inputs.toBytePointerColVector("_").toVeColVector
 
         // Metrics should be empty
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}") should be (null)
@@ -43,11 +43,11 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}").getCount should be (1L)
 
         val expected = inputs.map(_.map(_ * 2))
-        outputs.map(_.toBytePointerColVector2.toSeqOpt[Double]) should be (Seq(expected))
+        outputs.map(_.toBytePointerColVector.toSeqOpt[Double]) should be (Seq(expected))
 
         // Allocations should have been registered for tracking by VeProcess
         noException should be thrownBy {
-          outputs.map(_.free2)
+          outputs.map(_.free)
         }
       }
     }
@@ -62,9 +62,9 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val inputs1 = InputSamples.seqOpt[Double](inputs0.size)
         val inputs2 = InputSamples.seqOpt[Double](inputs0.size)
 
-        val colvec0 = inputs0.toBytePointerColVector("_").toVeColVector2
-        val colvec1 = inputs1.toBytePointerColVector("_").toVeColVector2
-        val colvec2 = inputs2.toBytePointerColVector("_").toVeColVector2
+        val colvec0 = inputs0.toBytePointerColVector("_").toVeColVector
+        val colvec1 = inputs1.toBytePointerColVector("_").toVeColVector
+        val colvec2 = inputs2.toBytePointerColVector("_").toVeColVector
 
         val outputs = engine.execute(
           lib,
@@ -80,10 +80,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
           if (i0 % 2 == 0) i2 else None
         }.toSeq
 
-        outputs.map(_.toBytePointerColVector2.toSeqOpt[Double]) should be (Seq(expected1, expected2))
+        outputs.map(_.toBytePointerColVector.toSeqOpt[Double]) should be (Seq(expected1, expected2))
 
         noException should be thrownBy {
-          outputs.map(_.free2)
+          outputs.map(_.free)
         }
       }
     }
@@ -93,7 +93,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
       compiledWithHeaders(func) { path =>
         val lib = process.load(path)
-        val colvec = Seq[Double](95, 99, 105, 500, 501).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+        val colvec = Seq[Double](95, 99, 105, 500, 501).map(Some(_)).toBytePointerColVector("_").toVeColVector
 
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${func.name}") should be (null)
 
@@ -108,7 +108,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
         val results: Seq[(Int, Option[Double])] = outputs.map { case (index, vecs) =>
           index -> {
-            val tmp = vecs.head.toBytePointerColVector2.toSeqOpt[Double].flatten
+            val tmp = vecs.head.toBytePointerColVector.toSeqOpt[Double].flatten
             if (tmp.isEmpty) None else Some(tmp.max)
           }
         }
@@ -124,7 +124,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         results should be (expected)
 
         noException should be thrownBy {
-          outputs.flatMap(_._2).map(_.free2)
+          outputs.flatMap(_._2).map(_.free)
         }
       }
     }
@@ -144,9 +144,9 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         val lib = process.load(path)
 
         val lastString = "cccc"
-        val colvec1 = Seq[Double](1, 2, 3).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-        val colvec2 = Seq[Double](9, 8, 7).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-        val colvecS = Seq("a", "b", lastString).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+        val colvec1 = Seq[Double](1, 2, 3).map(Some(_)).toBytePointerColVector("_").toVeColVector
+        val colvec2 = Seq[Double](9, 8, 7).map(Some(_)).toBytePointerColVector("_").toVeColVector
+        val colvecS = Seq("a", "b", lastString).map(Some(_)).toBytePointerColVector("_").toVeColVector
 
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupingFn.name}") should be (null)
 
@@ -162,9 +162,9 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
         val results: Seq[(Int, Seq[(Double, String, Double)])] = outputs.map { case (index, vecs) =>
           index -> (
-            vecs(0).toBytePointerColVector2.toSeqOpt[Double].flatten,
-            vecs(1).toBytePointerColVector2.toSeqOpt[String].flatten,
-            vecs(2).toBytePointerColVector2.toSeqOpt[Double].flatten,
+            vecs(0).toBytePointerColVector.toSeqOpt[Double].flatten,
+            vecs(1).toBytePointerColVector.toSeqOpt[String].flatten,
+            vecs(2).toBytePointerColVector.toSeqOpt[Double].flatten,
           ).zipped.toSeq
         }
 
@@ -172,7 +172,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         results.flatMap(_._2).toSet should be (Set[(Double, String, Double)]((1, "a", 9), (2, "b", 8), (3, lastString, 7)))
 
         noException should be thrownBy {
-          outputs.flatMap(_._2).map(_.free2)
+          outputs.flatMap(_._2).map(_.free)
         }
       }
     }
@@ -183,10 +183,10 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       compiledWithHeaders(mergeFn.toCFunction) { path =>
         val lib = process.load(path)
 
-        val colvec1 = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-        val colvec2 = Seq[Double](2, 3, 4).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-        val svec1 = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector2
-        val svec2 = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("_").toVeColVector2
+        val colvec1 = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector
+        val colvec2 = Seq[Double](2, 3, 4).map(Some(_)).toBytePointerColVector("_").toVeColVector
+        val svec1 = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector
+        val svec2 = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("_").toVeColVector
 
         val colbatch1 = VeColBatch(Seq(colvec1, svec1))
         val colbatch2 = VeColBatch(Seq(colvec2, svec2))
@@ -205,41 +205,41 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${mergeFn.name}").getCount should be (1L)
 
         outputs.size should be (2)
-        outputs(0).toBytePointerColVector2.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
-        outputs(1).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
+        outputs(0).toBytePointerColVector.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 3, -1, 2, 3, 4))
+        outputs(1).toBytePointerColVector.toSeqOpt[String].flatten should be (Seq("a", "b", "c", "x", "d", "e", "f"))
 
         noException should be thrownBy {
-          outputs.map(_.free2)
+          outputs.map(_.free)
         }
       }
     }
 
     "correctly execute a join function" in {
       // Batch L1
-      val c1a = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c1b = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c1a = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c1b = Seq("a", "b", "c", "x").map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb1 = VeColBatch(Seq(c1a, c1b))
 
       // Batch L2
-      val c2a = Seq[Double](2, 3, 4).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c2b = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c2a = Seq[Double](2, 3, 4).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c2b = Seq("d", "e", "f").map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb2 = VeColBatch(Seq(c2a, c2b))
 
       // Batch L3
-      val c3a = Seq[Double](5, 6).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c3b = Seq("g", "h").map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c3a = Seq[Double](5, 6).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c3b = Seq("g", "h").map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb3 = VeColBatch(Seq(c3a, c3b))
 
       // Batch R1
-      val c4a = Seq[Int](1, 101).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c4b = Seq("vv", "ww").map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c4c = Seq[Float](3.14f, 3.15f).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c4a = Seq[Int](1, 101).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c4b = Seq("vv", "ww").map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c4c = Seq[Float](3.14f, 3.15f).map(Some(_)).toBytePointerColVector("_").toVeColVector
       val rb1 = VeColBatch(Seq(c4a, c4b, c4c))
 
       // Batch R2
-      val c5a = Seq[Int](2, 103, 104).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c5b = Seq("xx", "yy", "zz").map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c5c = Seq[Float](2.71f, 2.72f, 2.73f).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c5a = Seq[Int](2, 103, 104).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c5b = Seq("xx", "yy", "zz").map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c5c = Seq[Float](2.71f, 2.72f, 2.73f).map(Some(_)).toBytePointerColVector("_").toVeColVector
       val rb2 = VeColBatch(Seq(c5a, c5b, c5c))
 
       // Left batch of batches
@@ -267,31 +267,31 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
         // There should be 4 columns - one for the joining column, and three for the remaining
         outputs.size should be (4)
-        outputs(0).toBytePointerColVector2.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 2))
-        outputs(1).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("a", "b", "d"))
-        outputs(2).toBytePointerColVector2.toSeqOpt[String].flatten should be (Seq("vv", "xx", "xx"))
-        outputs(3).toBytePointerColVector2.toSeqOpt[Float].flatten should be (Seq[Float](3.14f, 2.71f, 2.71f))
+        outputs(0).toBytePointerColVector.toSeqOpt[Double].flatten should be (Seq[Double](1, 2, 2))
+        outputs(1).toBytePointerColVector.toSeqOpt[String].flatten should be (Seq("a", "b", "d"))
+        outputs(2).toBytePointerColVector.toSeqOpt[String].flatten should be (Seq("vv", "xx", "xx"))
+        outputs(3).toBytePointerColVector.toSeqOpt[Float].flatten should be (Seq[Float](3.14f, 2.71f, 2.71f))
 
         noException should be thrownBy {
-          outputs.map(_.free2)
+          outputs.map(_.free)
         }
       }
     }
 
     "correctly execute a grouping function" in {
       // Batch 1
-      val c1a = Seq[Long](1, 2, 7, 9).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c1b = Seq[Long](101, 102, 107, 109).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c1a = Seq[Long](1, 2, 7, 9).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c1b = Seq[Long](101, 102, 107, 109).map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb1 = VeColBatch(Seq(c1a, c1b))
 
       // Batch 2
-      val c2a = Seq[Long](10, 11, 15).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c2b = Seq[Long](110, 111, 115).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c2a = Seq[Long](10, 11, 15).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c2b = Seq[Long](110, 111, 115).map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb2 = VeColBatch(Seq(c2a, c2b))
 
       // Batch 3
-      val c3a = Seq[Long](22, 26).map(Some(_)).toBytePointerColVector("_").toVeColVector2
-      val c3b = Seq[Long](122, 126).map(Some(_)).toBytePointerColVector("_").toVeColVector2
+      val c3a = Seq[Long](22, 26).map(Some(_)).toBytePointerColVector("_").toVeColVector
+      val c3b = Seq[Long](122, 126).map(Some(_)).toBytePointerColVector("_").toVeColVector
       val lb3 = VeColBatch(Seq(c3a, c3b))
 
       val batches = VeBatchOfBatches(Seq(lb1, lb2, lb3))
@@ -318,8 +318,8 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         // Unpack to tuples
         val results = outputs.map { case (key, vecs) =>
           (
-            vecs(0).toBytePointerColVector2.toSeqOpt[Long].flatten,
-            vecs(1).toBytePointerColVector2.toSeqOpt[Long].flatten
+            vecs(0).toBytePointerColVector.toSeqOpt[Long].flatten,
+            vecs(1).toBytePointerColVector.toSeqOpt[Long].flatten
           ).zipped.toList
         }
 
@@ -335,7 +335,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         results should be (expected)
 
         noException should be thrownBy {
-          outputs.flatMap(_._2).map(_.free2)
+          outputs.flatMap(_._2).map(_.free)
         }
       }
     }
@@ -382,13 +382,13 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       batch.columns.size should be (3)
 
       // Transfer back to VH - the Nth column of each batch should be consolidated
-      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
-      batch.columns(1).toBytePointerColVector2.toSeqOpt[Double] should be (a2 ++ b2 ++ c2)
-      batch.columns(2).toBytePointerColVector2.toSeqOpt[String] should be (a3 ++ b3 ++ c3)
+      batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+      batch.columns(1).toBytePointerColVector.toSeqOpt[Double] should be (a2 ++ b2 ++ c2)
+      batch.columns(2).toBytePointerColVector.toSeqOpt[String] should be (a3 ++ b3 ++ c3)
 
       // The memory created from the VE side should be registered for safe free()
       noException should be thrownBy {
-        batch.free2
+        batch.free
       }
     }
 
@@ -416,11 +416,11 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       batch.columns.size should be (1)
 
       // Transfer back to VH - the Nth column of each batch should be consolidated
-      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+      batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
 
       // The memory created from the VE side should be registered for safe free()
       noException should be thrownBy {
-        batch.free2
+        batch.free
       }
     }
 
@@ -448,11 +448,11 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       batch.columns.size should be (1)
 
       // Transfer back to VH - the Nth column of each batch should be consolidated
-      batch.columns(0).toBytePointerColVector2.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
+      batch.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (a1 ++ b1 ++ c1)
 
       // The memory created from the VE side should be registered for safe free()
       noException should be thrownBy {
-        batch.free2
+        batch.free
       }
     }
   }

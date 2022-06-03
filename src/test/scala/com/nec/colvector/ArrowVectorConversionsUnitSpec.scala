@@ -49,7 +49,7 @@ final class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
 
   "ArrowVectorConversions" should {
     "correctly perform equality checks between two ValueVectors" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000))
+      val raw = 0.until(Random.nextInt(100) + 100).map(_ => Random.nextInt(10000))
       val vec1 = new IntVector(s"${UUID.randomUUID}", allocator)
       vec1.setValueCount(raw.length)
       raw.zipWithIndex.foreach { case (v, i) =>

@@ -2,9 +2,7 @@ package com.nec.cyclone.colvector
 
 import com.nec.colvector._
 import com.nec.spark.agile.core.{VeScalarType, VeString}
-import com.nec.util.CallContext
 import com.nec.vectorengine.{VeAsyncResult, VeProcess}
-import com.nec.ve.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[UnitColVector],
@@ -48,17 +46,14 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
     combined
   }
 
-  def asyncToCompressedVeColBatch(implicit source: VeColVectorSource,
-                                  process: VeProcess,
-                                  context: CallContext,
-                                  metrics: VeProcessMetrics): () => VeAsyncResult[CompressedVeColBatch] = {
+  def asyncToCompressedVeColBatch(implicit process: VeProcess): () => VeAsyncResult[CompressedVeColBatch] = {
     // Allocate memory on the VE
     val veLocations = Seq(
       // Size of the compressed struct
       columns.map(_.veType.containerSize.toLong).foldLeft(0L)(_ + _),
       // Size of the combined data
       buffer.limit()
-    ).map(process.allocate)
+    ).map(process.allocate).map(_.address)
 
     // Build the compressed struct on VH with the correct pointers to VE memory locations
     val struct = newCompressedStruct(veLocations(1))
@@ -71,17 +66,14 @@ final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[
         process.putAsync(buf, to)
       }
 
-      VeAsyncResult(handles) { () =>
+      VeAsyncResult(handles: _*) { () =>
         struct.close
         batch
       }
     }
   }
 
-  def toCompressedVeColBatch(implicit source: VeColVectorSource,
-                             process: VeProcess,
-                             context: CallContext,
-                             metrics: VeProcessMetrics): CompressedVeColBatch = {
-    asyncToCompressedVeColBatch.apply().get()
+  def toCompressedVeColBatch(implicit process: VeProcess): CompressedVeColBatch = {
+    asyncToCompressedVeColBatch.apply().get
   }
 }

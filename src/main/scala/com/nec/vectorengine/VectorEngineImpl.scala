@@ -303,7 +303,7 @@ class VectorEngineImpl(val process: VeProcess,
       val ngroups = groups.numRows
 
       // Fetch the group keys
-      val groupKeys = groups.toArray2[K](0)
+      val groupKeys = groups.toArray[K](0)
 
       // Declare pointer scope
       val scope = new PointerScope
@@ -358,7 +358,7 @@ class VectorEngineImpl(val process: VeProcess,
     // Construct VeColBatch from the output buffer
     val batch = descriptor.resultToColBatch
 
-    // Free the transfer buffer and the result buffer on the VH side
+    // Free the transfer and result buffers on the VH side
     descriptor.close
 
     // Register the allocations made from the VE

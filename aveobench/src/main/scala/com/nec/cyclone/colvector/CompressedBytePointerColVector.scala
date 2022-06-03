@@ -2,9 +2,7 @@ package com.nec.cyclone.colvector
 
 import com.nec.colvector._
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
-import com.nec.util.CallContext
 import com.nec.vectorengine.{VeAsyncResult, VeProcess}
-import com.nec.ve.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 final case class CompressedBytePointerColVector private[colvector] (
@@ -47,12 +45,9 @@ final case class CompressedBytePointerColVector private[colvector] (
     }
   }
 
-  def asyncToVeColVector(implicit source: VeColVectorSource,
-                         process: VeProcess,
-                         context: CallContext,
-                         metrics: VeProcessMetrics): () => VeAsyncResult[VeColVector] = {
+  def asyncToVeColVector(implicit process: VeProcess): () => VeAsyncResult[VeColVector] = {
     // Allocate memory on the VE
-    val veLocations = Seq(veType.containerSize.toLong, buffer.limit()).map(process.allocate)
+    val veLocations = Seq(veType.containerSize.toLong, buffer.limit()).map(process.allocate).map(_.address)
 
     // Build the struct on VH with the correct pointers to VE memory locations
     val struct = newStruct(veLocations(1))
@@ -73,17 +68,14 @@ final case class CompressedBytePointerColVector private[colvector] (
         process.putAsync(buf, to)
       }
 
-      VeAsyncResult(handles) { () =>
+      VeAsyncResult(handles: _*) { () =>
         struct.close()
         vector
       }
     }
   }
 
-  def toVeColVector(implicit source: VeColVectorSource,
-                    process: VeProcess,
-                    context: CallContext,
-                    metrics: VeProcessMetrics): VeColVector = {
-    asyncToVeColVector.apply().get()
+  def toVeColVector(implicit process: VeProcess): VeColVector = {
+    asyncToVeColVector.apply().get
   }
 }

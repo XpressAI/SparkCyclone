@@ -64,10 +64,6 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns(idx).toBytePointerColVector.toArray[T]
   }
 
-  def toArray2[T: ClassTag](idx: Int)(implicit process: NewVeProcess): Array[T] = {
-    columns(idx).toBytePointerColVector2.toArray[T]
-  }
-
   def streamedSize: Int = {
     Seq(4, 4) ++ columns.flatMap { col =>
       Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
@@ -129,10 +125,6 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
              process: VeProcess,
              context: CallContext): Unit = {
     columns.foreach(_.free)
-  }
-
-  def free2(implicit process: NewVeProcess): Unit = {
-    columns.foreach(_.free2)
   }
 
   def toArrowColumnarBatch(implicit allocator: BufferAllocator,

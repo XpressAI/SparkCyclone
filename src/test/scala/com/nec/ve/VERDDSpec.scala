@@ -8,8 +8,8 @@ import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.spark.SparkCycloneExecutorPlugin._
-import com.nec.ve.PureVeFunctions.DoublingFunction
-import com.nec.util.CallContext
+import com.nec.vectorengine.SampleVeFunctions._
+import com.nec.util.CallContextOps._
 import com.nec.ve.VeRDDOps.RichKeyedRDD
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -22,15 +22,12 @@ final class VERDDSpec
   with SparkAdditions
   with VeKernelInfra
   with BeforeAndAfterAll {
-
-  import com.nec.util.CallContextOps._
-
   "We can perform a VE call on Arrow things" in withSparkSession2(
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
     import SparkCycloneExecutorPlugin._
 
-    val result = compiledWithHeaders(DoublingFunction, "f") { path =>
+    val result = compiledWithHeaders(DoublingFunction) { path =>
       val ref = veProcess.load(path)
 
       VERDDSpec.doubleBatches {
@@ -40,7 +37,7 @@ final class VERDDSpec
       }
       .map { input =>
         val colvec = input.toVeColVector
-        val outputs = vectorEngine.execute(ref, "f", List(colvec), DoublingFunction.outputs)
+        val outputs = vectorEngine.execute(ref, DoublingFunction.name, List(colvec), List(VeNullableDouble.makeCVector("output")))
         outputs.head.toBytePointerColVector.toSeqOpt[Double].flatten
       }
       .collect
@@ -55,9 +52,6 @@ final class VERDDSpec
 }
 
 object VERDDSpec {
-  val MultiFunctionName = "f_multi"
-  import com.nec.util.CallContextOps._
-
   def exchangeBatches(sparkSession: SparkSession, pathStr: String): RDD[Double] = {
     import SparkCycloneExecutorPlugin._
 
@@ -75,7 +69,7 @@ object VERDDSpec {
 
           vectorEngine.executeMulti(
             ref,
-            MultiFunctionName,
+            PartitioningFunction.name,
             List(colvec),
             List(VeNullableDouble.makeCVector("o_dbl"))
           )

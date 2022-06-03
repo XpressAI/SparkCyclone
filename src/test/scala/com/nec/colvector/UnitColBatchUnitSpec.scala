@@ -13,7 +13,7 @@ final class UnitColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
 
   "UnitColBatch" should {
     s"correctly construct ${classOf[VeColBatch].getSimpleName} from Seq[Array[Byte]]" in {
-      val size = Random.nextInt(100)
+      val size = Random.nextInt(100) + 100
       val input1 = InputSamples.seqOpt[Int](size)
       val input2 = InputSamples.seqOpt[Double](size)
       val input3 = InputSamples.seqOpt[String](size)

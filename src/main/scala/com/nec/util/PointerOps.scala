@@ -27,7 +27,7 @@ object PointerOps {
         between the source and destination pointer types (casting JavaCPP
         pointers literally copies the capacity value over as is).
       */
-      new BytePointer(buffer).capacity(buffer.limit * buffer.sizeof)
+      new BytePointer(buffer).capacity(nbytes)
     }
 
     def toHex: Array[String] = {
