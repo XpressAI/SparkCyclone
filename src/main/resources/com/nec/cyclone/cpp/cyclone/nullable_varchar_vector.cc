@@ -584,7 +584,16 @@ void nullable_varchar_vector::group_indexes_on_subset(size_t* iter_order_arr, si
   if(group_pos_size > count){
     auto start = group_pos[0];
     auto count = group_pos[group_pos_size - 1] - start;
-    memcpy(&idx_arr[start], &iter_order_arr[start], sizeof(size_t) * count);
+
+    if(iter_order_arr == nullptr){
+      #pragma _NEC vector
+      #pragma _NEC ivdep
+      for(auto i = start; i < end; i++) {
+          idx_arr[i] = i;
+      }
+    } else {
+      memcpy(&idx_arr[start], &iter_order_arr[start], sizeof(size_t) * count);
+    }
     memcpy(out_group_pos, group_pos, sizeof(size_t) * group_pos_size);
     out_group_pos_size = group_pos_size;
     return;
