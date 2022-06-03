@@ -229,7 +229,7 @@ object VeProcess extends LazyLogging {
 
       // Executor IDs start at 1
       val executorId = Try { context.executorID.toInt - 1 }.getOrElse(0)
-      val veMultiple = executorId / MaxVeNodes
+      val veMultiple = executorId
 
       if (veMultiple > veResources.addresses.size) {
         logger.warn("Not enough VE resources allocated for the number of executors specified.")
