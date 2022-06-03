@@ -153,7 +153,6 @@ object VeProcess extends LazyLogging {
                                            veCores: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
     require(veCores > 0, "veCores must be > 0")
     require(veCores <= MaxVeCores, s"veCores must be <= ${MaxVeCores}")
-
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
 

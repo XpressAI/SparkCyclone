@@ -1,18 +1,19 @@
 package com.nec.vectorengine
 
+import com.codahale.metrics._
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import scala.collection.concurrent.{TrieMap => MMap}
-import scala.util.Try
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
-import java.time.Duration
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+import java.time.Duration
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import scala.collection.concurrent.{TrieMap => MMap}
+import scala.util.Try
 
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
@@ -27,7 +28,7 @@ final case class WrappingVeo private (val node: Int,
   private val openlock = new ReentrantReadWriteLock(true)
 
   // VEO async thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
 
   // Reference to libcyclone.so
   private var libCyclone: LibraryReference = _
@@ -190,6 +191,7 @@ final case class WrappingVeo private (val node: Int,
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
+      // veo_alloc_mem runs in separate context
       val (result, duration) = measureTime { _alloc(ptr, size) }
 
       // Ensure memory is properly allocated
