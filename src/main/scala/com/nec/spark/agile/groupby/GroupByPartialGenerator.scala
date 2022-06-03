@@ -224,8 +224,7 @@ final case class GroupByPartialGenerator(
       case (groupingKey, Left(StringReference(sr))) =>
         ProductionTriplet(
           forEach = CodeLines.from(
-            s"partial_str_${groupingKey.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
-            //s"partial_str_${groupingKey.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));"
+            s"partial_str_${groupingKey.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]));"
           ),
           complete = CodeLines.empty
         )
