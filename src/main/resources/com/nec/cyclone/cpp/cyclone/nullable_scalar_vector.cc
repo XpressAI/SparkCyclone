@@ -392,7 +392,8 @@ void NullableScalarVec<T>::group_indexes_on_subset(size_t* iter_order_arr, size_
   // Shortcut for case when every element would end up in its own group anyway
   if(group_pos_size > count){
     auto start = group_pos[0];
-    auto count = group_pos[group_pos_size - 1] - start;
+    auto end = group_pos[group_pos_size - 1];
+    auto count = end - start;
 
     if(iter_order_arr == nullptr) {
       #pragma _NEC vector
