@@ -1,18 +1,19 @@
 package com.nec.vectorengine
 
+import com.codahale.metrics._
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import scala.collection.concurrent.{TrieMap => MMap}
-import scala.util.Try
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
-import java.time.Duration
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+import java.time.Duration
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import scala.collection.concurrent.{TrieMap => MMap}
+import scala.util.Try
 
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
@@ -27,7 +28,7 @@ final case class WrappingVeo private (val node: Int,
   private val openlock = new ReentrantReadWriteLock(true)
 
   // VEO async thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
 
   // Reference to libcyclone.so
   private var libCyclone: LibraryReference = _
@@ -252,20 +253,6 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private[vectorengine] def _free(address: Long): Int = {
-    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
-
-    withVeoProc {
-      val func = getSymbol(libCyclone, LibCyclone.FreeFn)
-      val args = newArgsStack(Seq(U64Arg(address)))
-      val retp = awaitResult(callAsync(func, args))
-      freeArgsStack(args)
-      val res = retp.get.toInt
-      retp.close
-      res
-    }
-  }
-
   private[vectorengine] def _free(addresses: Seq[Long]): Int = {
     require(libCyclone != null, "libcyclone.so has not been loaded yet!")
 
@@ -296,39 +283,6 @@ final case class WrappingVeo private (val node: Int,
 
   def free(address: Long, unsafe: Boolean): Unit = {
     freeSeq(Seq(address), unsafe)
-
-    // withVeoProc {
-    //   // Explicitly allow address of 0
-    //   require(address >= 0L, s"Invalid VE memory address ${address}")
-
-    //   heapRecords.get(address) match {
-    //     case Some(allocation) =>
-    //       logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
-    //       /*
-    //         Remove from the records upfront, because a failed free is a full
-    //         crash anyway, and in a highly parallel setup the VE can allocate the
-    //         just-freed memory before we have removed them from the records
-    //       */
-    //       heapRecords.remove(address)
-    //       val (result, duration) = measureTime { _free( address) }
-    //       require(result == 0, s"Memory release failed with code: ${result}")
-    //       freeTimer.update(Duration.ofNanos(duration))
-
-    //     case None if unsafe =>
-    //       logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
-    //       val (result, duration) = measureTime { _free( address) }
-    //       require(result == 0, s"Memory release failed with code: ${result}")
-    //       freeTimer.update(Duration.ofNanos(duration))
-
-    //     case None if address == 0 =>
-    //       // Do nothing for free(0)
-    //       ()
-
-    //     case None =>
-    //       logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
-    //       ()
-    //   }
-    // }
   }
 
   def freeSeq(addresses: Seq[Long], unsafe: Boolean): Unit = {

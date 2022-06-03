@@ -7,7 +7,6 @@ import com.nec.spark.agile.core.VeType
 import com.nec.util.CallContext
 import com.nec.ve.VeProcessMetrics
 import com.nec.vectorengine.VeProcess
-import com.nec.vectorengine.{VeProcess => NewVeProcess}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 
@@ -124,7 +123,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   def free()(implicit source: VeColVectorSource,
              process: VeProcess,
              context: CallContext): Unit = {
-    columns.foreach(_.free)
+    process.freeSeq(columns.flatMap(_.closeAndReturnAllocations))
   }
 
   def toArrowColumnarBatch(implicit allocator: BufferAllocator,
