@@ -258,7 +258,7 @@ final case class GroupByPartialGenerator(
         "#pragma _NEC vector",
         CodeLines.forLoop("b", s"${nBuckets}") {
           CodeLines.from(
-            s"partial_str_${stagedProjection.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
+            s"partial_str_${stagedProjection.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]));"
           )
         }
       )
