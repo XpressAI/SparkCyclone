@@ -1,14 +1,15 @@
 package com.nec.vectorengine
 
-import com.nec.colvector.{VeColVectorSource => VeSource}
-import scala.util.Try
-import java.nio.file.Path
 import com.codahale.metrics.MetricRegistry
+import com.nec.colvector.{VeColVectorSource => VeSource}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.PluginContext
 import org.bytedeco.javacpp.{LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
-import com.typesafe.scalalogging.LazyLogging
+
+import java.nio.file.Path
+import scala.util.Try
 
 final case class VeAllocation private[vectorengine] (address: Long, size: Long, trace: Seq[StackTraceElement]) {
   def toThrowable: Throwable = {
@@ -47,7 +48,7 @@ final case class U64Arg(value: Long) extends CallStackArgument
 
 final case class BuffArg(intent: VeArgIntent, buffer: Pointer) extends CallStackArgument
 
-final case class VeAsyncReqId private[vectorengine] (value: Long)
+final case class VeAsyncReqId private[vectorengine] (value: Long, context: veo_thr_ctxt)
 
 trait VeProcess {
   def node: Int
@@ -128,6 +129,7 @@ trait VeProcess {
 object VeProcess extends LazyLogging {
   final val DefaultVeNodeId = 0
   final val MaxVeNodes = 8
+  final val MaxVeCores = 8
 
   // Gauges
   final val NumTrackedAllocationsMetric   = "ve.gauges.allocations.count"
@@ -143,7 +145,7 @@ object VeProcess extends LazyLogging {
   final val PutSizesHistogramMetric       = "ve.histograms.put.size"
   final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
-  private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, veo_thr_ctxt)] = {
+  private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
 
@@ -157,11 +159,17 @@ object VeProcess extends LazyLogging {
 
       // Create asynchronous context
       tcontext <- {
-        val t = veo.veo_context_open(handle)
-        if (t != null && t.address > 0) Some(t) else None
+        Some((0 until MaxVeCores).flatMap { num =>
+          val t = veo.veo_context_open(handle)
+          if (t != null && t.address > 0) {
+            logger.info(s"Successfully allocated VEO asynchronous context ${num} on node ${nnum}")
+            Some(t)
+          } else {
+            logger.error(s"Could not allocate VEO asynchronous context ${num} on node ${nnum}")
+            None
+          }
+        })
       }
-      _ = logger.info(s"Successfully allocated VEO asynchronous context on node ${nnum}")
-
     } yield {
       // Return the tuple
       (nnum, handle, tcontext)
@@ -173,7 +181,7 @@ object VeProcess extends LazyLogging {
   }
 
   def create(identifier: String, metrics: MetricRegistry): VeProcess = {
-    val tupleO = 0.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, veo_thr_ctxt)]) {
+    val tupleO = 0.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, Seq[veo_thr_ctxt])]) {
       case (Some(tuple), venode)  => Some(tuple)
       case (None, venode)         => createVeoTuple(venode)
     }
@@ -221,7 +229,7 @@ object VeProcess extends LazyLogging {
 
       // Executor IDs start at 1
       val executorId = Try { context.executorID.toInt - 1 }.getOrElse(0)
-      val veMultiple = executorId / MaxVeNodes
+      val veMultiple = executorId
 
       if (veMultiple > veResources.addresses.size) {
         logger.warn("Not enough VE resources allocated for the number of executors specified.")
@@ -232,7 +240,7 @@ object VeProcess extends LazyLogging {
 
     logger.info(s"Attemping to use VE node = ${selectedNodeId}")
 
-    val tupleO = selectedNodeId.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, veo_thr_ctxt)]) {
+    val tupleO = selectedNodeId.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, Seq[veo_thr_ctxt])]) {
       case (Some(tuple), venode)  => Some(tuple)
       case (None, venode)         => createVeoTuple(venode)
     }
