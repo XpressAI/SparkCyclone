@@ -215,6 +215,10 @@ final case class GroupByPartialGenerator(
           forEach = storeTo(s"partial_${groupingKey.name}[${BatchAssignmentsId}[g]]", cExp, s"${BatchGroupPositionsId}[g]"),
           complete = CodeLines.empty
         )
+      case _ => ProductionTriplet(
+        forEach = CodeLines.empty,
+        complete = CodeLines.empty
+      )
     }
     val initVars2 = computedGroupingKeys.map {
       case (groupingKey, Left(StringReference(sr))) =>
@@ -225,6 +229,10 @@ final case class GroupByPartialGenerator(
           ),
           complete = CodeLines.empty
         )
+      case _ => ProductionTriplet(
+        forEach = CodeLines.empty,
+        complete = CodeLines.empty
+      )
     }
 
     CodeLines.scoped("Compute grouping keys per group") {
