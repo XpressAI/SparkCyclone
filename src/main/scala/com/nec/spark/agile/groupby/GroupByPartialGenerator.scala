@@ -253,11 +253,14 @@ final case class GroupByPartialGenerator(
     r: Either[StringReference, TypedCExpression2]
   ): CodeLines = r match {
     case Left(StringReference(sr)) =>
-      groupingCodeGenerator.forHeadOfEachGroup(
-        CodeLines.from(
-          s"partial_str_${stagedProjection.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
-        )
-        //CodeLines.from(s"partial_str_${stagedProjection.name}[${BatchAssignmentsId}[g]]->move_assign_from(${sr}->select(matching_ids));")
+      //groupingCodeGenerator.forHeadOfEachGroup(
+      CodeLines.from(
+        "#pragma _NEC vector",
+        CodeLines.forLoop("b", s"${nBuckets}") {
+          CodeLines.from(
+            s"partial_str_${stagedProjection.name}[b]->move_assign_from(${sr}->select(batch_group_indexes[b]);"
+          )
+        }
       )
     case Right(TypedCExpression2(veType, cExpression)) =>
       CodeLines.from(
