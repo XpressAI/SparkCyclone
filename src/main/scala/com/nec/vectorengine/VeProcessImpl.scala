@@ -191,7 +191,6 @@ final case class WrappingVeo private (val node: Int,
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
-      // veo_alloc_mem runs in separate context
       val (result, duration) = measureTime { _alloc(ptr, size) }
 
       // Ensure memory is properly allocated
@@ -293,6 +292,16 @@ final case class WrappingVeo private (val node: Int,
       retp.close
       buffer.close
       res
+    }
+  }
+
+  private def _free(address: Long): Int = {
+    withVeoProc {
+      val lib = load(LibCyclone.SoPath)
+      val sym = getSymbol(lib, LibCyclone.FreeFn)
+      awaitResult(callAsync(sym, newArgsStack(Seq(
+        U64Arg(address)
+      )))).get().toInt
     }
   }
 
