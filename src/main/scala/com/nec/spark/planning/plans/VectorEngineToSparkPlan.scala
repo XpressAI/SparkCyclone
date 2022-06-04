@@ -13,7 +13,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class VectorEngineToSparkPlan(override val child: SparkPlan)
+case class VectorEngineToSparkPlan2(override val child: SparkPlan)
   extends UnaryExecNode
   with PlanMetrics
   with LazyLogging {

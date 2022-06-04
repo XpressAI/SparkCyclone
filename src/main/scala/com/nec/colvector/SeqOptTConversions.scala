@@ -197,5 +197,19 @@ object SeqOptTConversions {
     def toSeqOptAny: Seq[Option[Any]] = {
       toSeqOpt(ClassTag(input.veType.scalaType)).asInstanceOf[Seq[Option[Any]]]
     }
+
+    def toSeqOptAny2: Seq[Option[Any]] = {
+      import org.apache.spark.unsafe.types.UTF8String
+
+      val tmp = toSeqOpt(ClassTag(input.veType.scalaType))
+
+      val tmp2 = if (input.veType.scalaType == classOf[String]) {
+        tmp.map(_.map(UTF8String.fromString))
+      } else {
+        tmp
+      }
+
+      tmp2.asInstanceOf[Seq[Option[Any]]]
+    }
   }
 }
