@@ -109,13 +109,13 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def withVeoThreadLock[T](lock: ReentrantReadWriteLock)(thunk: => T): T = {
-    lock.writeLock().lock()
-    try {
-      withVeoProc{
+    withVeoProc {
+      lock.writeLock().lock()
+      try {
         thunk
+      } finally {
+        lock.writeLock().unlock()
       }
-    } finally {
-      lock.writeLock().unlock()
     }
   }
 
@@ -191,26 +191,24 @@ final case class WrappingVeo private (val node: Int,
     // Explicitly allow registrations of zero-sized allocations
     require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
 
-    heapRecords.synchronized {
-      heapRecords.get(address) match {
-        case Some(allocation) if allocation.size == size =>
-          logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
-          allocation
+    heapRecords.get(address) match {
+      case Some(allocation) if allocation.size == size =>
+        logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+        allocation
 
-        case Some(allocation) =>
-          throw new IllegalArgumentException(s"Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
+      case Some(allocation) =>
+        throw new IllegalArgumentException(s"Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
 
-        case None =>
-          logger.debug(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
+      case None =>
+        logger.debug(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
 
-          // Record metrics
-          allocSizesHistogram.update(size)
+        // Record metrics
+        allocSizesHistogram.update(size)
 
-          // Register the allocation
-          val allocation = VeAllocation(address, size, new Exception().getStackTrace)
-          heapRecords.put(address, allocation)
-          allocation
-      }
+        // Register the allocation
+        val allocation = VeAllocation(address, size, new Exception().getStackTrace)
+        heapRecords.put(address, allocation)
+        allocation
     }
   }
 
@@ -218,15 +216,13 @@ final case class WrappingVeo private (val node: Int,
     // Explicitly allow address of 0
     require(address >= 0L, s"Invalid VE memory address ${address}")
 
-    heapRecords.synchronized {
-      heapRecords.get(address) match {
-        case Some(allocation) =>
-          logger.debug(s"[${handle.address}] Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
-          heapRecords.remove(address)
+    heapRecords.get(address) match {
+      case Some(allocation) =>
+        logger.debug(s"[${handle.address}] Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
+        heapRecords.remove(address)
 
-        case None =>
-          logger.warn(s"[${handle.address}] VE memory location @ ${address} is not tracked by ${getClass.getSimpleName}; no allocation to unregister")
-      }
+      case None =>
+        logger.warn(s"[${handle.address}] VE memory location @ ${address} is not tracked by ${getClass.getSimpleName}; no allocation to unregister")
     }
   }
 
@@ -235,32 +231,30 @@ final case class WrappingVeo private (val node: Int,
       // Explicitly allow address of 0
       require(address >= 0L, s"Invalid VE memory address ${address}")
 
-      heapRecords.synchronized {
-        heapRecords.get(address) match {
-          case Some(allocation) =>
-            logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
-            // veo_free_mem runs in separate context
-            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
-            require(result == 0, s"Memory release failed with code: ${result}")
-            // Remove only after the free() was successful
-            heapRecords.remove(address)
-            freeTimer.update(Duration.ofNanos(duration))
+      heapRecords.get(address) match {
+        case Some(allocation) =>
+          logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
+          // veo_free_mem runs in separate context
+          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+          require(result == 0, s"Memory release failed with code: ${result}")
+          // Remove only after the free() was successful
+          heapRecords.remove(address)
+          freeTimer.update(Duration.ofNanos(duration))
 
-          case None if unsafe =>
-            logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
-            // veo_free_mem runs in separate context
-            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
-            require(result == 0, s"Memory release failed with code: ${result}")
-            freeTimer.update(Duration.ofNanos(duration))
+        case None if unsafe =>
+          logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
+          // veo_free_mem runs in separate context
+          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+          require(result == 0, s"Memory release failed with code: ${result}")
+          freeTimer.update(Duration.ofNanos(duration))
 
-          case None if address == 0 =>
-            // Do nothing for free(0)
-            ()
+        case None if address == 0 =>
+          // Do nothing for free(0)
+          ()
 
-          case None =>
-            logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
-            ()
-        }
+        case None =>
+          logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
+          ()
       }
     }
   }
@@ -455,7 +449,18 @@ final case class WrappingVeo private (val node: Int,
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer = {
     withVeoProc {
-      awaitResult(callAsync(func, stack))
+      val (result, duration) = measureTime { awaitResult(callAsync(func, stack)) }
+
+      // Record metrics
+      syncFnCalls += 1
+      syncFnCallDurations += duration
+      syncFnCallTimer.update(Duration.ofNanos(duration))
+
+      logger.debug(
+        s"[${handle.address}] Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
+      )
+
+      result
     }
   }
 
