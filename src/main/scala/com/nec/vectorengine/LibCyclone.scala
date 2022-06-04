@@ -10,4 +10,6 @@ object LibCyclone {
   }
 
   final val HandleTransferFn = "handle_transfer"
+  final val FreeFn = "cyclone_free"
+  final val AllocFn = "cyclone_alloc"
 }

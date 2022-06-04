@@ -158,14 +158,24 @@ final case class WrappingVeo private (val node: Int,
     loadedLibRecords.toMap
   }
 
+  private def _alloc(out: LongPointer, size: Long): Long = {
+    withVeoProc {
+      val lib = load(LibCyclone.SoPath)
+      val sym = getSymbol(lib, LibCyclone.AllocFn)
+      awaitResult(callAsync(sym, newArgsStack(Seq(
+        U64Arg(size),
+        BuffArg(VeArgIntent.Out, out)
+      )))).get().toInt
+    }
+  }
+
   def allocate(size: Long): VeAllocation = {
     withVeoProc {
       require(size > 0L, s"Requested size ${size} is invalid")
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
-      // veo_alloc_mem runs in separate context
-      val (result, duration) = measureTime { veo.veo_alloc_mem(handle, ptr, size) }
+      val (result, duration) = measureTime { _alloc(ptr, size) }
 
       // Ensure memory is properly allocated
       val address = ptr.get
@@ -230,6 +240,16 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
+  private def _free(address: Long): Int = {
+    withVeoProc {
+      val lib = load(LibCyclone.SoPath)
+      val sym = getSymbol(lib, LibCyclone.FreeFn)
+      awaitResult(callAsync(sym, newArgsStack(Seq(
+        U64Arg(address)
+      )))).get().toInt
+    }
+  }
+
   def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
       // Explicitly allow address of 0
@@ -239,8 +259,7 @@ final case class WrappingVeo private (val node: Int,
         heapRecords.get(address) match {
           case Some(allocation) =>
             logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
-            // veo_free_mem runs in separate context
-            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+            val (result, duration) = measureTime { _free(address) }
             require(result == 0, s"Memory release failed with code: ${result}")
             // Remove only after the free() was successful
             heapRecords.remove(address)
@@ -248,8 +267,7 @@ final case class WrappingVeo private (val node: Int,
 
           case None if unsafe =>
             logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
-            // veo_free_mem runs in separate context
-            val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+            val (result, duration) = measureTime { _free(address) }
             require(result == 0, s"Memory release failed with code: ${result}")
             freeTimer.update(Duration.ofNanos(duration))
 
