@@ -109,13 +109,13 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def withVeoThreadLock[T](lock: ReentrantReadWriteLock)(thunk: => T): T = {
-    lock.writeLock().lock()
-    try {
-      withVeoProc{
+    withVeoProc {
+      lock.writeLock().lock()
+      try {
         thunk
+      } finally {
+        lock.writeLock().unlock()
       }
-    } finally {
-      lock.writeLock().unlock()
     }
   }
 
