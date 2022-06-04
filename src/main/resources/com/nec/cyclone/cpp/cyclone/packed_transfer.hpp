@@ -25,6 +25,8 @@
 #define VECTOR_ALIGNED(n) ((n + (7UL)) & ~(7UL))
 
 extern "C" int handle_transfer(char** td, uintptr_t* od);
+extern "C" int cyclone_alloc(size_t size, uintptr_t* out);
+extern "C" int cyclone_free(uintptr_t address);
 
 void merge_varchar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, char* lengths, char* offsets, uintptr_t* od, size_t &output_pos);
 template<typename T> void merge_scalar_transfer(size_t batch_count, size_t total_element_count, char* col_header, char* input_data, char* data, uint64_t* validity_buffer, uintptr_t* od, size_t &output_pos);

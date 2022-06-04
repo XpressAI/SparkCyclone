@@ -28,6 +28,9 @@ final case class WrappingVeo private (val node: Int,
   // thread context locks
   private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
 
+  // reference to libcyclone.so
+  private var libCyclone: LibraryReference = _
+
   // Internal allocation and library records for tracking
   private var heapRecords = MMap.empty[Long, VeAllocation]
   private var stackRecords = MMap.empty[Long, VeCallArgsStack]
@@ -158,14 +161,23 @@ final case class WrappingVeo private (val node: Int,
     loadedLibRecords.toMap
   }
 
+  private def _alloc(out: LongPointer, size: Long): Long = {
+    withVeoProc {
+      val sym = getSymbol(libCyclone, LibCyclone.AllocFn)
+      awaitResult(callAsync(sym, newArgsStack(Seq(
+        U64Arg(size),
+        BuffArg(VeArgIntent.Out, out)
+      )))).get().toInt
+    }
+  }
+
   def allocate(size: Long): VeAllocation = {
     withVeoProc {
       require(size > 0L, s"Requested size ${size} is invalid")
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
-      // veo_alloc_mem runs in separate context
-      val (result, duration) = measureTime { veo.veo_alloc_mem(handle, ptr, size) }
+      val (result, duration) = measureTime { _alloc(ptr, size) }
 
       // Ensure memory is properly allocated
       val address = ptr.get
@@ -226,6 +238,15 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
+  private def _free(address: Long): Int = {
+    withVeoProc {
+      val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
+      awaitResult(callAsync(sym, newArgsStack(Seq(
+        U64Arg(address)
+      )))).get().toInt
+    }
+  }
+
   def free(address: Long, unsafe: Boolean): Unit = {
     withVeoProc {
       // Explicitly allow address of 0
@@ -234,8 +255,7 @@ final case class WrappingVeo private (val node: Int,
       heapRecords.get(address) match {
         case Some(allocation) =>
           logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
-          // veo_free_mem runs in separate context
-          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+          val (result, duration) = measureTime { _free( address) }
           require(result == 0, s"Memory release failed with code: ${result}")
           // Remove only after the free() was successful
           heapRecords.remove(address)
@@ -243,8 +263,7 @@ final case class WrappingVeo private (val node: Int,
 
         case None if unsafe =>
           logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
-          // veo_free_mem runs in separate context
-          val (result, duration) = measureTime { veo.veo_free_mem(handle, address) }
+          val (result, duration) = measureTime { _free( address) }
           require(result == 0, s"Memory release failed with code: ${result}")
           freeTimer.update(Duration.ofNanos(duration))
 
@@ -343,7 +362,7 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  def load(path: Path): LibraryReference = {
+  private def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
         val npath = path.normalize
@@ -365,6 +384,15 @@ final case class WrappingVeo private (val node: Int,
         }
       }
     }
+  }
+
+  def load(path: Path): LibraryReference = {
+    if(libCyclone == null){
+      val libCyclonePath = if(path.endsWith("libcyclone.so")) path else path.getParent.resolve("sources").resolve("libcyclone.so")
+      libCyclone = _load(libCyclonePath)
+    }
+
+    _load(path)
   }
 
   def unload(lib: LibraryReference): Unit = {
