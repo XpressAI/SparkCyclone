@@ -221,7 +221,7 @@ final case class WrappingVeo private (val node: Int,
     heapRecords.get(address) match {
       case Some(allocation) if allocation.size == size =>
         // Complain only if it's an allocation with address != 0
-        if (address > 0) logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+        if (address > 0)logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
         allocation
 
       case Some(allocation) =>
@@ -340,22 +340,21 @@ final case class WrappingVeo private (val node: Int,
         require(address >= 0L, s"Invalid VE memory address ${address}")
 
         heapRecords.get(address) match {
-          case Some(allocation) =>
-            logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
-            Seq(address)
+        case Some(allocation) =>
+          logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
+          Seq(address)
 
-          case None if unsafe =>
-            logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
-            Seq(address)
+        case None if unsafe =>
+          logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
+          Seq(address)
 
-          case None if address == 0 =>
-            // Do nothing for free(0)
-            Seq()
+        case None if address == 0 =>
+          // Do nothing for free(0)
+          Seq()
 
-          case None =>
-            logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
-            Seq()
-        }
+        case None =>
+          logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
+          Seq()
       }
 
       /*
