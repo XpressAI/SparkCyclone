@@ -297,8 +297,7 @@ final case class WrappingVeo private (val node: Int,
 
   private def _free(address: Long): Int = {
     withVeoProc {
-      val lib = load(LibCyclone.SoPath)
-      val sym = getSymbol(lib, LibCyclone.FreeFn)
+      val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
       awaitResult(callAsync(sym, newArgsStack(Seq(
         U64Arg(address)
       )))).get().toInt
