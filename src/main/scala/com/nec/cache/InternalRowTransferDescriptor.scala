@@ -4,13 +4,15 @@ import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core._
 import com.nec.util.FixedBitSet
-import com.nec.util.PointerOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
-case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow]) extends LazyLogging {
+case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow])
+  extends TransferDescriptor with LazyLogging {
+
+  override def nonEmpty: Boolean = rows.nonEmpty
 
   private[cache] lazy val cols = colSchema.map{ col =>
     col -> SparkExpressionToCExpression.sparkTypeToVeType(col.dataType)
@@ -256,16 +258,5 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
   def close: Unit = {
     buffer.close
     resultBuffer.close
-  }
-
-  def toSeq: Seq[Byte] = {
-    val buf = buffer
-    val array = Array.ofDim[Byte](buffer.limit().toInt)
-    buf.get(array)
-    array.toSeq
-  }
-
-  def print: Unit = {
-    println(s"Transfer Buffer = \n${buffer.hexdump}\n")
   }
 }

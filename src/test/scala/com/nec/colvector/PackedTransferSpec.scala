@@ -1,22 +1,21 @@
 package com.nec.colvector
 
-import com.nec.cache.TransferDescriptor
+import com.nec.cache.BpcvTransferDescriptor
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
 import com.nec.util.FixedBitSet
-import com.nec.vectorengine.WithVeProcess
-import com.nec.vectorengine.LibCyclone
-import scala.reflect.runtime.universe._
-import scala.util.Random
-import org.bytedeco.javacpp.LongPointer
+import com.nec.vectorengine.{LibCyclone, WithVeProcess}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks.whenever
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
+
 import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
+import scala.util.Random
 
 @VectorEngineTest
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
@@ -34,7 +33,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val c1 = Seq(Some(7319), None, None, Some(4859), Some(524))
 
       // Create batch of batches
-      val descriptor = TransferDescriptor(Seq(
+      val descriptor = BpcvTransferDescriptor(Seq(
         Seq(a1.toBytePointerColVector("_")),
         Seq(b1.toBytePointerColVector("_")),
         Seq(c1.toBytePointerColVector("_"))
@@ -62,7 +61,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
       val c1v = c1.toBytePointerColVector("_")
 
       // Create batch of batches
-      val descriptor = TransferDescriptor(Seq(
+      val descriptor = BpcvTransferDescriptor(Seq(
         Seq(a1v),
         Seq(b1v),
         Seq(c1v)
@@ -90,7 +89,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "correctly unpack a batch of two columns of a single item of an empty string" in {
       val input = List(Array(""), Array(""))
       val inputBatch = List(input.map(_.toBytePointerColVector("_")))
-      val descriptor = new TransferDescriptor(inputBatch)
+      val descriptor = new BpcvTransferDescriptor(inputBatch)
 
       val batch = engine.executeTransfer(libRef, descriptor)
 
@@ -105,7 +104,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "correctly unpack a batch of two columns of a 3-items of an non-empty string" in {
       val input = List(Array("a", "c", "e"), Array("b", "d", "f"))
       val inputBatch = List(input.map(_.toBytePointerColVector("_")))
-      val descriptor = new TransferDescriptor(inputBatch)
+      val descriptor = new BpcvTransferDescriptor(inputBatch)
 
       val batch = engine.executeTransfer(libRef, descriptor)
 
@@ -174,7 +173,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "satisfy the property: All single scalar batches unpack correctly" in {
       forAll (generatedColumns[Int]) { cols =>
         whenever (cols.nonEmpty && cols.forall(_.nonEmpty)) {
-          val descriptor = new TransferDescriptor(Seq(cols.map(_.toBytePointerColVector("_"))))
+          val descriptor = new BpcvTransferDescriptor(Seq(cols.map(_.toBytePointerColVector("_"))))
           val batch = engine.executeTransfer(libRef, descriptor)
 
           batch.columns.size should be (cols.length)
@@ -190,7 +189,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "satisfy the property: All single varchar batches unpack correctly" in {
       forAll (generatedColumns[String]) { cols =>
         whenever(cols.nonEmpty && cols.forall(_.nonEmpty)) {
-          val descriptor = new TransferDescriptor(List(cols.map(_.toBytePointerColVector("_"))))
+          val descriptor = new BpcvTransferDescriptor(List(cols.map(_.toBytePointerColVector("_"))))
           val batch = engine.executeTransfer(libRef, descriptor)
 
           batch.columns.size should be(cols.length)
@@ -206,7 +205,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "satisfy the property: All sets of scalar batches unpack correctly" in {
       forAll (generatedBatches[Int](2048)) { batches =>
         whenever (batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)) {
-          val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
+          val descriptor = new BpcvTransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
           val batch = engine.executeTransfer(libRef, descriptor)
           val mergedCols = batches.transpose.map(_.flatten)
 
@@ -224,7 +223,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "satisfy the property: All sets of varchar batches unpack correctly" in {
       forAll (generatedBatches[String](2048)) { batches =>
         whenever(batches.nonEmpty && batches.forall{b => b.nonEmpty && b.forall(_.nonEmpty)} && batches.forall(_.size == batches.head.size)){
-          val descriptor = new TransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
+          val descriptor = new BpcvTransferDescriptor(batches.map(_.map(_.toBytePointerColVector("_"))))
           val batch = engine.executeTransfer(libRef, descriptor)
           val mergedCols = batches.transpose.map(_.flatten)
 
@@ -242,7 +241,7 @@ final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
     "satisfy the property: All sets of mixed batches unpack correctly" in {
       forAll (generatedAnyMixBatches) { batches =>
         whenever (batches.nonEmpty && batches.forall { b => b.nonEmpty && b.forall(_.numItems > 0) } && batches.forall(_.size == batches.head.size)) {
-          val descriptor = new TransferDescriptor(batches)
+          val descriptor = new BpcvTransferDescriptor(batches)
           val transposed = batches.transpose
 
           val batch = engine.executeTransfer(libRef, descriptor)

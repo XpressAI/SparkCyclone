@@ -1,14 +1,13 @@
 package com.nec.spark.planning.plans
 
-import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase, DualMode, TransferDescriptor}
+import com.nec.cache.{ArrowEncodingSettings, BpcvTransferDescriptor, CycloneCacheBase, InternalRowTransferDescriptor}
 import com.nec.colvector.ArrowVectorConversions.ValueVectorToBPCV
 import com.nec.colvector.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
 import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.spark.planning._
-import com.nec.ve.VeKernelCompiler
-import com.nec.util.CallContext
 import com.nec.util.CallContextOps._
+import com.nec.ve.VeKernelCompiler
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -29,7 +28,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
   with PlanCallsVeFunction
   with PlanMetrics {
 
-  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT) ++ invocationMetrics("Conversion") ++ batchMetrics("byte")
+  override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT) ++ invocationMetrics("Conversion") ++ invocationMetrics("Materialization") ++ batchMetrics("byte")
 
   override protected def doCanonicalize(): SparkPlan = super.doCanonicalize()
 
@@ -87,7 +86,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
                           .toBytePointerColVector(field.getName, columnarBatch.numRows)
                     }
                   }
-              }.foldLeft(new TransferDescriptor.Builder()){ case (builder, batch) =>
+              }.foldLeft(new BpcvTransferDescriptor.Builder()){ case (builder, batch) =>
                 builder.newBatch().addColumns(batch)
               }.build()
             }
@@ -109,15 +108,22 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
     } else {
       child.execute().mapPartitions { internalRows =>
         withInvocationMetrics(PLAN){
-          implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
-            .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
-          TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
+          val rows = withInvocationMetrics("Materialization"){
+            internalRows.toBuffer.toList
+          }
 
-          collectBatchMetrics(OUTPUT, DualMode.unwrapPossiblyDualToVeColBatches(
-            possiblyDualModeInternalRows = internalRows,
-            arrowSchema = CycloneCacheBase.makeArrowSchema(child.output),
-            metricsFn
-          ))
+          collectBatchMetrics(OUTPUT, if(rows.isEmpty){
+            Iterator.empty
+          }else{
+            val descriptor = InternalRowTransferDescriptor(child.output, rows)
+            // TODO: find a better way of calling a library function ("handle_transfer") from here
+            val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
+            val batch = withInvocationMetrics(VE) {
+              vectorEngine.executeTransfer(libRef, descriptor)
+            }
+
+            Seq(batch).iterator
+          })
         }
       }
     }

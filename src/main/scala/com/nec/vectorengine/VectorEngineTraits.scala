@@ -1,12 +1,12 @@
 package com.nec.vectorengine
 
+import com.codahale.metrics.MetricRegistry
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector._
 import com.nec.spark.agile.core.CVector
 import com.nec.util.CallContext
-import scala.concurrent.duration._
+
 import scala.reflect.ClassTag
-import com.codahale.metrics.MetricRegistry
 
 trait VectorEngine {
   /** The VE process handle that the VectorEngine has access to */
