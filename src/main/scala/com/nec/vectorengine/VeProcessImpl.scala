@@ -28,6 +28,9 @@ final case class WrappingVeo private (val node: Int,
   // thread context locks
   private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
 
+  // reference to libcyclone.so
+  private var libCyclone: LibraryReference = _
+
   // Internal allocation and library records for tracking
   private var heapRecords = MMap.empty[Long, VeAllocation]
   private var stackRecords = MMap.empty[Long, VeCallArgsStack]
@@ -160,8 +163,7 @@ final case class WrappingVeo private (val node: Int,
 
   private def _alloc(out: LongPointer, size: Long): Long = {
     withVeoProc {
-      val lib = load(LibCyclone.SoPath)
-      val sym = getSymbol(lib, LibCyclone.AllocFn)
+      val sym = getSymbol(libCyclone, LibCyclone.AllocFn)
       awaitResult(callAsync(sym, newArgsStack(Seq(
         U64Arg(size),
         BuffArg(VeArgIntent.Out, out)
@@ -242,8 +244,7 @@ final case class WrappingVeo private (val node: Int,
 
   private def _free(address: Long): Int = {
     withVeoProc {
-      val lib = load(LibCyclone.SoPath)
-      val sym = getSymbol(lib, LibCyclone.FreeFn)
+      val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
       awaitResult(callAsync(sym, newArgsStack(Seq(
         U64Arg(address)
       )))).get().toInt
@@ -367,7 +368,7 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  def load(path: Path): LibraryReference = {
+  private def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
         val npath = path.normalize
@@ -389,6 +390,15 @@ final case class WrappingVeo private (val node: Int,
         }
       }
     }
+  }
+
+  def load(path: Path): LibraryReference = {
+    if(libCyclone == null){
+      val libCyclonePath = if(path.endsWith("libcyclone.so")) path else path.getParent.resolve("sources").resolve("libcyclone.so")
+      libCyclone = _load(libCyclonePath)
+    }
+
+    _load(path)
   }
 
   def unload(lib: LibraryReference): Unit = {
