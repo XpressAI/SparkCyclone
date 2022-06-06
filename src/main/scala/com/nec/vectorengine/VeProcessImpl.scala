@@ -449,7 +449,18 @@ final case class WrappingVeo private (val node: Int,
 
   def call(func: LibrarySymbol, stack: VeCallArgsStack): LongPointer = {
     withVeoProc {
-      awaitResult(callAsync(func, stack))
+      val (result, duration) = measureTime { awaitResult(callAsync(func, stack)) }
+
+      // Record metrics
+      syncFnCalls += 1
+      syncFnCallDurations += duration
+      syncFnCallTimer.update(Duration.ofNanos(duration))
+
+      logger.debug(
+        s"[${handle.address}] Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
+      )
+
+      result
     }
   }
 
