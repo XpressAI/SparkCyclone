@@ -154,7 +154,11 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
     }
 
     // Write the data from the individual column buffers
-    colTypes.zipWithIndex.foreach{ case (veType, colIdx) =>
+    var colIdx = 0
+    val colCount = colTypes.size
+    while(colIdx < colCount){
+      val veType = colTypes(colIdx)
+
       val colDataOffsets = dataOffsets(colIdx)
       val colDataStart = colDataOffsets(0)
 
@@ -177,10 +181,14 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
           val lengths = strings.map(_.length / 4)
           val offsets = lengths.scanLeft(0)(_+_)
 
-          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+          var rowIdx = 0
+          val rowCount = rows.size
+          while(rowIdx < rowCount){
+            val row = rows(rowIdx)
             validityBuffer.set(rowIdx, !row.isNullAt(colIdx))
             outbuffer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
             outbuffer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
+            rowIdx += 1
           }
 
           val validityBufferArray = validityBuffer.toByteArray
@@ -190,7 +198,10 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
         case veType: VeScalarType =>
           val colValidityBufferStart = colDataOffsets(1)
 
-          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+          var rowIdx = 0
+          val rowCount = rows.size
+          while(rowIdx < rowCount) {
+            val row = rows(rowIdx)
             if(!row.isNullAt(colIdx)){
               validityBuffer.set(rowIdx, true)
               val pos = colDataStart + (rowIdx * veType.cSize)
@@ -202,12 +213,15 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
                 case VeNullableLong => outbuffer.putLong(pos, row.getLong(colIdx))
               }
             }
+            rowIdx += 1
           }
 
           val validityBufferArray = validityBuffer.toByteArray
           outbuffer.position(colValidityBufferStart).put(validityBufferArray, 0, validityBufferArray.length)
           outbuffer.position(0)
       }
+
+      colIdx += 1
     }
 
     outbuffer.position(0)
