@@ -1,15 +1,16 @@
 package com.nec.vectorengine
 
+import com.codahale.metrics._
 import com.nec.cache.TransferDescriptor
 import com.nec.colvector._
-import com.nec.spark.agile.core.{CScalarVector, CVarChar, CVector, VeString}
+import com.nec.spark.agile.core.CVector
 import com.nec.util.CallContext
-import scala.reflect.ClassTag
-import scala.util.Try
-import java.time.Duration
-import com.codahale.metrics._
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
+
+import java.time.Duration
+import scala.reflect.ClassTag
+import scala.util.Try
 
 class VectorEngineImpl(val process: VeProcess,
                        val metrics: MetricRegistry)
@@ -340,6 +341,7 @@ class VectorEngineImpl(val process: VeProcess,
   def executeTransfer(lib: LibraryReference,
                       descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.source
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
 
     // Allocate the buffer in VE and transfer the data over
@@ -371,6 +373,7 @@ class VectorEngineImpl(val process: VeProcess,
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
 
     // Load libcyclone if not already loaded
+    // *_ONLY WORKS IN TESTS_*
     val lib = process.load(LibCyclone.SoPath)
 
     executeTransfer(lib, descriptor)
