@@ -109,7 +109,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
       child.execute().mapPartitions { internalRows =>
         withInvocationMetrics(PLAN){
           val rows = withInvocationMetrics("Materialization"){
-            internalRows.toBuffer.toArray
+            internalRows.toBuffer.toList
           }
 
 

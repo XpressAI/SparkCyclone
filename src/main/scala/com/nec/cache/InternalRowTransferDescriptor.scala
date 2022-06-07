@@ -10,14 +10,14 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.bytedeco.javacpp.indexer.ByteRawIndexer
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
-case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[InternalRow])
+case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow])
   extends TransferDescriptor with LazyLogging {
 
   override def nonEmpty: Boolean = rows.nonEmpty
 
   private[cache] lazy val cols = colSchema.map{ col =>
     col -> SparkExpressionToCExpression.sparkTypeToVeType(col.dataType)
-  }.toArray
+  }
 
   private[cache] lazy val colTypes = cols.map(_._2)
 
@@ -50,7 +50,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[
   /**
    * Hold on to already UTF-32 converted strings, if any
    */
-  private[cache] lazy val stringCols: Map[Int, Array[Array[Byte]]] = {
+  private[cache] lazy val stringCols: Map[Int, List[Array[Byte]]] = {
     colTypes.zipWithIndex
       .filter{ case (veType, _) => veType == VeString}
       .map { case (_, i) =>
@@ -157,11 +157,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[
     }
 
     // Write the data from the individual column buffers
-    var colIdx = 0
-    val colCount = colTypes.size
-    while(colIdx < colCount){
-      val veType = colTypes(colIdx)
-
+    colTypes.zipWithIndex.foreach{ case (veType, colIdx) =>
       val colDataOffsets = dataOffsets(colIdx)
       val colDataStart = colDataOffsets(0)
 
@@ -183,14 +179,10 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[
           val lengths = strings.map(_.length / 4)
           val offsets = lengths.scanLeft(0)(_+_)
 
-          var rowIdx = 0
-          val rowCount = rows.size
-          while(rowIdx < rowCount){
-            val row = rows(rowIdx)
+          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
             validityBuffer.set(rowIdx, !row.isNullAt(colIdx))
             outIndexer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
             outIndexer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
-            rowIdx += 1
           }
 
           val validityBufferArray = validityBuffer.toByteArray
@@ -199,10 +191,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[
         case veType: VeScalarType =>
           val colValidityBufferStart = colDataOffsets(1)
 
-          var rowIdx = 0
-          val rowCount = rows.size
-          while(rowIdx < rowCount) {
-            val row = rows(rowIdx)
+          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
             if(!row.isNullAt(colIdx)){
               validityBuffer.set(rowIdx, true)
               val pos = colDataStart + (rowIdx * veType.cSize)
@@ -214,14 +203,11 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[
                 case VeNullableLong => outIndexer.putLong(pos, row.getLong(colIdx))
               }
             }
-            rowIdx += 1
           }
 
           val validityBufferArray = validityBuffer.toByteArray
           outIndexer.put(colValidityBufferStart, validityBufferArray, 0, validityBufferArray.length)
       }
-
-      colIdx += 1
     }
 
     outIndexer.close()
