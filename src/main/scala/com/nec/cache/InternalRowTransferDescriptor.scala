@@ -9,14 +9,14 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
-case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow])
+case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: Array[InternalRow])
   extends TransferDescriptor with LazyLogging {
 
   override def nonEmpty: Boolean = rows.nonEmpty
 
   private[cache] lazy val cols = colSchema.map{ col =>
     col -> SparkExpressionToCExpression.sparkTypeToVeType(col.dataType)
-  }
+  }.toArray
 
   private[cache] lazy val colTypes = cols.map(_._2)
 
@@ -49,7 +49,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
   /**
    * Hold on to already UTF-32 converted strings, if any
    */
-  private[cache] lazy val stringCols: Map[Int, List[Array[Byte]]] = {
+  private[cache] lazy val stringCols: Map[Int, Array[Array[Byte]]] = {
     colTypes.zipWithIndex
       .filter{ case (veType, _) => veType == VeString}
       .map { case (_, i) =>

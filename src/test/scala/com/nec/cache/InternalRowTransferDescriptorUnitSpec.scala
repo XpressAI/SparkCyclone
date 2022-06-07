@@ -40,7 +40,7 @@ final class InternalRowTransferDescriptorUnitSpec extends AnyWordSpec with WithV
 
   private def sampleDescriptor: InternalRowTransferDescriptor = {
     val (schema, rows) = batch
-    InternalRowTransferDescriptor(schema, rows)
+    InternalRowTransferDescriptor(schema, rows.toArray)
   }
 
   "TransferDescriptor" should {
