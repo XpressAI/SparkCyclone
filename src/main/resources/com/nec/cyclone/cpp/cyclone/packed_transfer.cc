@@ -399,3 +399,12 @@ extern "C" int handle_transfer(
     return -1;
   }
 }
+
+extern "C" int cyclone_alloc(size_t size, uintptr_t* out){
+    out[0] = reinterpret_cast<uintptr_t>(std::malloc(size));
+    return 0;
+}
+extern "C" int cyclone_free(uintptr_t address){
+    std::free(reinterpret_cast<void*>(address));
+    return 0;
+}
