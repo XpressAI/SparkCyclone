@@ -144,10 +144,10 @@ final class InternalRowTransferDescriptorUnitSpec extends AnyWordSpec with WithV
       buffer.slice(offsets(3)(0), offsets(3)(1) - offsets(3)(0)).toArray should be (expectedStringBytes)
 
       // Column D offsets should be correctly written
-      buffer.slice(offsets(3)(1), offsets(3)(2) - offsets(3)(1)).as[IntPointer].toArray should be (Array(0, 5, 11, 17, 23, 31, 34, 39, 47, 0).map(_ * 4))
+      buffer.slice(offsets(3)(1), offsets(3)(2) - offsets(3)(1)).as[IntPointer].toArray should be (Array(0, 5, 11, 17, 23, 31, 34, 39, 47, 0))
 
       // Column D lens should be correctly written
-      buffer.slice(offsets(3)(2), offsets(3)(3) - offsets(3)(2)).as[IntPointer].toArray should be ((expectedStrings.map(_.length) ++ Array(0)).map(_ * 4))
+      buffer.slice(offsets(3)(2), offsets(3)(3) - offsets(3)(2)).as[IntPointer].toArray should be ((expectedStrings.map(_.length) ++ Array(0)))
 
       // Column D validity buffers should be correctly written
       buffer.slice(offsets(3)(3), offsets(3)(4) - offsets(3)(3)).toArray should be (FixedBitSet.ones(9).toByteArray)

@@ -174,7 +174,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
           }
           outbuffer.position(0)
 
-          val lengths = strings.map(_.length)
+          val lengths = strings.map(_.length / 4)
           val offsets = lengths.scanLeft(0)(_+_)
 
           rows.zipWithIndex.foreach{ case (row, rowIdx) =>
