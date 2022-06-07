@@ -222,7 +222,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
     new LongPointer(resultOffsets.last)
   }
 
-  def resultToColBatch(source: VeColVectorSource): VeColBatch = {
+  def resultToColBatch(implicit source: VeColVectorSource): VeColBatch = {
     val vcolumns = cols.zipWithIndex.map { case ((column, veType), i) =>
       logger.debug(s"Reading output pointers for column ${i}")
 

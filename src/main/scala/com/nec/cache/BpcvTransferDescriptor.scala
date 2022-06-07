@@ -143,7 +143,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     new LongPointer(resultOffsets.last)
   }
 
-  def resultToColBatch(source: VeColVectorSource): VeColBatch = {
+  def resultToColBatch(implicit source: VeColVectorSource): VeColBatch = {
     val vcolumns = batches.head.zipWithIndex.map { case (column, i) =>
       logger.debug(s"Reading output pointers for column ${i}")
 

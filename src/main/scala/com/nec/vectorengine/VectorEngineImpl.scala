@@ -341,6 +341,7 @@ class VectorEngineImpl(val process: VeProcess,
   def executeTransfer(lib: LibraryReference,
                       descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch = {
+    import com.nec.spark.SparkCycloneExecutorPlugin.source
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
 
     // Allocate the buffer in VE and transfer the data over
@@ -357,7 +358,7 @@ class VectorEngineImpl(val process: VeProcess,
     ))
 
     // Construct VeColBatch from the output buffer
-    val batch = descriptor.resultToColBatch(VeColVectorSource("executeTransfer"))
+    val batch = descriptor.resultToColBatch
 
     // Free the transfer and result buffers on the VH side
     descriptor.close

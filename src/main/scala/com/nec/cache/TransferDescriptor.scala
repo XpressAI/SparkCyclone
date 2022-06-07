@@ -7,7 +7,7 @@ import org.bytedeco.javacpp.{BytePointer, LongPointer}
 trait TransferDescriptor {
   def buffer: BytePointer
   def resultBuffer: LongPointer
-  def resultToColBatch(source: VeColVectorSource): VeColBatch
+  def resultToColBatch(implicit source: VeColVectorSource): VeColBatch
   def close: Unit
   def nonEmpty: Boolean
 
