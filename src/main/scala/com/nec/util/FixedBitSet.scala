@@ -1,15 +1,13 @@
 package com.nec.util
 
-import java.util.BitSet
 import org.bytedeco.javacpp.BytePointer
+
+import java.util.BitSet
 
 object FixedBitSet {
   def ones(size: Int): FixedBitSet = {
     val bitset = FixedBitSet(size)
-    for (i <- 0 until size) {
-      bitset.set(i, true)
-    }
-    bitset
+    bitset.setAll()
   }
 
   def from(buffer: BytePointer): FixedBitSet = {
@@ -28,6 +26,16 @@ case class FixedBitSet(size: Int) {
 
   def set(position: Int, value: Boolean): FixedBitSet = {
     underlying.set(position, value)
+    this
+  }
+
+  def setAll(): FixedBitSet = {
+    underlying.set(0, size)
+    this
+  }
+
+  def clear(position: Int): FixedBitSet = {
+    underlying.clear(position)
     this
   }
 

@@ -161,7 +161,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
       val colDataOffsets = dataOffsets(colIdx)
       val colDataStart = colDataOffsets(0)
 
-      val validityBuffer = FixedBitSet(rows.size)
+      val validityBuffer = FixedBitSet.ones(rows.size)
 
       veType match {
         case VeString =>
@@ -180,7 +180,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
           val offsets = lengths.scanLeft(0)(_+_)
 
           rows.zipWithIndex.foreach{ case (row, rowIdx) =>
-            validityBuffer.set(rowIdx, !row.isNullAt(colIdx))
+            if(row.isNullAt(colIdx)) validityBuffer.clear(rowIdx)
             outIndexer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
             outIndexer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
           }
@@ -192,8 +192,9 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
           val colValidityBufferStart = colDataOffsets(1)
 
           rows.zipWithIndex.foreach{ case (row, rowIdx) =>
-            if(!row.isNullAt(colIdx)){
-              validityBuffer.set(rowIdx, true)
+            if(row.isNullAt(colIdx)){
+              validityBuffer.clear(rowIdx)
+            } else{
               val pos = colDataStart + (rowIdx * veType.cSize)
               veType match {
                 case VeNullableDouble => outIndexer.putDouble(pos, row.getDouble(colIdx))
