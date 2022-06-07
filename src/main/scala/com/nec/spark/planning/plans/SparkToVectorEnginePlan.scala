@@ -112,10 +112,15 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
             internalRows.toBuffer.toList
           }
 
+
           collectBatchMetrics(OUTPUT, if(rows.isEmpty){
             Iterator.empty
           }else{
             val descriptor = InternalRowTransferDescriptor(child.output, rows)
+            withInvocationMetrics("Conversion"){
+              descriptor.buffer
+            }
+
             // TODO: find a better way of calling a library function ("handle_transfer") from here
             val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
             val batch = withInvocationMetrics(VE) {
