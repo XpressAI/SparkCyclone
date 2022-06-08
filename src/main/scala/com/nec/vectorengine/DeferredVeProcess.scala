@@ -1,11 +1,11 @@
 package com.nec.vectorengine
 
-import com.nec.colvector.{VeColVectorSource => VeSource}
-import java.nio.file.Path
 import com.codahale.metrics.MetricRegistry
+import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-import org.bytedeco.veoffload.veo_proc_handle
+import org.bytedeco.javacpp.{LongPointer, Pointer}
+
+import java.nio.file.Path
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
   private var instantiated = false
