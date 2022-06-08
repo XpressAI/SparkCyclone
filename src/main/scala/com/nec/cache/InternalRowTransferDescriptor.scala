@@ -186,8 +186,10 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
 
 
     // For all rows, write scalar cols
-    rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+    var rowIdx = 0
+    rows.foreach{ row =>
       scalarColWriters.foreach(_(row, rowIdx))
+      rowIdx += 1
     }
 
     // Write all varchar cols
@@ -207,10 +209,12 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
       val lengths = strings.map(_.length / 4).toArray
       val offsets = lengths.scanLeft(0)(_+_)
 
-      rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+      var rowIdx = 0
+      rows.foreach{ row =>
         if(row.isNullAt(colIdx)) validityBuffer.clear(rowIdx)
         outIndexer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
         outIndexer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
+        rowIdx += 1
       }
     }
 
