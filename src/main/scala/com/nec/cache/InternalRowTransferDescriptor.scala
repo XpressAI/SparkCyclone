@@ -179,6 +179,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
             case VeNullableInt => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putInt(pos, row.getInt(colIdx)) }
             case VeNullableLong => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putLong(pos, row.getLong(colIdx)) }
           }
+        case _ => null
       }
     }.toArray
 
