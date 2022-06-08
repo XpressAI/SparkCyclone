@@ -181,16 +181,13 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
           }
         case _ => null
       }
-    }.toArray
+    }.filterNot(_ == null).toArray
+
+
 
     // For all rows, write scalar cols
     rows.zipWithIndex.foreach{ case (row, rowIdx) =>
-      colTypes.zipWithIndex.filter{
-        case (_: VeScalarType, _) => true
-        case _ => false
-      }.foreach{ case(_, colIdx) =>
-        scalarColWriters(colIdx)(row, rowIdx)
-      }
+      scalarColWriters.foreach(_(row, rowIdx))
     }
 
     // Write all varchar cols
