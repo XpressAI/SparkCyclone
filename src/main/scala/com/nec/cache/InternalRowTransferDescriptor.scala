@@ -7,7 +7,7 @@ import com.nec.util.FixedBitSet
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.bytedeco.javacpp.indexer.{ByteRawIndexer, ULongRawIndexer}
+import org.bytedeco.javacpp.indexer.{ByteRawIndexer, LongRawIndexer}
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow])
@@ -127,7 +127,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
 
     logger.debug(s"Allocating transfer buffer of ${tsize} bytes")
     val outbuffer = new BytePointer(tsize)
-    val header = new ULongRawIndexer(new LongPointer(outbuffer))
+    val header = new LongRawIndexer(new LongPointer(outbuffer))
 
     val outIndexer = new ByteRawIndexer(outbuffer)
 
