@@ -26,7 +26,7 @@ final case class WrappingVeo private (val node: Int,
   private val openlock = new ReentrantReadWriteLock(true)
 
   // thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
 
   // reference to libcyclone.so
   private var libCyclone: LibraryReference = _
