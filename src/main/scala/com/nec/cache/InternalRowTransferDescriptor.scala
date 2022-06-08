@@ -220,7 +220,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
     // Write all validity buffers
     colTypes.zipWithIndex.foreach { case (_, colIdx) =>
       val colDataOffsets = dataOffsets(colIdx)
-      val validityBufferStart = colDataOffsets.last
+      val validityBufferStart = colDataOffsets(colDataOffsets.size - 2)
       val validityBuffer = validityBuffers(colIdx)
 
       val validityBufferArray = validityBuffer.toByteArray
