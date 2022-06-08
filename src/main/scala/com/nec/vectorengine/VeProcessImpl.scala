@@ -286,7 +286,7 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  def free(addresses: Seq[Long], unsafe: Boolean): Unit = {
+  def freeSeq(addresses: Seq[Long], unsafe: Boolean): Unit = {
     withVeoProc {
       // Explicitly allow address of 0
       val toFree = addresses.flatMap{ address =>
@@ -320,7 +320,7 @@ final case class WrappingVeo private (val node: Int,
   def freeAll: Unit = {
     withVeoProc {
       logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} heap allocations held by the process")
-      free(heapRecords.keys.toSeq)
+      freeSeq(heapRecords.keys.toSeq)
 
       logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} veo_args allocations held by the process")
       stackRecords.values.foreach(freeArgsStack)

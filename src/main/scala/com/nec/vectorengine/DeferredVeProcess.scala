@@ -73,10 +73,10 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     }
   }
 
-  def free(addresses: Seq[Long], unsafe: Boolean): Unit = {
+  def freeSeq(addresses: Seq[Long], unsafe: Boolean): Unit = {
     // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
-      underlying.free(addresses, unsafe)
+      underlying.freeSeq(addresses, unsafe)
     }
   }
 
