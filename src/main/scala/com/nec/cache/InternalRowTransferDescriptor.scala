@@ -7,7 +7,7 @@ import com.nec.util.FixedBitSet
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.bytedeco.javacpp.indexer.ByteRawIndexer
+import org.bytedeco.javacpp.indexer.{ByteRawIndexer, ULongRawIndexer}
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[InternalRow])
@@ -127,7 +127,7 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
 
     logger.debug(s"Allocating transfer buffer of ${tsize} bytes")
     val outbuffer = new BytePointer(tsize)
-    val header = new LongPointer(outbuffer)
+    val header = new ULongRawIndexer(new LongPointer(outbuffer))
 
     val outIndexer = new ByteRawIndexer(outbuffer)
 
@@ -157,60 +157,76 @@ case class InternalRowTransferDescriptor(colSchema: Seq[Attribute], rows: List[I
     }
 
     // Write the data from the individual column buffers
-    colTypes.zipWithIndex.foreach{ case (veType, colIdx) =>
-      val colDataOffsets = dataOffsets(colIdx)
-      val colDataStart = colDataOffsets(0)
-
-      val validityBuffer = FixedBitSet.ones(rows.size)
-
-      veType match {
-        case VeString =>
-          val colOffsetBufferStart = colDataOffsets(1)
-          val colLengthsBufferStart = colDataOffsets(2)
-          val colValidityBufferStart = colDataOffsets(3)
-
-          val strings = stringCols(colIdx)
-          var pos = 0
-          for (elem <- strings) {
-            outIndexer.put(colDataStart + pos, elem, 0, elem.length)
-            pos += elem.length
-          }
-
-          val lengths = strings.map(_.length / 4).toArray
-          val offsets = lengths.scanLeft(0)(_+_)
-
-          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
-            if(row.isNullAt(colIdx)) validityBuffer.clear(rowIdx)
-            outIndexer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
-            outIndexer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
-          }
-
-          val validityBufferArray = validityBuffer.toByteArray
-          outIndexer.put(colValidityBufferStart, validityBufferArray, 0, validityBufferArray.length)
-
-        case veType: VeScalarType =>
-          val colValidityBufferStart = colDataOffsets(1)
-
-          rows.zipWithIndex.foreach{ case (row, rowIdx) =>
-            if(row.isNullAt(colIdx)){
-              validityBuffer.clear(rowIdx)
-            } else{
-              val pos = colDataStart + (rowIdx * veType.cSize)
-              veType match {
-                case VeNullableDouble => outIndexer.putDouble(pos, row.getDouble(colIdx))
-                case VeNullableFloat => outIndexer.putFloat(pos, row.getFloat(colIdx))
-                case VeNullableShort => outIndexer.putInt(pos, row.getShort(colIdx))
-                case VeNullableInt => outIndexer.putInt(pos, row.getInt(colIdx))
-                case VeNullableLong => outIndexer.putLong(pos, row.getLong(colIdx))
-              }
-            }
-          }
-
-          val validityBufferArray = validityBuffer.toByteArray
-          outIndexer.put(colValidityBufferStart, validityBufferArray, 0, validityBufferArray.length)
+    val validityBuffers = colTypes.map(_ => FixedBitSet.ones(rows.size))
+    def scalarFieldWriter(startAddress: Long, elementSize: Long, row: InternalRow, colIdx: Int, rowIdx: Int)(thunk: (Long) => Unit): Unit  = {
+      if(row.isNullAt(colIdx)){
+        validityBuffers(colIdx).clear(rowIdx)
+      }else{
+        val pos = startAddress + (rowIdx * elementSize)
+        thunk(pos)
       }
     }
 
+    val scalarColWriters: Array[(InternalRow, Int) => Unit] = colTypes.zipWithIndex.map{ case (veType, colIdx) =>
+      val colDataOffsets = dataOffsets(colIdx)
+      val colDataStart = colDataOffsets(0)
+      veType match {
+        case veType: VeScalarType =>
+          veType match {
+            case VeNullableDouble => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putDouble(pos, row.getDouble(colIdx)) }
+            case VeNullableFloat => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putFloat(pos, row.getFloat(colIdx)) }
+            case VeNullableShort => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putInt(pos, row.getShort(colIdx)) }
+            case VeNullableInt => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putInt(pos, row.getInt(colIdx)) }
+            case VeNullableLong => (row: InternalRow, rowIdx: Int) => scalarFieldWriter(colDataStart, veType.cSize, row, colIdx, rowIdx){ pos => outIndexer.putLong(pos, row.getLong(colIdx)) }
+          }
+      }
+    }.toArray
+
+    // For all rows, write scalar cols
+    rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+      colTypes.zipWithIndex.filter{
+        case (_: VeScalarType, _) => true
+        case _ => false
+      }.foreach{ case(_, colIdx) =>
+        scalarColWriters(colIdx)(row, rowIdx)
+      }
+    }
+
+    // Write all varchar cols
+    stringCols.foreach{ case (colIdx, strings) =>
+      val validityBuffer = validityBuffers(colIdx)
+      val colDataOffsets = dataOffsets(colIdx)
+      val colDataStart = colDataOffsets(0)
+      val colOffsetBufferStart = colDataOffsets(1)
+      val colLengthsBufferStart = colDataOffsets(2)
+
+      var pos = 0
+      for (elem <- strings) {
+        outIndexer.put(colDataStart + pos, elem, 0, elem.length)
+        pos += elem.length
+      }
+
+      val lengths = strings.map(_.length / 4).toArray
+      val offsets = lengths.scanLeft(0)(_+_)
+
+      rows.zipWithIndex.foreach{ case (row, rowIdx) =>
+        if(row.isNullAt(colIdx)) validityBuffer.clear(rowIdx)
+        outIndexer.putInt(colOffsetBufferStart + (rowIdx * 4), offsets(rowIdx))
+        outIndexer.putInt(colLengthsBufferStart + (rowIdx * 4), lengths(rowIdx))
+      }
+    }
+
+    // Write all validity buffers
+    colTypes.zipWithIndex.foreach { case (_, colIdx) =>
+      val colDataOffsets = dataOffsets(colIdx)
+      val validityBufferStart = colDataOffsets.last
+      val validityBuffer = validityBuffers(colIdx)
+
+      val validityBufferArray = validityBuffer.toByteArray
+      outIndexer.put(validityBufferStart, validityBufferArray, 0, validityBufferArray.length)
+    }
+
+    header.close()
     outIndexer.close()
     outbuffer
   }
