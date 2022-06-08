@@ -89,6 +89,8 @@ trait VeProcess {
   */
   def free(address: Long, unsafe: Boolean = false): Unit
 
+  def free(addresses: Seq[Long], unsafe: Boolean = false): Unit
+
   def freeAll: Unit
 
   def put(buffer: Pointer): VeAllocation

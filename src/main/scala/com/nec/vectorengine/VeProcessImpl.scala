@@ -238,11 +238,17 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private def _free(address: Long): Int = {
+  private def _free(addresses: Seq[Long]): Int = {
     withVeoProc {
       val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
+      val pointer = new LongPointer(addresses.size)
+      addresses.zipWithIndex.foreach{ case (address, idx) =>
+        pointer.put(idx, address)
+      }
+
       awaitResult(callAsync(sym, newArgsStack(Seq(
-        U64Arg(address)
+        BuffArg(VeArgIntent.In, pointer),
+        U64Arg(addresses.size)
       )))).get().toInt
     }
   }
@@ -256,7 +262,7 @@ final case class WrappingVeo private (val node: Int,
         case Some(allocation) =>
           logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
 
-          val (result, duration) = measureTime { _free( address) }
+          val (result, duration) = measureTime { _free( Seq(address)) }
           require(result == 0, s"Memory release failed with code: ${result}")
           // Remove only after the free() was successful
           heapRecords.remove(address)
@@ -265,7 +271,7 @@ final case class WrappingVeo private (val node: Int,
         case None if unsafe =>
           logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
 
-          val (result, duration) = measureTime { _free( address) }
+          val (result, duration) = measureTime { _free( Seq(address)) }
           require(result == 0, s"Memory release failed with code: ${result}")
           freeTimer.update(Duration.ofNanos(duration))
 
@@ -280,10 +286,41 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
+  def free(addresses: Seq[Long], unsafe: Boolean): Unit = {
+    withVeoProc {
+      // Explicitly allow address of 0
+      val toFree = addresses.flatMap{ address =>
+        require(address >= 0L, s"Invalid VE memory address ${address}")
+        heapRecords.get(address) match {
+          case Some(allocation) =>
+            logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
+            Seq(address)
+          case None if unsafe =>
+            logger.warn(s"[${handle.address}] Releasing VE memory @ ${address} without safety checks!")
+            Seq(address)
+          case None if address == 0 =>
+            // Do nothing for free(0)
+            Seq()
+          case None =>
+            logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
+            Seq()
+        }
+      }
+
+      val (result, duration) = measureTime{_free(toFree)}
+      require(result == 0, s"Memory release failed with code: ${result}")
+      freeTimer.update(Duration.ofNanos(duration))
+
+      toFree.foreach{ address =>
+        heapRecords.remove(address)
+      }
+    }
+  }
+
   def freeAll: Unit = {
     withVeoProc {
       logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} heap allocations held by the process")
-      heapRecords.keys.foreach(free(_))
+      free(heapRecords.keys.toSeq)
 
       logger.debug(s"[${handle.address}] Releasing all ${heapRecords.size} veo_args allocations held by the process")
       stackRecords.values.foreach(freeArgsStack)
