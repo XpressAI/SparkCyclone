@@ -220,7 +220,7 @@ final case class WrappingVeo private (val node: Int,
     heapRecords.get(address) match {
       case Some(allocation) if allocation.size == size =>
         // Complain only if it's an allocation with address != 0
-        if (address > 0)logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+        if (address > 0) logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
         allocation
 
       case Some(allocation) =>
