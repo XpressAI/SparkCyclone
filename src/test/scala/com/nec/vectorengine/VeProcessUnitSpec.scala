@@ -471,7 +471,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
       }
     }
 
-    "handle the case of loading a non-existent or invalid .SO file" in {
+    "handle the cases of loading an invalid path or invalid .SO file" in {
       intercept[IllegalArgumentException] {
         // Non-existent path
         process.load(FileSystems.getDefault.getPath(s"/${UUID.randomUUID}/${UUID.randomUUID}"))

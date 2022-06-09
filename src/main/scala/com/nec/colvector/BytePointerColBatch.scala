@@ -1,6 +1,7 @@
 package com.nec.colvector
 
 import com.nec.colvector.SeqOptTConversions._
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
 import org.apache.spark.unsafe.types.UTF8String
@@ -8,7 +9,15 @@ import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) {
   private[colvector] lazy val projection = {
-    UnsafeProjection.create(columns.map(_.veType.toSparkType).toArray)
+    UnsafeProjection.create(sparkSchema.toArray)
+  }
+
+  private[colvector] lazy val dcolumns = {
+    columns.map(_.toSeqOptAny)
+  }
+
+  def sparkSchema: Seq[DataType] = {
+    columns.map(_.veType.toSparkType)
   }
 
   def internalRowIterator: Iterator[InternalRow] = {
@@ -20,7 +29,7 @@ final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) {
     */
 
     new Iterator[InternalRow] {
-      private val iterators = columns.map(_.toSeqOptAny2.iterator)
+      private val iterators = dcolumns.map(_.iterator)
 
       override def hasNext: Boolean = {
         iterators.headOption.map(_.hasNext).getOrElse(false)

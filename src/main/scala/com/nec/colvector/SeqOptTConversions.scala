@@ -6,6 +6,7 @@ import com.nec.util.FixedBitSet
 import com.nec.util.PointerOps._
 import scala.collection.mutable.{Seq => MSeq}
 import scala.reflect.ClassTag
+import org.apache.spark.unsafe.types.UTF8String
 import org.bytedeco.javacpp._
 
 object SeqOptTConversions {
@@ -128,8 +129,7 @@ object SeqOptTConversions {
           val bytes = new Array[Byte](len)
 
           // Copy over the bytes
-          dataBuffer.position(start.toLong)
-          dataBuffer.get(bytes)
+          dataBuffer.position(start.toLong).get(bytes)
 
           // Create the String with the encoding
           output(i) = Some(new String(bytes, "UTF-32LE"))
@@ -141,7 +141,12 @@ object SeqOptTConversions {
 
     def toSeqOpt[T: ClassTag]: Seq[Option[T]] = {
       val klass = implicitly[ClassTag[T]].runtimeClass
-      require(klass == veType.scalaType, s"Requested type ${klass.getName} does not match the VeType: ${veType}")
+
+      if (veType == VeString) {
+        require(Seq(classOf[String], classOf[UTF8String]).contains(klass), s"Requested type ${klass.getName} does not match the VeType: ${veType}")
+      } else {
+        require(klass == veType.scalaType, s"Requested type ${klass.getName} does not match the VeType: ${veType}")
+      }
 
       val dataBuffer = buffers(0)
       val bitset = FixedBitSet.from(buffers(1))
@@ -189,27 +194,17 @@ object SeqOptTConversions {
       } else if (klass == classOf[String]) {
         toStringArray.asInstanceOf[Seq[Option[T]]]
 
+      } else if (klass == classOf[UTF8String]) {
+        toStringArray.map(_.map(UTF8String.fromString)).asInstanceOf[Seq[Option[T]]]
+
       } else {
         throw new NotImplementedError(s"Conversion of BytePointerColVector to Seq[Option[${klass.getName}]] not supported")
       }
     }
 
     def toSeqOptAny: Seq[Option[Any]] = {
-      toSeqOpt(ClassTag(input.veType.scalaType)).asInstanceOf[Seq[Option[Any]]]
-    }
-
-    def toSeqOptAny2: Seq[Option[Any]] = {
-      import org.apache.spark.unsafe.types.UTF8String
-
-      val tmp = toSeqOpt(ClassTag(input.veType.scalaType))
-
-      val tmp2 = if (input.veType.scalaType == classOf[String]) {
-        tmp.map(_.map(UTF8String.fromString))
-      } else {
-        tmp
-      }
-
-      tmp2.asInstanceOf[Seq[Option[Any]]]
+      val klass = if (input.veType == VeString) classOf[UTF8String] else input.veType.scalaType
+      toSeqOpt(ClassTag(klass)).asInstanceOf[Seq[Option[Any]]]
     }
   }
 }

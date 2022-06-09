@@ -2,6 +2,7 @@ package com.nec.colvector
 
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.spark.agile.core.{VeNullableInt, VeString}
+import com.nec.util.CallContextOps._
 import scala.util.Random
 import java.util.UUID
 import java.io._
@@ -10,7 +11,6 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.bytedeco.javacpp.BytePointer
 
 final class BytePointerColVectorUnitSpec extends AnyWordSpec {
-  import com.nec.util.CallContextOps._
   implicit val source = VeColVectorSource(s"${UUID.randomUUID}")
 
   "BytePointerColVector" should {

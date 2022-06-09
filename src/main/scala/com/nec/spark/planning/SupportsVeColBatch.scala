@@ -11,11 +11,11 @@ object SupportsVeColBatch extends LazyLogging {}
 
 trait SupportsVeColBatch { this: SparkPlan =>
   /*
-    Explicitly set `supportsColumnar` to be false to prevent Spark from
-    injecting `RowToColumnarExec`s and `ColumnarToRowExec`s into the physical
-    plan.
+    Set `supportsColumnar` to be true to annotate plans as supporting columnar
+    executionp (even though we define the custom `executeVeColumnar()` to support
+    outputting `RDD[VeColBatch]`.
   */
-  final override def supportsColumnar: Boolean = false
+  final override def supportsColumnar: Boolean = true
 
   /**
    * Decide whether the data produced by [[executeVeColumnar()]]
