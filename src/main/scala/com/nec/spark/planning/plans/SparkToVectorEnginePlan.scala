@@ -109,9 +109,14 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
         }
     } else {
       val schema = child.output
+      val targetBatchSize = sparkContext.getConf
+        .getOption("spark.com.nec.spark.ve.columnBatchSize")
+        .map(_.toInt)
+        .getOrElse(conf.columnBatchSize)
+
       child.execute().mapPartitions { internalRows =>
         new Iterator[VeColBatch]{
-          private val maxRows = 256 * 1024
+          private val maxRows = targetBatchSize
 
           override def hasNext: Boolean = internalRows.hasNext
 
