@@ -111,7 +111,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
       val schema = child.output
       child.execute().mapPartitions { internalRows =>
         new Iterator[VeColBatch]{
-          private val maxRows = 16 * 1024
+          private val maxRows = 256 * 1024
 
           override def hasNext: Boolean = internalRows.hasNext
 
@@ -139,7 +139,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
                 vectorEngine.executeTransfer(libRef, descriptor)
               }
 
-              batch
+              collectBatchMetrics(OUTPUT, batch)
             }
           }
         }
