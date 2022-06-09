@@ -12,12 +12,14 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, OrderedDistribution, UnspecifiedDistribution}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import java.nio.file.Paths
+import scala.collection.mutable.ListBuffer
 
 // SparkToVectorEnginePlan calls handleTransfer, a library function. It uses the parentVeFunction
 // to get access to the library.
@@ -106,29 +108,40 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
           }
         }
     } else {
+      val schema = child.output
       child.execute().mapPartitions { internalRows =>
-        withInvocationMetrics(PLAN){
-          val rows = withInvocationMetrics("Materialization"){
-            internalRows.toBuffer.toList
+        new Iterator[VeColBatch]{
+          private val maxRows = 16 * 1024
+
+          override def hasNext: Boolean = internalRows.hasNext
+
+          override def next(): VeColBatch = {
+            withInvocationMetrics(PLAN){
+              var curRows = 0
+              val buffer = new ListBuffer[InternalRow]()
+              val rows = withInvocationMetrics("Materialization") {
+                while (internalRows.hasNext && curRows < maxRows) {
+                  buffer += internalRows.next()
+                  curRows += 1
+                }
+                buffer.toList
+              }
+
+              val descriptor = withInvocationMetrics("Conversion"){
+                val descriptor = InternalRowTransferDescriptor(schema, rows)
+                descriptor.buffer
+                descriptor
+              }
+
+              // TODO: find a better way of calling a library function ("handle_transfer") from here
+              val batch = withInvocationMetrics(VE) {
+                val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
+                vectorEngine.executeTransfer(libRef, descriptor)
+              }
+
+              batch
+            }
           }
-
-
-          collectBatchMetrics(OUTPUT, if(rows.isEmpty){
-            Iterator.empty
-          }else{
-            val descriptor = InternalRowTransferDescriptor(child.output, rows)
-            withInvocationMetrics("Conversion"){
-              descriptor.buffer
-            }
-
-            // TODO: find a better way of calling a library function ("handle_transfer") from here
-            val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
-            val batch = withInvocationMetrics(VE) {
-              vectorEngine.executeTransfer(libRef, descriptor)
-            }
-
-            Seq(batch).iterator
-          })
         }
       }
     }
