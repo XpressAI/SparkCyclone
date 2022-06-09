@@ -18,8 +18,8 @@ package object serializer {
   }
 
   object DualBatchOrBytes {
-    final case class ColBatchWrapper(veColBatch: VeColBatch) extends DualBatchOrBytes
+    final case class ColBatchWrapper(veColBatch: VeColBatch) extends DualBatchOrBytes with Serializable
     /** Underlying byte buffer may be re-used for performance */
-    final class BytesOnly(val bytes: Array[Byte], val size: Int) extends DualBatchOrBytes
+    final class BytesOnly(val bytes: Array[Byte], val size: Int) extends DualBatchOrBytes with Serializable
   }
 }
