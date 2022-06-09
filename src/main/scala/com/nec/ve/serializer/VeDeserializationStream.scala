@@ -1,11 +1,8 @@
 package com.nec.ve.serializer
 
-import com.nec.colvector.VeColVectorSource
-import com.nec.ve.serializer.DualBatchOrBytes.BytesOnly
-import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
-import com.nec.colvector.VeColVectorSource
-import com.nec.colvector.VeColBatch
+import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.VeProcessMetrics
+import com.nec.ve.serializer.VeDeserializationStream.DeserStreamed
 import com.nec.vectorengine.VeProcess
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.DeserializationStream
@@ -62,7 +59,7 @@ class VeDeserializationStream(in: InputStream)(implicit
           if (DeserStreamed) {
             import com.nec.util.CallContextOps._
             cycloneMetrics.measureRunningTime {
-              DualBatchOrBytes.ColBatchWrapper(VeColBatch.fromStream(dataInputStream))
+              ColBatchWrapper(VeColBatch.fromStream(dataInputStream))
             }(cycloneMetrics.registerDeserializationTime)
           } else {
             cycloneMetrics.measureRunningTime {

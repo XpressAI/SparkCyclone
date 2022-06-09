@@ -3,12 +3,12 @@ package com.nec.ve.serializer
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.VeColBatch
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
 import com.nec.ve.VeKernelInfra
 import com.nec.vectorengine.WithVeProcess
-import java.io._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.io._
 
 @VectorEngineTest
 final class VeSerializerSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
