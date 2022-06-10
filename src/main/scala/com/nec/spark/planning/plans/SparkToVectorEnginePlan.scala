@@ -127,7 +127,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
               val buffer = new ListBuffer[InternalRow]()
               val rows = withInvocationMetrics("Materialization") {
                 while (internalRows.hasNext && curRows < maxRows) {
-                  buffer += internalRows.next()
+                  buffer += internalRows.next().copy()
                   curRows += 1
                 }
                 buffer.toList
