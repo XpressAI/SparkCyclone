@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.unsafe.types.UTF8String
-import org.bytedeco.javacpp.indexer.{ByteIndexer, LongIndexer}
+import org.bytedeco.javacpp.indexer.ByteIndexer
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 import scala.collection.mutable.ListBuffer
@@ -21,8 +21,8 @@ trait VeTransferCol {
   def totalDataSize: Long
   def resultSize: Int
 
-  def writeHeader(target: LongIndexer, targetPosition: Long): Long
-  def writeData(target: ByteIndexer, targetPosition: Long): Long
+  def writeHeader(target: LongPointer, targetPosition: Long): Long
+  def writeData(target: BytePointer, targetPosition: Long): Long
 
   private[cache] def vectorAlignedSize(size: Long): Long = {
     val dangling = size % 8
@@ -71,7 +71,7 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
   private def validityBufferSize = (count / 64f).ceil.toInt * 8
 
   def headerSize: Int = 4 * 8
-  def writeHeader(target: LongIndexer, targetPosition: Long): Long = {
+  def writeHeader(target: LongPointer, targetPosition: Long): Long = {
     target.put(targetPosition, veType.cEnumValue)
     target.put(targetPosition + 1, count)
     target.put(targetPosition + 2, dataSize)
@@ -81,22 +81,21 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
   }
 
   def totalDataSize: Long = Seq(dataSize, validityBufferSize).map(vectorAlignedSize(_)).sum
-  def writeData(target: ByteIndexer, targetPosition: Long): Long = {
+  def writeData(target: BytePointer, targetPosition: Long): Long = {
     val curDataBytes = dataSize
     val curValidityBytes = validityBufferSize
 
     var pos = targetPosition
 
-    val targetPointer = target.pointer()
-    val origPosition = targetPointer.position()
-    targetPointer.position(targetPosition)
-    Pointer.memcpy(targetPointer, pointer, curDataBytes)
-    targetPointer.position(origPosition)
+    val origPosition = target.position()
+    target.position(targetPosition)
+    Pointer.memcpy(target, pointer, curDataBytes)
+    target.position(origPosition)
 
     pos += curDataBytes
     pos = vectorAlignedSize(pos)
 
-    target.put(pos, validityBuffer.toByteArray, 0, curValidityBytes)
+    target.position(pos).put(validityBuffer.toByteArray, 0, curValidityBytes).position(origPosition)
 
     vectorAlignedSize(pos + curValidityBytes)
   }
@@ -134,7 +133,7 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
     Seq(dataSize, offsetsSize, lengthsSize, validityBufferSize).map(vectorAlignedSize(_)).sum
   }
 
-  override def writeHeader(target: LongIndexer, targetPosition: Long): Long = {
+  override def writeHeader(target: LongPointer, targetPosition: Long): Long = {
     target.put(targetPosition, veType.cEnumValue)
     target.put(targetPosition + 1, count)
     target.put(targetPosition + 2, dataSize)
@@ -145,20 +144,22 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
     targetPosition + 6
   }
 
-  override def writeData(target: ByteIndexer, targetPosition: Long): Long = {
+  override def writeData(target: BytePointer, targetPosition: Long): Long = {
     val lengths = converted.map{s => if(s == null){ 0 }else{ s.length / 4 }}
     val offsets = lengths.scanLeft(0)(_+_).dropRight(1)
 
     val validityBuffer = FixedBitSet.ones(count)
     converted.zipWithIndex.filter(_._1 == null).foreach(t => validityBuffer.clear(t._2))
 
+    var origPos = target.position()
     var pos = targetPosition
     converted.foreach{ str =>
       if(str != null){
-        target.put(pos, str, 0, str.length)
+        target.position(pos).put(str, 0, str.length)
         pos += str.length
       }
     }
+    target.position(origPos)
 
     pos = vectorAlignedSize(pos)
     offsets.foreach{ o =>
@@ -174,7 +175,7 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
 
     pos = vectorAlignedSize(pos)
     val validityBufferArr = validityBuffer.toByteArray
-    target.put(pos, validityBufferArr, 0, validityBufferArr.length)
+    target.position(pos).put(validityBufferArr, 0, validityBufferArr.length).position(origPos)
 
     vectorAlignedSize(pos + validityBufferArr.length)
   }
@@ -213,25 +214,20 @@ case class RowCollectingTransferDescriptor(schema: Seq[Attribute], capacity: Int
     val size = headerSize + transferCols.map(tCol => tCol.totalDataSize).sum
 
     val buffer = new BytePointer(Pointer.calloc(size, 1)).capacity(size)
-    val bufferIndexer = ByteIndexer.create(buffer)
 
     val header = new LongPointer(buffer)
-    val headerIndexer = LongIndexer.create(header)
 
-    headerIndexer.put(0, headerSize)
-    headerIndexer.put(1, 1)
-    headerIndexer.put(2, transferCols.size)
+    header.put(0, headerSize)
+    header.put(1, 1)
+    header.put(2, transferCols.size)
 
     var headerPos = 3L
     var dataPos = headerSize.toLong
     transferCols.foreach{ tCol =>
-      headerPos = tCol.writeHeader(headerIndexer, headerPos)
-      dataPos = tCol.writeData(bufferIndexer, dataPos)
+      headerPos = tCol.writeHeader(header, headerPos)
+      dataPos = tCol.writeData(buffer, dataPos)
       tCol.close()
     }
-
-    headerIndexer.close()
-    bufferIndexer.close()
 
     buffer
   }
