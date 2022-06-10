@@ -8,6 +8,7 @@ import org.bytedeco.javacpp.{LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
 
+import java.nio.charset.Charset
 import java.nio.file.Path
 import scala.util.Try
 
@@ -218,6 +219,7 @@ object VeProcess extends LazyLogging {
   }
 
   def createFromContext(context: PluginContext): VeProcess = {
+    "foo".getBytes(Charset.defaultCharset())
     val resources = context.resources
     val maxVeCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
     logger.info(s"Executor has the following resources available => ${resources}")
