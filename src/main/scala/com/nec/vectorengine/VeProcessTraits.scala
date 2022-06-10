@@ -150,7 +150,7 @@ object VeProcess extends LazyLogging {
   final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
   private[vectorengine] def createVeoTuple(venode: Int,
-                                           veCores: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
+                                           veCores: Int = MaxVeCores): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
     require(veCores > 0, "veCores must be > 0")
     require(veCores <= MaxVeCores, s"veCores must be <= ${MaxVeCores}")
     val nnum = if (venode < -1) venode.abs else venode
@@ -239,6 +239,7 @@ object VeProcess extends LazyLogging {
 
   def createFromContext(context: PluginContext): VeProcess = {
     val resources = context.resources
+    val maxVeCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
     logger.info(s"Executor has the following resources available => ${resources}")
 
     val veCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
