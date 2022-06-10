@@ -1,6 +1,6 @@
 package com.nec.spark.planning.plans
 
-import com.nec.cache.{ArrowEncodingSettings, BpcvTransferDescriptor, CycloneCacheBase, InternalRowTransferDescriptor}
+import com.nec.cache.{ArrowEncodingSettings, BpcvTransferDescriptor, CycloneCacheBase, RowCollectingTransferDescriptor}
 import com.nec.colvector.ArrowVectorConversions.ValueVectorToBPCV
 import com.nec.colvector.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
 import com.nec.colvector.VeColBatch
@@ -12,14 +12,12 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, OrderedDistribution, UnspecifiedDistribution}
 import org.apache.spark.sql.execution.{RowToColumnarTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
 import java.nio.file.Paths
-import scala.collection.mutable.ListBuffer
 
 // SparkToVectorEnginePlan calls handleTransfer, a library function. It uses the parentVeFunction
 // to get access to the library.
@@ -124,19 +122,16 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
           override def next(): VeColBatch = {
             withInvocationMetrics(PLAN){
               var curRows = 0
-              val buffer = new ListBuffer[InternalRow]()
-              val rows = withInvocationMetrics("Materialization") {
+              val descriptor = RowCollectingTransferDescriptor(schema, maxRows)
+              withInvocationMetrics("Materialization") {
                 while (internalRows.hasNext && curRows < maxRows) {
-                  buffer += internalRows.next().copy()
+                  descriptor.append(internalRows.next())
                   curRows += 1
                 }
-                buffer.toList
               }
 
-              val descriptor = withInvocationMetrics("Conversion"){
-                val descriptor = InternalRowTransferDescriptor(schema, rows)
+              withInvocationMetrics("Conversion"){
                 descriptor.buffer
-                descriptor
               }
 
               // TODO: find a better way of calling a library function ("handle_transfer") from here
