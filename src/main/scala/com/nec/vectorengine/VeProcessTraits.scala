@@ -147,7 +147,7 @@ object VeProcess extends LazyLogging {
   final val PutSizesHistogramMetric       = "ve.histograms.put.size"
   final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
-  private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
+  private def createVeoTuple(venode: Int, veCores: Int = MaxVeCores): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
 
@@ -161,7 +161,7 @@ object VeProcess extends LazyLogging {
 
       // Create asynchronous context
       tcontext <- {
-        Some((0 until MaxVeCores).flatMap { num =>
+        Some((0 until veCores).flatMap { num =>
           val t = veo.veo_context_open(handle)
           if (t != null && t.address > 0) {
             logger.info(s"Successfully allocated VEO asynchronous context ${num} on node ${nnum}")
@@ -219,6 +219,7 @@ object VeProcess extends LazyLogging {
 
   def createFromContext(context: PluginContext): VeProcess = {
     val resources = context.resources
+    val maxVeCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
     logger.info(s"Executor has the following resources available => ${resources}")
 
     val selectedNodeId = if (!resources.containsKey("ve")) {
@@ -231,7 +232,7 @@ object VeProcess extends LazyLogging {
 
       // Executor IDs start at 1
       val executorId = Try { context.executorID.toInt - 1 }.getOrElse(0)
-      val veMultiple = executorId
+      val veMultiple = executorId / (MaxVeNodes / maxVeCores)
 
       if (veMultiple > veResources.addresses.size) {
         logger.warn("Not enough VE resources allocated for the number of executors specified.")
@@ -244,7 +245,7 @@ object VeProcess extends LazyLogging {
 
     val tupleO = selectedNodeId.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, Seq[veo_thr_ctxt])]) {
       case (Some(tuple), venode)  => Some(tuple)
-      case (None, venode)         => createVeoTuple(venode)
+      case (None, venode)         => createVeoTuple(venode, maxVeCores)
     }
 
     tupleO match {
