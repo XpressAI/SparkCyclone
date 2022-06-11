@@ -322,10 +322,6 @@ final case class WrappingVeo private (val node: Int,
       val (result, duration) = measureTime { _free(toFree) }
       require(result == 0, s"Memory release failed with code: ${result}")
       freeTimer.update(Duration.ofNanos(duration))
-
-      toFree.foreach{ address =>
-        heapRecords.remove(address)
-      }
     }
   }
 
