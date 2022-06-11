@@ -262,10 +262,14 @@ final case class WrappingVeo private (val node: Int,
         case Some(allocation) =>
           logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
 
+          // Remove from the records upfront, because a failed free is a full crash anyway
+          // and in a highly parallel setup the VE can allocate the just free'd memory before
+          // we have removed them from the records
+          heapRecords.remove(address)
+
           val (result, duration) = measureTime { _free( Seq(address)) }
           require(result == 0, s"Memory release failed with code: ${result}")
-          // Remove only after the free() was successful
-          heapRecords.remove(address)
+
           freeTimer.update(Duration.ofNanos(duration))
 
         case None if unsafe =>
@@ -307,13 +311,16 @@ final case class WrappingVeo private (val node: Int,
         }
       }
 
-      val (result, duration) = measureTime{_free(toFree)}
-      require(result == 0, s"Memory release failed with code: ${result}")
-      freeTimer.update(Duration.ofNanos(duration))
-
+      // Remove from the records upfront, because a failed free is a full crash anyway
+      // and in a highly parallel setup the VE can allocate the just free'd memory before
+      // we have removed them from the records
       toFree.foreach{ address =>
         heapRecords.remove(address)
       }
+
+      val (result, duration) = measureTime{_free(toFree)}
+      require(result == 0, s"Memory release failed with code: ${result}")
+      freeTimer.update(Duration.ofNanos(duration))
     }
   }
 
