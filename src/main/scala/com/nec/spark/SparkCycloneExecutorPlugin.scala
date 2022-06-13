@@ -22,14 +22,13 @@ package com.nec.spark
 import com.nec.cache.VeColBatchesCache
 import com.nec.colvector._
 import com.nec.vectorengine._
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
+import java.util.{Map => JMap}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.metrics.source.ProcessExecutorMetrics
-
-import java.util.{Map => JMap}
-import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 
 object SparkCycloneExecutorPlugin {
   var pluginContext: PluginContext = _
@@ -83,7 +82,7 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       if (resources.containsKey("ve")) resources.get("ve").addresses.length else 1
     }
 
-    // Start the actual ve process by accessing something that goes to the underlying ve process.
+    // Start the actual VE process by calling a method that will initialize it
     SparkCycloneExecutorPlugin.veProcess.apiVersion
   }
 

@@ -139,6 +139,46 @@ final class VeProcessUnitSpec extends AnyWordSpec
       }
     }
 
+    "correctly free memory in bulk" in {
+      val sizes = 0.to(Random.nextInt(10) + 3).map(_ => Random.nextInt(10000) + 100)
+
+      // Tracker should be empty
+      process.heapAllocations shouldBe empty
+
+      val allocations = sizes.map(process.allocate(_))
+      allocations.map(_.address).foreach(_ should be > 0L)
+
+      // Tracker should now contain the records
+      process.heapAllocations should not be empty
+      process.heapAllocations.keys should be (allocations.map(_.address).toSet)
+
+      noException should be thrownBy {
+        process.freeSeq(allocations.map(_.address))
+      }
+
+      // Tracker should be back to empty
+      process.heapAllocations shouldBe empty
+    }
+
+    s"handle the case of attempting to allocating and freeing memory where ${LibCyclone.FileName} is not loaded yet" in {
+      // Make an allocation
+      val allocation = process.allocate(Random.nextInt(10000) + 100)
+
+      // Get the reference to libcyclone.so and unload and library
+      val lib = process.load(LibCyclone.SoPath)
+      process.unload(lib)
+
+      // Free should fail since the library is unloaded
+      intercept[IllegalArgumentException] {
+        process.free(allocation.address)
+      }
+
+      // Allocate should fail since the library is unloaded
+      intercept[IllegalArgumentException] {
+        process.allocate(Random.nextInt(10000) + 100)
+      }
+    }
+
     "handle the case where an invalid memory size is requested for allocation" in {
       // Zero requested allocation size
       intercept[IllegalArgumentException] {
@@ -437,9 +477,21 @@ final class VeProcessUnitSpec extends AnyWordSpec
         process.load(FileSystems.getDefault.getPath(s"/${UUID.randomUUID}/${UUID.randomUUID}"))
       }
 
-      val path = File.createTempFile("tmp-",".so").toPath
+      intercept[IllegalArgumentException] {
+        /*
+          Path is too long
+
+          NOTE: We fix to 233 random characters instead of `veo.VEO_SYMNAME_LEN_MAX`,
+          to avoid hitting `java.io.IOException: File name too long` on Linux while
+          still generating a full path that has length > `veo.VEO_SYMNAME_LEN_MAX`.
+        */
+        val path = File.createTempFile(Random.alphanumeric.take(233).mkString(""), ".so").toPath
+        process.load(path)
+      }
+
       intercept[IllegalArgumentException] {
         // Invalid .SO file
+        val path = File.createTempFile("tmp-",".so").toPath
         process.load(path)
       }
     }

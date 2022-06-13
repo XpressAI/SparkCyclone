@@ -108,10 +108,10 @@ final case class VeColVector private[colvector] (
    */
   def closeAndReturnAllocations: Seq[Long] = {
     open.synchronized {
-      if(open){
+      if (open) {
         open = false
         allocations
-      }else{
+      } else {
         logger.warn(s"[VE MEMORY ${container}] double free called!")
         Nil
       }

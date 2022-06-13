@@ -1,19 +1,18 @@
 package com.nec.vectorengine
 
-import com.codahale.metrics._
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
-
+import scala.collection.concurrent.{TrieMap => MMap}
+import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import scala.collection.concurrent.{TrieMap => MMap}
-import scala.util.Try
+import com.codahale.metrics._
+import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
@@ -28,7 +27,7 @@ final case class WrappingVeo private (val node: Int,
   private val openlock = new ReentrantReadWriteLock(true)
 
   // VEO async thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
 
   // Reference to libcyclone.so
   private var libCyclone: LibraryReference = _
@@ -123,7 +122,7 @@ final case class WrappingVeo private (val node: Int,
         thunk(tcontext)
       } finally {
         // Unlock the thread context
-        tlock.writeLock().unlock()
+        tlock.writeLock.unlock
       }
     }
   }
@@ -172,7 +171,7 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _alloc(out: LongPointer, size: Long): Long = {
-    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+    require(libCyclone != null, s"${LibCyclone.FileName} has not been loaded yet")
 
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.AllocFn)
@@ -254,7 +253,7 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _free(addresses: Seq[Long]): Int = {
-    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+    require(libCyclone != null, s"${LibCyclone.FileName} has not been loaded yet")
 
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.FreeFn)
@@ -419,7 +418,10 @@ final case class WrappingVeo private (val node: Int,
             lib
 
           case None =>
+            // AVEO has a check on paths to be less than 255 chars
+            require(npath.toString.size <= veo.VEO_SYMNAME_LEN_MAX, s"Path is longer than ${veo.VEO_SYMNAME_LEN_MAX} characters, which AVEO will not load")
             require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
+
             logger.info(s"[${handle.address}] Loading from path as .SO: ${npath}...")
             val result = veo.veo_load_library(handle, npath.toString)
             require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
@@ -436,10 +438,10 @@ final case class WrappingVeo private (val node: Int,
   def load(path: Path): LibraryReference = {
     // Always try to load libcyclone.so first
     if (libCyclone == null) {
-      val libCyclonePath = if (path.endsWith("libcyclone.so")) {
+      val libCyclonePath = if (path.endsWith(LibCyclone.FileName)) {
         path
       } else {
-        path.getParent.resolve("sources").resolve("libcyclone.so")
+        path.getParent.resolve("sources").resolve(LibCyclone.FileName)
       }
       libCyclone = _load(libCyclonePath)
     }
@@ -447,7 +449,7 @@ final case class WrappingVeo private (val node: Int,
     _load(path)
   }
 
-  def unload(lib: LibraryReference): Unit = {
+  private[vectorengine] def _unload(lib: LibraryReference): Unit = {
     withVeoProc {
       loadedLibRecords.synchronized {
         val npath = Paths.get(lib.path).normalize
@@ -463,6 +465,15 @@ final case class WrappingVeo private (val node: Int,
             throw new IllegalArgumentException(s"VE process does not have library loaded; nothing to unload: ${npath}")
         }
       }
+    }
+  }
+
+  def unload(lib: LibraryReference): Unit = {
+    _unload(lib)
+
+    // Remove the reference to libcyclone.so if that was the library unloaded
+    if (lib.path.endsWith(LibCyclone.FileName)) {
+      libCyclone = null
     }
   }
 

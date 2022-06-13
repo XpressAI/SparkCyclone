@@ -1,15 +1,14 @@
 package com.nec.vectorengine
 
 import com.nec.colvector.{VeColVectorSource => VeSource}
+import scala.util.Try
+import java.nio.file.Path
 import com.codahale.metrics.MetricRegistry
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.PluginContext
 import org.bytedeco.javacpp.{LongPointer, Pointer}
 import org.bytedeco.veoffload.global.veo
 import org.bytedeco.veoffload.{veo_args, veo_proc_handle, veo_thr_ctxt}
-
-import java.nio.file.Path
-import scala.util.Try
 
 final case class VeAllocation private[vectorengine] (address: Long, size: Long, trace: Seq[StackTraceElement]) {
   def toThrowable: Throwable = {
@@ -150,7 +149,7 @@ object VeProcess extends LazyLogging {
   final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
   private[vectorengine] def createVeoTuple(venode: Int,
-                                           veCores: Int = MaxVeCores): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
+                                           veCores: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
     require(veCores > 0, "veCores must be > 0")
     require(veCores <= MaxVeCores, s"veCores must be <= ${MaxVeCores}")
     val nnum = if (venode < -1) venode.abs else venode
@@ -168,23 +167,25 @@ object VeProcess extends LazyLogging {
       tcontexts <- Some {
         (0 until veCores).map { i =>
           /*
-            Wait before creating each asynchronous context or else we will
-            encounter the following error when creating the second context:
-
-            [VH] [TID 190048] ERROR: veo_context_open() failed to open context: ProcHandle: timeout while waiting for VE.
-          */
-          Thread.sleep(500)
-
-          /*
             NOTE: The first thread context for a process handle is created almost
             immediately, while subsequent thread contexts usually take roughly
             5s to create.
           */
           val tc = veo.veo_context_open(handle)
 
+          /*
+            Wait after creating each asynchronous context or else we will
+            encounter the following error when subsequently creating the next
+            context:
+
+            [VH] [TID 190048] ERROR: veo_context_open() failed to open context: ProcHandle: timeout while waiting for VE.
+          */
+          Thread.sleep(500)
+
           if (tc != null && tc.address > 0) {
             logger.info(s"Successfully allocated VEO asynchronous context ${i} on node ${nnum}")
             Some(tc)
+
           } else {
             logger.error(s"Could not allocate VEO asynchronous context ${i} on node ${nnum}")
             None
@@ -239,10 +240,9 @@ object VeProcess extends LazyLogging {
 
   def createFromContext(context: PluginContext): VeProcess = {
     val resources = context.resources
-    val maxVeCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
     logger.info(s"Executor has the following resources available => ${resources}")
 
-    val veCores = context.conf().get("spark.com.nec.resource.ve.cores", "8").toInt
+    val veCores = context.conf().get("spark.com.nec.resource.ve.cores", MaxVeCores.toString).toInt
     logger.info(s"Specified max cores per VE process => ${veCores}")
 
     val selectedNodeId = if (!resources.containsKey("ve")) {
@@ -272,9 +272,9 @@ object VeProcess extends LazyLogging {
     }
 
     tupleO match {
-      case Some((venode, handle, tcontext)) =>
+      case Some((venode, handle, tcontexts)) =>
         val identifier = s"VE Process @ ${handle.address}, Executor ${Try { context.executorID }.getOrElse("UNKNOWN")}"
-        WrappingVeo(venode, identifier, handle, tcontext, context.metricRegistry)
+        WrappingVeo(venode, identifier, handle, tcontexts, context.metricRegistry)
 
       case None =>
         throw new IllegalArgumentException(s"VE process could not be allocated; all nodes are either offline or occupied by another VE process")
