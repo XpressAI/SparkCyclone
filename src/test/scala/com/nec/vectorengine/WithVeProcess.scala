@@ -8,9 +8,9 @@ import com.codahale.metrics._
 import org.apache.spark.SparkConf
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.resource.ResourceInformation
-import org.scalatest.{BeforeAndAfterAll, Suite}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
-trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
+trait WithVeProcess extends BeforeAndAfterAll with BeforeAndAfterEach { self: Suite =>
   // TODO: Remove
   implicit val metrics0 = VeProcessMetrics.noOp
 
@@ -22,7 +22,7 @@ trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
     classes is eager even if annotated with @VectorEngineTest
   */
   implicit val process: VeProcess = DeferredVeProcess { () =>
-    VeProcess.create(getClass.getName, metrics)
+    VeProcess.create(getClass.getName, 2, metrics)
   }
 
   implicit def source: VeSource = {
@@ -47,6 +47,10 @@ trait WithVeProcess extends BeforeAndAfterAll { self: Suite =>
     }
 
     SparkCycloneExecutorPlugin.veProcess = process
+  }
+
+  override def beforeEach: Unit = {
+    process.load(LibCyclone.SoPath)
   }
 
   override def afterAll: Unit = {

@@ -36,7 +36,7 @@ final class DynamicBenchmarkVeCheck
   override def beforeAll: Unit = {
     super.beforeAll
     Logger.getRootLogger.setLevel(Level.INFO)
-    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName, 2)
   }
 
   /** TODO We could also generate Spark plan details from here for easy cross-referencing, as well as codegen */

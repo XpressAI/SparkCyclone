@@ -10,13 +10,17 @@ import java.nio.file.FileSystems
 import java.util.UUID
 import org.bytedeco.javacpp.{BytePointer, DoublePointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Eventually with VeKernelInfra {
+final class VeProcessUnitSpec extends AnyWordSpec
+                              with BeforeAndAfterAll
+                              with BeforeAndAfterEach
+                              with Eventually
+                              with VeKernelInfra {
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(3.seconds),
     interval = scaled(0.5.seconds)
@@ -24,9 +28,15 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
   // Don't open the process here because the ScalaTest classes are initialized
   var process: VeProcess = _
+  // Create 4 asynchronous contexts to exercise async feaures more thoroughly
+  val NumContexts = 4
 
   override def beforeAll: Unit = {
-    process = VeProcess.create(getClass.getName)
+    process = VeProcess.create(getClass.getName, NumContexts)
+  }
+
+  override def beforeEach: Unit = {
+    process.load(LibCyclone.SoPath)
   }
 
   override def afterAll: Unit = {
@@ -78,6 +88,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
     "correctly return a version string" in {
       process.version shouldNot be (empty)
+    }
+
+    "correctly return the number of asynchronous contexts available" in {
+      process.numThreads should be (NumContexts)
     }
 
     "correctly allocate and free memory" in {
@@ -439,8 +453,8 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         """.stripMargin
 
       withCompiled(code) { path =>
-        // Libraries tracker should be empty
-        process.loadedLibraries shouldBe empty
+        // Libraries tracker should not contain the library
+        process.loadedLibraries.keys should not contain (path.normalize.toString)
 
         // Load the library
         val library = process.load(path)
@@ -449,7 +463,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         library.path should be (path.normalize.toString)
 
         // Libraries tracker should now contain the record
-        process.loadedLibraries should be (Map(path.normalize.toString -> library))
+        process.loadedLibraries should contain (path.normalize.toString -> library)
 
         // Symbol with only whitespaces
         intercept[IllegalArgumentException] {
@@ -470,7 +484,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         process.unload(library)
 
         // Libraries tracker should be back to empty
-        process.loadedLibraries shouldBe empty
+        process.loadedLibraries should not contain (path.normalize.toString -> library)
       }
     }
 

@@ -1,7 +1,7 @@
 package com.nec.vectorengine
 
-import com.codahale.metrics.MetricRegistry
 import com.nec.colvector.{VeColVectorSource => VeSource}
+import com.codahale.metrics.MetricRegistry
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.PluginContext
 import org.bytedeco.javacpp.{LongPointer, Pointer}
@@ -48,7 +48,7 @@ final case class U64Arg(value: Long) extends CallStackArgument
 
 final case class BuffArg(intent: VeArgIntent, buffer: Pointer) extends CallStackArgument
 
-final case class VeAsyncReqId private[vectorengine] (value: Long, context: veo_thr_ctxt)
+final case class VeAsyncReqId private[vectorengine] (value: Long, context: Long)
 
 trait VeProcess {
   def node: Int
@@ -62,6 +62,8 @@ trait VeProcess {
   def apiVersion: Int
 
   def version: String
+
+  def numThreads: Int
 
   def heapAllocations: Map[Long, VeAllocation]
 
@@ -145,7 +147,11 @@ object VeProcess extends LazyLogging {
   final val PutSizesHistogramMetric       = "ve.histograms.put.size"
   final val PutThroughputHistogramMetric  = "ve.histograms.put.throughput"
 
-  private def createVeoTuple(venode: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
+  private[vectorengine] def createVeoTuple(venode: Int,
+                                           ncontexts: Int): Option[(Int, veo_proc_handle, Seq[veo_thr_ctxt])] = {
+    require(ncontexts > 0, "ncontexts must be > 0")
+    require(ncontexts <= MaxVeCores, s"ncontexts must be <= ${MaxVeCores}")
+
     val nnum = if (venode < -1) venode.abs else venode
     logger.info(s"Attemping to allocate VE process on node ${nnum}...")
 
@@ -158,32 +164,47 @@ object VeProcess extends LazyLogging {
       _ = logger.info(s"Successfully allocated VE process on node ${nnum}")
 
       // Create asynchronous context
-      tcontext <- {
-        Some((0 until MaxVeCores).flatMap { num =>
-          val t = veo.veo_context_open(handle)
-          if (t != null && t.address > 0) {
-            logger.info(s"Successfully allocated VEO asynchronous context ${num} on node ${nnum}")
-            Some(t)
+      tcontexts <- Some {
+        (0 until ncontexts).map { i =>
+          /*
+            Wait before creating each asynchronous context or else we will
+            encounter the following error when creating the second context:
+
+            [VH] [TID 190048] ERROR: veo_context_open() failed to open context: ProcHandle: timeout while waiting for VE.
+          */
+          Thread.sleep(500)
+
+          /*
+            NOTE: The first thread context for a process handle is created almost
+            immediately, while subsequent thread contexts usually take roughly
+            5s to create.
+          */
+          val tc = veo.veo_context_open(handle)
+
+          if (tc != null && tc.address > 0) {
+            logger.info(s"Successfully allocated VEO asynchronous context ${i} on node ${nnum}")
+            Some(tc)
           } else {
-            logger.error(s"Could not allocate VEO asynchronous context ${num} on node ${nnum}")
+            logger.error(s"Could not allocate VEO asynchronous context ${i} on node ${nnum}")
             None
           }
-        })
+        }
+        .flatten
       }
+
     } yield {
-      // Return the tuple
-      (nnum, handle, tcontext)
+      (nnum, handle, tcontexts)
     }
   }
 
-  def create(identifier: String): VeProcess = {
-    create(identifier, new MetricRegistry)
+  def create(identifier: String, ncontexts: Int): VeProcess = {
+    create(identifier, ncontexts, new MetricRegistry)
   }
 
-  def create(identifier: String, metrics: MetricRegistry): VeProcess = {
+  def create(identifier: String, ncontexts: Int, metrics: MetricRegistry): VeProcess = {
     val tupleO = 0.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, Seq[veo_thr_ctxt])]) {
       case (Some(tuple), venode)  => Some(tuple)
-      case (None, venode)         => createVeoTuple(venode)
+      case (None, venode)         => createVeoTuple(venode, ncontexts)
     }
 
     tupleO match {
@@ -195,8 +216,8 @@ object VeProcess extends LazyLogging {
     }
   }
 
-  def create(venode: Int, identifier: String): VeProcess = {
-    create(venode, identifier, new MetricRegistry)
+  def create(venode: Int, identifier: String, ncontexts: Int = MaxVeCores): VeProcess = {
+    create(venode, identifier, ncontexts, new MetricRegistry)
   }
 
   /*
@@ -205,10 +226,10 @@ object VeProcess extends LazyLogging {
     variable VE_NODE_NUMBER is not set, a VE process is created on the VE
     node #0.
   */
-  def create(venode: Int, identifier: String, metrics: MetricRegistry): VeProcess = {
-    createVeoTuple(venode) match {
-      case Some((venode, handle, tcontext)) =>
-        WrappingVeo(venode, identifier, handle, tcontext, metrics)
+  def create(venode: Int, identifier: String, ncontexts: Int, metrics: MetricRegistry): VeProcess = {
+    createVeoTuple(venode, ncontexts) match {
+      case Some((venode, handle, tcontexts)) =>
+        WrappingVeo(venode, identifier, handle, tcontexts, metrics)
 
       case None =>
         throw new IllegalArgumentException(s"VE process could not be allocated for node ${venode}; either the node is offline or another VE process is running")
@@ -242,7 +263,8 @@ object VeProcess extends LazyLogging {
 
     val tupleO = selectedNodeId.until(MaxVeNodes).foldLeft(Option.empty[(Int, veo_proc_handle, Seq[veo_thr_ctxt])]) {
       case (Some(tuple), venode)  => Some(tuple)
-      case (None, venode)         => createVeoTuple(venode)
+      // Default to 8 cores for now; may want to add a Spark config flag to customize this later
+      case (None, venode)         => createVeoTuple(venode, MaxVeCores)
     }
 
     tupleO match {

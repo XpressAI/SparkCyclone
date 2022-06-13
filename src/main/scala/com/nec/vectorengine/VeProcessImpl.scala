@@ -1,19 +1,18 @@
 package com.nec.vectorengine
 
-import com.codahale.metrics._
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
-
+import scala.collection.concurrent.{TrieMap => MMap}
+import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import scala.collection.concurrent.{TrieMap => MMap}
-import scala.util.Try
+import com.codahale.metrics._
+import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
@@ -21,14 +20,16 @@ final case class WrappingVeo private (val node: Int,
                                       tcontexts: Seq[veo_thr_ctxt],
                                       val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
+  require(tcontexts.nonEmpty, "No asynchronous VEO context was provided")
+
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
   private val openlock = new ReentrantReadWriteLock(true)
 
-  // thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
+  // VEO async thread context locks
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
 
-  // reference to libcyclone.so
+  // Reference to libcyclone.so
   private var libCyclone: LibraryReference = _
 
   // Internal allocation and library records for tracking
@@ -71,7 +72,7 @@ final case class WrappingVeo private (val node: Int,
   )
 
   logger.info(s"[${handle.address}] Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
-  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(ctx => s"${ctx.address}: ${ctx}")}")
+  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(_.address)}")
   logger.info(s"[${handle.address}] VEO version ${version}; API version ${apiVersion}")
 
   private[vectorengine] def requireValidBufferForPut(buffer: Pointer): Unit = {
@@ -100,24 +101,29 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def withVeoThread[T](thunk: veo_thr_ctxt => T): T = {
-    // get context with (approximately) shortest queue
-    val (lock, ctx) = contextLocks.minBy { case (lock, _) => lock.getQueueLength }
-    withVeoThreadLock(lock) { thunk(ctx) }
+    // Fetch the thread context that is least busy (i.e. has the shortest lock queue)
+    val tuple = contextLocks.minBy { case (tlock, _) => tlock.getQueueLength }
+    withVeoThread(tuple)(thunk)
   }
 
-  private[vectorengine] def withVeoThread[T](ctx: veo_thr_ctxt)(thunk: veo_thr_ctxt => T): T = {
-    // find lock for specified context
-    val (lock, _) = contextLocks.find{case (_, c) => ctx == c}.get
-    withVeoThreadLock(lock) { thunk(ctx) }
+  private[vectorengine] def withVeoThread[T](contextId: Long)(thunk: veo_thr_ctxt => T): T = {
+    // Fetch the thread context and its lock by the context id
+    val tuple = contextLocks.find { case (_, tcontext) => tcontext.address == contextId }.get
+    withVeoThread(tuple)(thunk)
   }
 
-  private[vectorengine] def withVeoThreadLock[T](lock: ReentrantReadWriteLock)(thunk: => T): T = {
+  private[vectorengine] def withVeoThread[T](tuple: (ReentrantReadWriteLock, veo_thr_ctxt))
+                                            (thunk: veo_thr_ctxt => T): T = {
     withVeoProc {
-      lock.writeLock().lock()
+      // Lock access to the thread context
+      val (tlock, tcontext) = tuple
+      tlock.writeLock.lock
       try {
-        thunk
+        // Perform the async task with the thread context
+        thunk(tcontext)
       } finally {
-        lock.writeLock().unlock()
+        // Unlock the thread context
+        tlock.writeLock().unlock()
       }
     }
   }
@@ -149,6 +155,10 @@ final case class WrappingVeo private (val node: Int,
     VeSource(identifier)
   }
 
+  lazy val numThreads: Int = {
+    tcontexts.size
+  }
+
   def heapAllocations: Map[Long, VeAllocation] = {
     heapRecords.toMap
   }
@@ -161,13 +171,17 @@ final case class WrappingVeo private (val node: Int,
     loadedLibRecords.toMap
   }
 
-  private def _alloc(out: LongPointer, size: Long): Long = {
+  private[vectorengine] def _alloc(out: LongPointer, size: Long): Long = {
+    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+
     withVeoProc {
-      val sym = getSymbol(libCyclone, LibCyclone.AllocFn)
-      awaitResult(callAsync(sym, newArgsStack(Seq(
-        U64Arg(size),
-        BuffArg(VeArgIntent.Out, out)
-      )))).get().toInt
+      val func = getSymbol(libCyclone, LibCyclone.AllocFn)
+      val args = newArgsStack(Seq(U64Arg(size), BuffArg(VeArgIntent.Out, out)))
+      val retp = awaitResult(callAsync(func, args))
+      freeArgsStack(args)
+      val res = retp.get.toInt
+      retp.close
+      res
     }
   }
 
@@ -205,7 +219,8 @@ final case class WrappingVeo private (val node: Int,
 
     heapRecords.get(address) match {
       case Some(allocation) if allocation.size == size =>
-        logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+        // Complain only if it's an allocation with address != 0
+        if (address > 0) logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
         allocation
 
       case Some(allocation) =>
@@ -238,12 +253,17 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private def _free(address: Long): Int = {
+  private[vectorengine] def _free(address: Long): Int = {
+    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+
     withVeoProc {
-      val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
-      awaitResult(callAsync(sym, newArgsStack(Seq(
-        U64Arg(address)
-      )))).get().toInt
+      val func = getSymbol(libCyclone, LibCyclone.FreeFn)
+      val args = newArgsStack(Seq(U64Arg(address)))
+      val retp = awaitResult(callAsync(func, args))
+      freeArgsStack(args)
+      val res = retp.get.toInt
+      retp.close
+      res
     }
   }
 
@@ -325,7 +345,7 @@ final case class WrappingVeo private (val node: Int,
       require(destination > 0L, s"Invalid VE memory address ${destination}")
       val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
@@ -339,7 +359,7 @@ final case class WrappingVeo private (val node: Int,
       require(source > 0L, s"Invalid VE memory address ${source}")
       val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
@@ -362,7 +382,7 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private def _load(path: Path): LibraryReference = {
+  private[vectorengine] def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
         val npath = path.normalize
@@ -387,8 +407,13 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def load(path: Path): LibraryReference = {
-    if(libCyclone == null){
-      val libCyclonePath = if(path.endsWith("libcyclone.so")) path else path.getParent.resolve("sources").resolve("libcyclone.so")
+    // Always try to load libcyclone.so first
+    if (libCyclone == null) {
+      val libCyclonePath = if (path.endsWith("libcyclone.so")) {
+        path
+      } else {
+        path.getParent.resolve("sources").resolve("libcyclone.so")
+      }
       libCyclone = _load(libCyclonePath)
     }
 
@@ -502,7 +527,7 @@ final case class WrappingVeo private (val node: Int,
         s"VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
       )
 
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
@@ -514,14 +539,14 @@ final case class WrappingVeo private (val node: Int,
         val MaxToShow = 5
 
         // Complain about un-released context locks
-        val stillLockedContexts = contextLocks.filter(_._1.isWriteLocked)
-        if(stillLockedContexts.nonEmpty){
-          logger.error("There are still locked contexts:")
-          stillLockedContexts.foreach{ case (lock, ctx) =>
-            logger.error(s"Context: ${ctx}: Queue Size = ${lock.getQueueLength}")
+        val cRecords = contextLocks.filter(_._1.isWriteLocked)
+        if (cRecords.nonEmpty) {
+          logger.error("There are still locked aynchronous VEO contexts:")
+          cRecords.foreach { case (tlock, tcontext) =>
+            logger.error(s"Context: ${tcontext}: Queue Size = ${tlock.getQueueLength}")
           }
-        }else{
-          logger.info(s"[${handle.address}] There are no locked contexts; this is good.")
+        } else {
+          logger.info(s"[${handle.address}] There are no locked asynchronous VEO contexts; this is good.")
         }
 
         // Complain about un-released heap allocations
@@ -547,11 +572,10 @@ final case class WrappingVeo private (val node: Int,
         }
 
         Try {
-          tcontexts.foreach{ctx =>
-            logger.info(s"[${handle.address}] Closing VEO asynchronous context @ ${ctx.address}")
-            veo.veo_context_close(ctx)
-          }
-
+          /*
+            There is no need to close the VEO asynchronous contexts individually
+            since closing the process closes everything.
+          */
           logger.info(s"[${handle.address}] Closing VE process (Node ${node}) @ ${handle.address}")
           veo.veo_proc_destroy(handle)
 
