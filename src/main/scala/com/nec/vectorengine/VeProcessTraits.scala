@@ -165,7 +165,7 @@ object VeProcess extends LazyLogging {
 
       // Create asynchronous context
       tcontexts <- Some {
-        (0 until MaxVeCores).map { i =>
+        (0 until ncontexts).map { i =>
           /*
             Wait before creating each asynchronous context or else we will
             encounter the error when creating the second context.

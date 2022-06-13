@@ -28,9 +28,10 @@ final class VeProcessUnitSpec extends AnyWordSpec
 
   // Don't open the process here because the ScalaTest classes are initialized
   var process: VeProcess = _
+  val NumContexts = 4
 
   override def beforeAll: Unit = {
-    process = VeProcess.create(getClass.getName, 4)
+    process = VeProcess.create(getClass.getName, NumContexts)
   }
 
   override def beforeEach: Unit = {
@@ -86,6 +87,10 @@ final class VeProcessUnitSpec extends AnyWordSpec
 
     "correctly return a version string" in {
       process.version shouldNot be (empty)
+    }
+
+    "correctly return the number of asynchronous contexts available" in {
+      process.numThreads should be (NumContexts)
     }
 
     "correctly allocate and free memory" in {
