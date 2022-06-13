@@ -10,13 +10,17 @@ import java.nio.file.FileSystems
 import java.util.UUID
 import org.bytedeco.javacpp.{BytePointer, DoublePointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterAll}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Eventually with VeKernelInfra {
+final class VeProcessUnitSpec extends AnyWordSpec
+                              with BeforeAndAfterAll
+                              with BeforeAndAfterEach
+                              with Eventually
+                              with VeKernelInfra {
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(3.seconds),
     interval = scaled(0.5.seconds)
@@ -27,6 +31,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
   override def beforeAll: Unit = {
     process = VeProcess.create(getClass.getName)
+  }
+
+  override def beforeEach: Unit = {
+    process.load(LibCyclone.SoPath)
   }
 
   override def afterAll: Unit = {

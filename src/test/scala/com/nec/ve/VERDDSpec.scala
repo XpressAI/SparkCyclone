@@ -11,6 +11,7 @@ import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.vectorengine.SampleVeFunctions._
 import com.nec.util.CallContextOps._
 import com.nec.ve.VeRDDOps.RichKeyedRDD
+import java.nio.file.Paths
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.scalatest.BeforeAndAfterAll
@@ -64,8 +65,9 @@ object VERDDSpec {
     .mapPartitions(
       f = { iter =>
         iter.flatMap { input =>
+          // Load libcyclone first so that async alloc/free works afterwards
+          val ref = veProcess.load(Paths.get(pathStr))
           val colvec = input.toVeColVector
-          val ref = veProcess.load(java.nio.file.Paths.get(pathStr))
 
           vectorEngine.executeMulti(
             ref,
