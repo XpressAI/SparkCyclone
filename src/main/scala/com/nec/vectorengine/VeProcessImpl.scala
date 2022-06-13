@@ -1,19 +1,18 @@
 package com.nec.vectorengine
 
-import com.codahale.metrics._
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-import org.bytedeco.veoffload.global.veo
-import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
-
+import scala.collection.concurrent.{TrieMap => MMap}
+import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import scala.collection.concurrent.{TrieMap => MMap}
-import scala.util.Try
+import com.codahale.metrics._
+import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.veoffload.global.veo
+import org.bytedeco.veoffload.{veo_proc_handle, veo_thr_ctxt}
 
 final case class WrappingVeo private (val node: Int,
                                       identifier: String,
@@ -27,10 +26,10 @@ final case class WrappingVeo private (val node: Int,
   private var opened = true
   private val openlock = new ReentrantReadWriteLock(true)
 
-  // thread context locks
-  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock() -> _)
+  // VEO async thread context locks
+  private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
 
-  // reference to libcyclone.so
+  // Reference to libcyclone.so
   private var libCyclone: LibraryReference = _
 
   // Internal allocation and library records for tracking
@@ -173,6 +172,8 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _alloc(out: LongPointer, size: Long): Long = {
+    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.AllocFn)
       val args = newArgsStack(Seq(U64Arg(size), BuffArg(VeArgIntent.Out, out)))
@@ -253,6 +254,8 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _free(address: Long): Int = {
+    require(libCyclone != null, "libcyclone.so has not been loaded yet!")
+
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.FreeFn)
       val args = newArgsStack(Seq(U64Arg(address)))
@@ -536,14 +539,14 @@ final case class WrappingVeo private (val node: Int,
         val MaxToShow = 5
 
         // Complain about un-released context locks
-        val stillLockedContexts = contextLocks.filter(_._1.isWriteLocked)
-        if(stillLockedContexts.nonEmpty){
-          logger.error("There are still locked contexts:")
-          stillLockedContexts.foreach{ case (lock, ctx) =>
-            logger.error(s"Context: ${ctx}: Queue Size = ${lock.getQueueLength}")
+        val cRecords = contextLocks.filter(_._1.isWriteLocked)
+        if (cRecords.nonEmpty) {
+          logger.error("There are still locked aynchronous VEO contexts:")
+          cRecords.foreach { case (tlock, tcontext) =>
+            logger.error(s"Context: ${tcontext}: Queue Size = ${tlock.getQueueLength}")
           }
-        }else{
-          logger.info(s"[${handle.address}] There are no locked contexts; this is good.")
+        } else {
+          logger.info(s"[${handle.address}] There are no locked asynchronous VEO contexts; this is good.")
         }
 
         // Complain about un-released heap allocations
