@@ -2,9 +2,8 @@ package com.nec.colvector
 
 import com.nec.cache.VeColColumnarVector
 import com.nec.spark.agile.core._
-import com.nec.util.CallContext
-import com.nec.vectorengine.{VeAsyncResult, VeProcess}
 import com.nec.ve.VeProcessMetrics
+import com.nec.vectorengine.{VeAsyncResult, VeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.veoffload.global.veo
@@ -45,7 +44,6 @@ final case class VeColVector private[colvector] (
   }
 
   def toBytePointersAsync()(implicit process: VeProcess): Seq[VeAsyncResult[BytePointer]] = {
-   import com.nec.util.CallContextOps._
     buffers.zip(bufferSizes).map { case (location, size) =>
       val buffer = new BytePointer(size)
       val handle = process.getAsync(buffer, location)
@@ -96,6 +94,26 @@ final case class VeColVector private[colvector] (
 
       } else {
         logger.warn(s"[VE MEMORY ${container}] double free called!")
+      }
+    }
+  }
+
+  /**
+   * Mark this VeColVector as closed and return all of its allocations to be
+   * freed externally.
+   *
+   * If it is closed already, log a warning and return an empty seq.
+   *
+   * @return Seq of allocations
+   */
+  def closeAndReturnAllocations: Seq[Long] = {
+    open.synchronized {
+      if(open){
+        open = false
+        allocations
+      }else{
+        logger.warn(s"[VE MEMORY ${container}] double free called!")
+        Nil
       }
     }
   }

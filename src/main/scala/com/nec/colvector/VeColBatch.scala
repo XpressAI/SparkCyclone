@@ -123,7 +123,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   def free()(implicit source: VeColVectorSource,
              process: VeProcess,
              context: CallContext): Unit = {
-    process.freeSeq(columns.flatMap(_.allocations))
+    process.freeSeq(columns.flatMap(_.closeAndReturnAllocations))
   }
 
   def toArrowColumnarBatch(implicit allocator: BufferAllocator,

@@ -58,7 +58,7 @@ case class VePartialAggregate(
                   case (n, l) if l.head.nonEmpty =>
                     Option(n -> VeColBatch(l))
                   case (_, l) =>
-                    veProcess.freeSeq(l.flatMap(_.allocations))
+                    veProcess.freeSeq(l.flatMap(_.closeAndReturnAllocations))
                     None
                 }
               } finally {
