@@ -1,7 +1,7 @@
 package com.nec.vectorengine
 
-import com.codahale.metrics.MetricRegistry
 import com.nec.colvector.{VeColVectorSource => VeSource}
+import com.codahale.metrics.MetricRegistry
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.PluginContext
 import org.bytedeco.javacpp.{LongPointer, Pointer}
@@ -48,7 +48,7 @@ final case class U64Arg(value: Long) extends CallStackArgument
 
 final case class BuffArg(intent: VeArgIntent, buffer: Pointer) extends CallStackArgument
 
-final case class VeAsyncReqId private[vectorengine] (value: Long, context: veo_thr_ctxt)
+final case class VeAsyncReqId private[vectorengine] (value: Long, context: Long)
 
 trait VeProcess {
   def node: Int
@@ -62,6 +62,8 @@ trait VeProcess {
   def apiVersion: Int
 
   def version: String
+
+  def numThreads: Int
 
   def heapAllocations: Map[Long, VeAllocation]
 

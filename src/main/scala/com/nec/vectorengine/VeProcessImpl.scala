@@ -21,6 +21,8 @@ final case class WrappingVeo private (val node: Int,
                                       tcontexts: Seq[veo_thr_ctxt],
                                       val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
+  require(tcontexts.nonEmpty, "No VEO async thread context was provided")
+
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
   private val openlock = new ReentrantReadWriteLock(true)
@@ -100,24 +102,29 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def withVeoThread[T](thunk: veo_thr_ctxt => T): T = {
-    // get context with (approximately) shortest queue
-    val (lock, ctx) = contextLocks.minBy { case (lock, _) => lock.getQueueLength }
-    withVeoThreadLock(lock) { thunk(ctx) }
+    // Fetch the thread context that is least busy (i.e. has the shortest lock queue)
+    val tuple = contextLocks.minBy { case (tlock, _) => tlock.getQueueLength }
+    withVeoThread(tuple)(thunk)
   }
 
-  private[vectorengine] def withVeoThread[T](ctx: veo_thr_ctxt)(thunk: veo_thr_ctxt => T): T = {
-    // find lock for specified context
-    val (lock, _) = contextLocks.find{case (_, c) => ctx == c}.get
-    withVeoThreadLock(lock) { thunk(ctx) }
+  private[vectorengine] def withVeoThread[T](contextId: Long)(thunk: veo_thr_ctxt => T): T = {
+    // Fetch the thread context and its lock by the context id
+    val tuple = contextLocks.find { case (_, tcontext) => tcontext.address == contextId }.get
+    withVeoThread(tuple)(thunk)
   }
 
-  private[vectorengine] def withVeoThreadLock[T](lock: ReentrantReadWriteLock)(thunk: => T): T = {
+  private[vectorengine] def withVeoThread[T](tuple: (ReentrantReadWriteLock, veo_thr_ctxt))
+                                            (thunk: veo_thr_ctxt => T): T = {
     withVeoProc {
-      lock.writeLock().lock()
+      // Lock access to the thread context
+      val (tlock, tcontext) = tuple
+      tlock.writeLock.lock
       try {
-        thunk
+        // Perform the async task with the thread context
+        thunk(tcontext)
       } finally {
-        lock.writeLock().unlock()
+        // Unlock the thread context
+        tlock.writeLock().unlock()
       }
     }
   }
@@ -149,6 +156,10 @@ final case class WrappingVeo private (val node: Int,
     VeSource(identifier)
   }
 
+  lazy val numThreads: Int = {
+    tcontexts.size
+  }
+
   def heapAllocations: Map[Long, VeAllocation] = {
     heapRecords.toMap
   }
@@ -161,13 +172,15 @@ final case class WrappingVeo private (val node: Int,
     loadedLibRecords.toMap
   }
 
-  private def _alloc(out: LongPointer, size: Long): Long = {
+  private[vectorengine] def _alloc(out: LongPointer, size: Long): Long = {
     withVeoProc {
-      val sym = getSymbol(libCyclone, LibCyclone.AllocFn)
-      awaitResult(callAsync(sym, newArgsStack(Seq(
-        U64Arg(size),
-        BuffArg(VeArgIntent.Out, out)
-      )))).get().toInt
+      val func = getSymbol(libCyclone, LibCyclone.AllocFn)
+      val args = newArgsStack(Seq(U64Arg(size), BuffArg(VeArgIntent.Out, out)))
+      val retp = awaitResult(callAsync(func, args))
+      freeArgsStack(args)
+      val res = retp.get.toInt
+      retp.close
+      res
     }
   }
 
@@ -205,7 +218,8 @@ final case class WrappingVeo private (val node: Int,
 
     heapRecords.get(address) match {
       case Some(allocation) if allocation.size == size =>
-        logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
+        // Complain only if it's an allocation with address != 0
+        if (address > 0) logger.warn(s"[${handle.address}] Allocation for ${size} bytes @ ${address} is already registered")
         allocation
 
       case Some(allocation) =>
@@ -238,12 +252,15 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private def _free(address: Long): Int = {
+  private[vectorengine] def _free(address: Long): Int = {
     withVeoProc {
-      val sym = getSymbol(libCyclone, LibCyclone.FreeFn)
-      awaitResult(callAsync(sym, newArgsStack(Seq(
-        U64Arg(address)
-      )))).get().toInt
+      val func = getSymbol(libCyclone, LibCyclone.FreeFn)
+      val args = newArgsStack(Seq(U64Arg(address)))
+      val retp = awaitResult(callAsync(func, args))
+      freeArgsStack(args)
+      val res = retp.get.toInt
+      retp.close
+      res
     }
   }
 
@@ -325,7 +342,7 @@ final case class WrappingVeo private (val node: Int,
       require(destination > 0L, s"Invalid VE memory address ${destination}")
       val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
@@ -339,7 +356,7 @@ final case class WrappingVeo private (val node: Int,
       require(source > 0L, s"Invalid VE memory address ${source}")
       val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
@@ -362,7 +379,7 @@ final case class WrappingVeo private (val node: Int,
     }
   }
 
-  private def _load(path: Path): LibraryReference = {
+  private[vectorengine] def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
         val npath = path.normalize
@@ -387,8 +404,13 @@ final case class WrappingVeo private (val node: Int,
   }
 
   def load(path: Path): LibraryReference = {
-    if(libCyclone == null){
-      val libCyclonePath = if(path.endsWith("libcyclone.so")) path else path.getParent.resolve("sources").resolve("libcyclone.so")
+    // Always try to load libcyclone.so first
+    if (libCyclone == null) {
+      val libCyclonePath = if (path.endsWith("libcyclone.so")) {
+        path
+      } else {
+        path.getParent.resolve("sources").resolve("libcyclone.so")
+      }
       libCyclone = _load(libCyclonePath)
     }
 
@@ -502,7 +524,7 @@ final case class WrappingVeo private (val node: Int,
         s"VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
       )
 
-      VeAsyncReqId(id, tcontext)
+      VeAsyncReqId(id, tcontext.address)
     }
   }
 
