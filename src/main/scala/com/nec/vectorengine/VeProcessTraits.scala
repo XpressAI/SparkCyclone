@@ -168,13 +168,19 @@ object VeProcess extends LazyLogging {
         (0 until ncontexts).map { i =>
           /*
             Wait before creating each asynchronous context or else we will
-            encounter the error when creating the second context.
+            encounter the following error when creating the second context:
 
             [VH] [TID 190048] ERROR: veo_context_open() failed to open context: ProcHandle: timeout while waiting for VE.
           */
           Thread.sleep(500)
 
+          /*
+            NOTE: The first thread context for a process handle is created almost
+            immediately, while subsequent thread contexts usually take roughly
+            5s to create.
+          */
           val tc = veo.veo_context_open(handle)
+
           if (tc != null && tc.address > 0) {
             logger.info(s"Successfully allocated VEO asynchronous context ${i} on node ${nnum}")
             Some(tc)

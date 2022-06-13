@@ -28,6 +28,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
 
   // Don't open the process here because the ScalaTest classes are initialized
   var process: VeProcess = _
+  // Create 4 asynchronous contexts to exercise async feaures more thoroughly
   val NumContexts = 4
 
   override def beforeAll: Unit = {
@@ -452,8 +453,8 @@ final class VeProcessUnitSpec extends AnyWordSpec
         """.stripMargin
 
       withCompiled(code) { path =>
-        // Libraries tracker should be empty
-        process.loadedLibraries shouldBe empty
+        // Libraries tracker should not contain the library
+        process.loadedLibraries.keys should not contain (path.normalize.toString)
 
         // Load the library
         val library = process.load(path)
@@ -462,7 +463,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
         library.path should be (path.normalize.toString)
 
         // Libraries tracker should now contain the record
-        process.loadedLibraries should be (Map(path.normalize.toString -> library))
+        process.loadedLibraries should contain (path.normalize.toString -> library)
 
         // Symbol with only whitespaces
         intercept[IllegalArgumentException] {
@@ -483,7 +484,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
         process.unload(library)
 
         // Libraries tracker should be back to empty
-        process.loadedLibraries shouldBe empty
+        process.loadedLibraries should not contain (path.normalize.toString -> library)
       }
     }
 

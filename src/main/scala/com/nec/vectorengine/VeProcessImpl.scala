@@ -20,7 +20,7 @@ final case class WrappingVeo private (val node: Int,
                                       tcontexts: Seq[veo_thr_ctxt],
                                       val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
-  require(tcontexts.nonEmpty, "No VEO async thread context was provided")
+  require(tcontexts.nonEmpty, "No asynchronous VEO context was provided")
 
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
@@ -72,7 +72,7 @@ final case class WrappingVeo private (val node: Int,
   )
 
   logger.info(s"[${handle.address}] Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
-  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(ctx => s"${ctx.address}: ${ctx}")}")
+  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(_.address)}")
   logger.info(s"[${handle.address}] VEO version ${version}; API version ${apiVersion}")
 
   private[vectorengine] def requireValidBufferForPut(buffer: Pointer): Unit = {
@@ -572,11 +572,10 @@ final case class WrappingVeo private (val node: Int,
         }
 
         Try {
-          tcontexts.foreach{ctx =>
-            logger.info(s"[${handle.address}] Closing VEO asynchronous context @ ${ctx.address}")
-            veo.veo_context_close(ctx)
-          }
-
+          /*
+            There is no need to close the VEO asynchronous contexts individually
+            since closing the process closes everything.
+          */
           logger.info(s"[${handle.address}] Closing VE process (Node ${node}) @ ${handle.address}")
           veo.veo_proc_destroy(handle)
 
