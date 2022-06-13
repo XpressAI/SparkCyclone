@@ -10,7 +10,7 @@ import java.nio.file.FileSystems
 import java.util.UUID
 import org.bytedeco.javacpp.{BytePointer, DoublePointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
@@ -30,7 +30,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
   var process: VeProcess = _
 
   override def beforeAll: Unit = {
-    process = VeProcess.create(getClass.getName)
+    process = VeProcess.create(getClass.getName, 4)
   }
 
   override def beforeEach: Unit = {

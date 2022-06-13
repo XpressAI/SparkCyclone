@@ -22,7 +22,7 @@ trait WithVeProcess extends BeforeAndAfterAll with BeforeAndAfterEach { self: Su
     classes is eager even if annotated with @VectorEngineTest
   */
   implicit val process: VeProcess = DeferredVeProcess { () =>
-    VeProcess.create(getClass.getName, metrics)
+    VeProcess.create(getClass.getName, 2, metrics)
   }
 
   implicit def source: VeSource = {
