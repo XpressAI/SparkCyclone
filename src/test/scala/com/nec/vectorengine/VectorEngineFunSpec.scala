@@ -1,9 +1,9 @@
 package com.nec.vectorengine
 
-import com.nec.cache.TransferDescriptor
-import com.nec.colvector._
+import com.nec.cache.BpcvTransferDescriptor
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector._
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.native.CppTranspiler
 import com.nec.spark.agile.core._
@@ -12,10 +12,11 @@ import com.nec.spark.agile.join.SimpleEquiJoinFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.CallContextOps._
 import com.nec.ve.VeKernelInfra
-import scala.reflect.runtime.universe._
-import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
+
+import scala.reflect.runtime.universe._
+import scala.util.Random
 
 @VectorEngineTest
 final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
@@ -340,7 +341,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       }
     }
 
-    s"correctly execute bulk data transfer to the VE using ${classOf[TransferDescriptor].getSimpleName}" in {
+    s"correctly execute bulk data transfer to the VE using ${classOf[BpcvTransferDescriptor].getSimpleName}" in {
       // Batch A
       val sizeA = Random.nextInt(100) + 10
       val a1 = InputSamples.seqOpt[Int](sizeA)
@@ -369,7 +370,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       // println(s"c3 = ${c3}")
 
       // Create batch of batches
-      val descriptor = TransferDescriptor(Seq(
+      val descriptor = BpcvTransferDescriptor(Seq(
         Seq(a1.toBytePointerColVector("_"), a2.toBytePointerColVector("_"), a3.toBytePointerColVector("_")),
         Seq(b1.toBytePointerColVector("_"), b2.toBytePointerColVector("_"), b3.toBytePointerColVector("_")),
         Seq(c1.toBytePointerColVector("_"), c2.toBytePointerColVector("_"), c3.toBytePointerColVector("_"))
@@ -403,7 +404,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       val c1 = Seq(Some(7319), None, None, Some(4859), Some(524))
 
       // Create batch of batches
-      val descriptor = TransferDescriptor(Seq(
+      val descriptor = BpcvTransferDescriptor(Seq(
         Seq(a1.toBytePointerColVector("_")),
         Seq(b1.toBytePointerColVector("_")),
         Seq(c1.toBytePointerColVector("_"))
@@ -435,7 +436,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       val c1 = Seq(Some(7319), None, None, Some(4859), Some(524), Some(406), None, None, Some(1154), None, None, Some(1650), Some(8040), None, None, None, None, None, None, None, None, None, Some(1146), None, Some(7268), Some(8197), None, None, None, None, Some(81), Some(2053), Some(6571), Some(4600), None, Some(3699), None, Some(8404), None, None, Some(8401), None, None, Some(6234), Some(6281), Some(7367), None, Some(4688), Some(7490), None, Some(5412), None, None, Some(871), None, Some(9086), None, Some(5362), Some(6516))
 
       // Create batch of batches
-      val descriptor = TransferDescriptor(Seq(
+      val descriptor = BpcvTransferDescriptor(Seq(
         Seq(a1.toBytePointerColVector("_")),
         Seq(b1.toBytePointerColVector("_")),
         Seq(c1.toBytePointerColVector("_"))

@@ -1,20 +1,15 @@
 package com.nec.cache
 
-import com.nec.colvector.BytePointerColVector
 import com.nec.colvector.ArrayTConversions._
-import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector.BytePointerColVector
+import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.util.CallContextOps._
 import com.nec.util.FixedBitSet
 import com.nec.util.PointerOps._
-import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.vectorengine.{LibCyclone, WithVeProcess}
+import com.nec.vectorengine.WithVeProcess
 import org.bytedeco.javacpp._
-import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers._
-import org.scalatest.prop.TableDrivenPropertyChecks.whenever
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks.forAll
-import scala.reflect.ClassTag
 
 @VectorEngineTest
 final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
@@ -45,8 +40,8 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
     )
   }
 
-  private def sampleDescriptor: TransferDescriptor = {
-    TransferDescriptor(Seq(batch1, batch2, batch3))
+  private def sampleDescriptor: BpcvTransferDescriptor = {
+    BpcvTransferDescriptor(Seq(batch1, batch2, batch3))
   }
 
   "TransferDescriptor" should {
