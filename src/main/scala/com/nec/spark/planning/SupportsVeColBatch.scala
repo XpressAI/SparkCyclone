@@ -10,6 +10,11 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 object SupportsVeColBatch extends LazyLogging {}
 
 trait SupportsVeColBatch { this: SparkPlan =>
+  /*
+    Set `supportsColumnar` to be true to annotate plans as supporting columnar
+    executionp (even though we define the custom `executeVeColumnar()` to support
+    outputting `RDD[VeColBatch]`.
+  */
   final override def supportsColumnar: Boolean = true
 
   /**
@@ -18,10 +23,18 @@ trait SupportsVeColBatch { this: SparkPlan =>
    */
   def dataCleanup: DataCleanup = DataCleanup.cleanup(this.getClass)
 
+  /**
+    VE-based plans are neither executed with `execute()` nor `executeColumnar()`
+    since they only support returning `RDD[InternalRow]` and `RDD[ColumnarBatch]`,
+    respectively.
+  */
   def executeVeColumnar(): RDD[VeColBatch]
 
-  final override protected def doExecute(): RDD[InternalRow] =
+  final override protected def doExecute(): RDD[InternalRow] = {
     sys.error("Cannot execute plan without a VE wrapper")
-  final override protected def doExecuteColumnar(): RDD[ColumnarBatch] =
+  }
+
+  final override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     sys.error("Cannot execute plan without a VE wrapper")
+  }
 }

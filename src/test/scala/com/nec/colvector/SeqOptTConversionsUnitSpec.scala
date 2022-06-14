@@ -5,6 +5,7 @@ import com.nec.spark.agile.core.VeScalarType
 import com.nec.util.FixedBitSet
 import scala.reflect.ClassTag
 import java.util.UUID
+import org.apache.spark.unsafe.types.UTF8String
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -88,6 +89,7 @@ final class SeqOptTConversionsUnitSpec extends AnyWordSpec {
 
       // Check conversion - null String values should be preserved as well
       colvec.toSeqOpt[String] should be (input)
+      colvec.toSeqOpt[UTF8String].map(_.map(_.toString)) should be (input)
     }
   }
 }

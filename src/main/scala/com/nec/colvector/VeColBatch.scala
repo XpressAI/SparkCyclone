@@ -63,6 +63,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns(idx).toBytePointerColVector.toArray[T]
   }
 
+  def toBytePointerColBatch(implicit process: VeProcess): BytePointerColBatch = {
+    BytePointerColBatch(columns.map(_.toBytePointerColVector))
+  }
+
   def streamedSize: Int = {
     Seq(4, 4) ++ columns.flatMap { col =>
       Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
