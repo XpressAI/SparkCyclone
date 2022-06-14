@@ -7,7 +7,6 @@ import com.nec.util.FixedBitSet
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.unsafe.types.UTF8String
 import org.bytedeco.javacpp.indexer.ByteIndexer
 import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
@@ -106,18 +105,18 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
 
 case class VeStringTransferCol(idx: Int) extends VeTransferCol {
   val veType: VeType = VeString
-  private val listBuffer: ListBuffer[UTF8String] = ListBuffer()
-  private lazy val converted = {
-    listBuffer.map{ utf8String =>
-      if(utf8String == null){
-        null
-      }else{
-        utf8String.toString.getBytes("UTF-32LE")
-      }
-    }.toArray
-  }
+  private val listBuffer: ListBuffer[Array[Byte]] = ListBuffer()
+  private lazy val converted = listBuffer.toArray
 
-  override def append(row: InternalRow): Unit = listBuffer.append(row.getUTF8String(idx))
+
+  override def append(row: InternalRow): Unit = {
+    val utf8String = row.getUTF8String(idx)
+    listBuffer.append(if(utf8String == null){
+      null
+    }else{
+      utf8String.toString.getBytes("UTF-32LE")
+    })
+  }
 
   override def close(): Unit = {}
 
@@ -151,7 +150,7 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
     val validityBuffer = FixedBitSet.ones(count)
     converted.zipWithIndex.filter(_._1 == null).foreach(t => validityBuffer.clear(t._2))
 
-    var origPos = target.position()
+    val origPos = target.position()
     var pos = targetPosition
     converted.foreach{ str =>
       if(str != null){
