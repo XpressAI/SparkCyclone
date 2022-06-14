@@ -3,7 +3,6 @@ package com.nec.spark.planning.plans
 import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import com.nec.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
-import com.nec.util.CallContext
 import com.nec.util.CallContextOps._
 import com.nec.ve.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
@@ -59,7 +58,7 @@ case class VePartialAggregate(
                   case (n, l) if l.head.nonEmpty =>
                     Option(n -> VeColBatch(l))
                   case (_, l) =>
-                    l.foreach(_.free())
+                    veProcess.freeSeq(l.flatMap(_.closeAndReturnAllocations))
                     None
                 }
               } finally {

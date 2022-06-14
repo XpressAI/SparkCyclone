@@ -10,13 +10,17 @@ import java.nio.file.FileSystems
 import java.util.UUID
 import org.bytedeco.javacpp.{BytePointer, DoublePointer, LongPointer}
 import org.bytedeco.veoffload.global.veo
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Eventually with VeKernelInfra {
+final class VeProcessUnitSpec extends AnyWordSpec
+                              with BeforeAndAfterAll
+                              with BeforeAndAfterEach
+                              with Eventually
+                              with VeKernelInfra {
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = scaled(3.seconds),
     interval = scaled(0.5.seconds)
@@ -24,9 +28,15 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
 
   // Don't open the process here because the ScalaTest classes are initialized
   var process: VeProcess = _
+  // Create 4 asynchronous contexts to exercise async feaures more thoroughly
+  val NumContexts = 4
 
   override def beforeAll: Unit = {
-    process = VeProcess.create(getClass.getName)
+    process = VeProcess.create(getClass.getName, NumContexts)
+  }
+
+  override def beforeEach: Unit = {
+    process.load(LibCyclone.SoPath)
   }
 
   override def afterAll: Unit = {
@@ -80,6 +90,10 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       process.version shouldNot be (empty)
     }
 
+    "correctly return the number of asynchronous contexts available" in {
+      process.numThreads should be (NumContexts)
+    }
+
     "correctly allocate and free memory" in {
       val size = Random.nextInt(10000) + 100
 
@@ -122,6 +136,46 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
       // Double `free()` should just log error without running and crashing the JVM
       noException should be thrownBy {
         process.free(allocation.address)
+      }
+    }
+
+    "correctly free memory in bulk" in {
+      val sizes = 0.to(Random.nextInt(10) + 3).map(_ => Random.nextInt(10000) + 100)
+
+      // Tracker should be empty
+      process.heapAllocations shouldBe empty
+
+      val allocations = sizes.map(process.allocate(_))
+      allocations.map(_.address).foreach(_ should be > 0L)
+
+      // Tracker should now contain the records
+      process.heapAllocations should not be empty
+      process.heapAllocations.keys should be (allocations.map(_.address).toSet)
+
+      noException should be thrownBy {
+        process.freeSeq(allocations.map(_.address))
+      }
+
+      // Tracker should be back to empty
+      process.heapAllocations shouldBe empty
+    }
+
+    s"handle the case of attempting to allocating and freeing memory where ${LibCyclone.FileName} is not loaded yet" in {
+      // Make an allocation
+      val allocation = process.allocate(Random.nextInt(10000) + 100)
+
+      // Get the reference to libcyclone.so and unload and library
+      val lib = process.load(LibCyclone.SoPath)
+      process.unload(lib)
+
+      // Free should fail since the library is unloaded
+      intercept[IllegalArgumentException] {
+        process.free(allocation.address)
+      }
+
+      // Allocate should fail since the library is unloaded
+      intercept[IllegalArgumentException] {
+        process.allocate(Random.nextInt(10000) + 100)
       }
     }
 
@@ -423,9 +477,21 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         process.load(FileSystems.getDefault.getPath(s"/${UUID.randomUUID}/${UUID.randomUUID}"))
       }
 
-      val path = File.createTempFile("tmp-",".so").toPath
+      intercept[IllegalArgumentException] {
+        /*
+          Path is too long
+
+          NOTE: We fix to 233 random characters instead of `veo.VEO_SYMNAME_LEN_MAX`,
+          to avoid hitting `java.io.IOException: File name too long` on Linux while
+          still generating a full path that has length > `veo.VEO_SYMNAME_LEN_MAX`.
+        */
+        val path = File.createTempFile(Random.alphanumeric.take(233).mkString(""), ".so").toPath
+        process.load(path)
+      }
+
       intercept[IllegalArgumentException] {
         // Invalid .SO file
+        val path = File.createTempFile("tmp-",".so").toPath
         process.load(path)
       }
     }
@@ -439,8 +505,8 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         """.stripMargin
 
       withCompiled(code) { path =>
-        // Libraries tracker should be empty
-        process.loadedLibraries shouldBe empty
+        // Libraries tracker should not contain the library
+        process.loadedLibraries.keys should not contain (path.normalize.toString)
 
         // Load the library
         val library = process.load(path)
@@ -449,7 +515,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         library.path should be (path.normalize.toString)
 
         // Libraries tracker should now contain the record
-        process.loadedLibraries should be (Map(path.normalize.toString -> library))
+        process.loadedLibraries should contain (path.normalize.toString -> library)
 
         // Symbol with only whitespaces
         intercept[IllegalArgumentException] {
@@ -470,7 +536,7 @@ final class VeProcessUnitSpec extends AnyWordSpec with BeforeAndAfterAll with Ev
         process.unload(library)
 
         // Libraries tracker should be back to empty
-        process.loadedLibraries shouldBe empty
+        process.loadedLibraries should not contain (path.normalize.toString -> library)
       }
     }
 

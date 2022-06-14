@@ -4,8 +4,7 @@ import com.nec.colvector.{VeColVectorSource => VeSource}
 import java.nio.file.Path
 import com.codahale.metrics.MetricRegistry
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-import org.bytedeco.veoffload.veo_proc_handle
+import org.bytedeco.javacpp.{LongPointer, Pointer}
 
 final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess with LazyLogging {
   private var instantiated = false
@@ -42,6 +41,10 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.version
   }
 
+  lazy val numThreads: Int = {
+    if (instantiated) underlying.numThreads else 0
+  }
+
   def heapAllocations: Map[Long, VeAllocation] = {
     underlying.heapAllocations
   }
@@ -70,6 +73,13 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     // If the VeProcess is not instantiated yet, skip
     if (instantiated) {
       underlying.free(address, unsafe)
+    }
+  }
+
+  def freeSeq(addresses: Seq[Long], unsafe: Boolean = false): Unit = {
+    // If the VeProcess is not instantiated yet, skip
+    if (instantiated) {
+      underlying.freeSeq(addresses, unsafe)
     }
   }
 

@@ -21,8 +21,6 @@ package com.nec.spark
 
 import com.nec.cache.VeColBatchesCache
 import com.nec.colvector._
-import com.nec.util.CallContextOps._
-import com.nec.ve.VeProcessMetrics
 import com.nec.vectorengine._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -83,6 +81,9 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
       val resources = context.resources
       if (resources.containsKey("ve")) resources.get("ve").addresses.length else 1
     }
+
+    // Start the actual VE process by calling a method that will initialize it
+    SparkCycloneExecutorPlugin.veProcess.apiVersion
   }
 
   override def shutdown(): Unit = {

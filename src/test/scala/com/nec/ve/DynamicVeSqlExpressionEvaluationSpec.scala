@@ -40,7 +40,7 @@ final class DynamicVeSqlExpressionEvaluationSpec extends DynamicCSqlExpressionEv
 
   override def beforeAll: Unit = {
     super.beforeAll
-    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName)
+    SparkCycloneExecutorPlugin.veProcess = VeProcess.create(-1, getClass.getName, 2)
   }
 
   override def afterAll: Unit = {
