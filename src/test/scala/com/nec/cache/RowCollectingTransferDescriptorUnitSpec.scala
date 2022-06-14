@@ -55,21 +55,13 @@ final class RowCollectingTransferDescriptorUnitSpec extends AnyWordSpec with Wit
     Seq("applebananacarrotdurianeggplantfiggrapehawthornichigo".length * 4, 9 * 4, 9 * 4, 8)
   )
 
-  def vectorAlignedSize(size: Int): Long = {
-    val dangling = size % 8
-    if (dangling > 0) {
-      // If the size is not aligned on 8 bytes, add some padding
-      size + (8 - dangling)
-    } else {
-      size
-    }
-  }
-
-  val dataOffsets = colSizes.map { cs => cs.map(vectorAlignedSize) }
-    .map { cs => cs.scanLeft(0L)(_ + _)}
-    .scanLeft(Seq(headerSize.toLong * 8)){ (prev, cur) =>
-      cur.map(_ + prev.last)
-    }.tail
+  val dataOffsets = Seq(
+    // 168 = Data start offset
+    List(168, 208, 216),
+    List(216, 256, 264),
+    List(264, 336, 344),
+    List(344, 560, 600, 640, 648)
+  )
 
   val expectedRows = 9
 
