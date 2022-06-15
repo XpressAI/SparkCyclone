@@ -64,20 +64,46 @@ final case class GroupByPartialGenerator(
       inputs = inputs,
       outputs = partialOutputs,
       body = CodeLines.from(
+        "clock_t t0 = clock();",
+        "",
         allocateOutputBatchPointers,
+        "clock_t t1 = clock();",
         performGrouping(count = s"${inputs.head.name}->count"),
+        "clock_t t2 = clock();",
         computeBatchPlacementsPerGroup,
+        "clock_t t3 = clock();",
         countBatchSizes,
+        "clock_t t4 = clock();",
         allocateActualBatches,
+        "clock_t t5 = clock();",
         stringVectorComputations.map(_.computeVector),
+        "clock_t t6 = clock();",
         computeGroupingKeysPerGroup,
+        "clock_t t7 = clock();",
         computedProjections.map { case (sp, e) =>
           computeProjectionsPerGroup(sp, e)
         },
+        "clock_t t8 = clock();",
         computedAggregates.map { case (a, ag) =>
           computeAggregatePartialsPerGroup(a, ag)
         },
-        freeGroupingAllocations
+        "clock_t t9 = clock();",
+        freeGroupingAllocations,
+        "clock_t t10 = clock();",
+        "",
+        """std::cout << " TTTTTT Timings TTTTTT" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t1-t0)/CLOCKS_PER_SEC+.5) << "ms for allocateOutputBatchPointers" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t2-t1)/CLOCKS_PER_SEC+.5) << "ms for performGrouping" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t3-t2)/CLOCKS_PER_SEC+.5) << "ms for computeBatchPlacementsPerGroup" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t4-t3)/CLOCKS_PER_SEC+.5) << "ms for countBatchSizes" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t5-t4)/CLOCKS_PER_SEC+.5) << "ms for allocateActualBatches" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t6-t5)/CLOCKS_PER_SEC+.5) << "ms for stringVectorComputations" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t7-t6)/CLOCKS_PER_SEC+.5) << "ms for computeGroupingKeysPerGroup" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t8-t7)/CLOCKS_PER_SEC+.5) << "ms for computedProjections" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t9-t8)/CLOCKS_PER_SEC+.5) << "ms for computedAggregates" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t10-t9)/CLOCKS_PER_SEC+.5) << "ms for freeGroupingAllocations" << std::endl;""",
+        """std::cout << (long)(1000.0 * ((float)t10-t0)/CLOCKS_PER_SEC+.5) << "ms in total" << std::endl;""",
+        """std::cout << " TTTTTTTTTTTTTTTTTTTTT" << std::endl;""",
       ),
       hasSets = true
     )
@@ -175,7 +201,7 @@ final case class GroupByPartialGenerator(
               s"size_t* group_indexes = batch_group_indexes[b].data();",
               s"size_t i=0;",
               CodeLines.forLoop("g", groupingCodeGenerator.groupsCountOutName) {
-                CodeLines.ifStatement("${BatchAssignmentsId}[g] == b") {
+                CodeLines.ifStatement(s"${BatchAssignmentsId}[g] == b") {
                   CodeLines.from(
                     s"group_indexes[i++] = sorted_idx[groups_indices[g]];"
                   )

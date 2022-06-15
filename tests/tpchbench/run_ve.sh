@@ -29,5 +29,6 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.sql.inMemoryColumnarStorage.batchSize=128000 \
     --conf spark.sql.autoBroadcastJoinThreshold=-1 \
     --conf spark.shuffle.partitions=8 \
+    --conf spark.com.nec.spark.ve.columnBatchSize=1048576 \
     target/scala-2.12/tpchbench-assembly-0.0.1.jar \
     $*
