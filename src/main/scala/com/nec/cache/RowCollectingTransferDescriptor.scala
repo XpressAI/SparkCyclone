@@ -22,16 +22,6 @@ trait VeTransferCol {
 
   def writeHeader(target: LongPointer, targetPosition: Long): Long
   def writeData(target: BytePointer, targetPosition: Long): Long
-
-  private[cache] def vectorAlignedSize(size: Long): Long = {
-    val dangling = size % 8
-    if (dangling > 0) {
-      // If the size is not aligned on 8 bytes, add some padding
-      size + (8 - dangling)
-    } else {
-      size
-    }
-  }
 }
 
 case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) extends VeTransferCol {
@@ -79,7 +69,12 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
     targetPosition + 4
   }
 
-  def totalDataSize: Long = Seq(dataSize, validityBufferSize).map(vectorAlignedSize(_)).sum
+  def totalDataSize: Long = {
+    Seq(dataSize, validityBufferSize)
+      .map(x => TransferDescriptor.vectorAlignedSize(x.toLong))
+      .sum
+  }
+
   def writeData(target: BytePointer, targetPosition: Long): Long = {
     val curDataBytes = dataSize
     val curValidityBytes = validityBufferSize
@@ -92,11 +87,11 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
     target.position(origPosition)
 
     pos += curDataBytes
-    pos = vectorAlignedSize(pos)
+    pos = TransferDescriptor.vectorAlignedSize(pos)
 
     target.position(pos).put(validityBuffer.toByteArray, 0, curValidityBytes).position(origPosition)
 
-    vectorAlignedSize(pos + curValidityBytes)
+    TransferDescriptor.vectorAlignedSize(pos + curValidityBytes)
   }
 
   // scalar vectors produce 3 pointers (struct, data buffer, validity buffer)
@@ -129,7 +124,9 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
   private def validityBufferSize = (count / 64f).ceil.toInt * 8
 
   override def totalDataSize: Long = {
-    Seq(dataSize, offsetsSize, lengthsSize, validityBufferSize).map(vectorAlignedSize(_)).sum
+    Seq(dataSize, offsetsSize, lengthsSize, validityBufferSize)
+      .map(x => TransferDescriptor.vectorAlignedSize(x.toLong))
+      .sum
   }
 
   override def writeHeader(target: LongPointer, targetPosition: Long): Long = {
@@ -160,23 +157,23 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
     }
     target.position(origPos)
 
-    pos = vectorAlignedSize(pos)
+    pos = TransferDescriptor.vectorAlignedSize(pos)
     offsets.foreach{ o =>
       target.putInt(pos, o)
       pos += 4
     }
 
-    pos = vectorAlignedSize(pos)
+    pos = TransferDescriptor.vectorAlignedSize(pos)
     lengths.foreach{ l =>
       target.putInt(pos, l)
       pos += 4
     }
 
-    pos = vectorAlignedSize(pos)
+    pos = TransferDescriptor.vectorAlignedSize(pos)
     val validityBufferArr = validityBuffer.toByteArray
     target.position(pos).put(validityBufferArr, 0, validityBufferArr.length).position(origPos)
 
-    vectorAlignedSize(pos + validityBufferArr.length)
+    TransferDescriptor.vectorAlignedSize(pos + validityBufferArr.length)
   }
 
   // nullable_varchar_vector produce 5 pointers (struct, data buffer, offsets, lengths, validity buffer)

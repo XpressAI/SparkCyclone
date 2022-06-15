@@ -341,8 +341,8 @@ class VectorEngineImpl(val process: VeProcess,
   def executeTransfer(lib: LibraryReference,
                       descriptor: TransferDescriptor)
                      (implicit context: CallContext): VeColBatch = {
-    import com.nec.spark.SparkCycloneExecutorPlugin.source
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
+    implicit val source = process.source
 
     // Allocate the buffer in VE and transfer the data over
     logger.debug("Allocating VE memory and transferring data over using TransferDescriptor...")
@@ -372,9 +372,13 @@ class VectorEngineImpl(val process: VeProcess,
                      (implicit context: CallContext): VeColBatch = {
     require(descriptor.nonEmpty, "TransferDescriptor is empty")
 
-    // Load libcyclone if not already loaded
-    // *_ONLY WORKS IN TESTS_*
-    val lib = process.load(LibCyclone.SoPath)
+    val lib = process.cycloneLibrary match {
+      case Some(x)  => x
+      case None     =>
+        // Load libcyclone if not already loaded
+        // *_ONLY WORKS IN TESTS_*
+        process.load(LibCyclone.SoPath)
+    }
 
     executeTransfer(lib, descriptor)
   }

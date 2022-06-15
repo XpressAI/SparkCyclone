@@ -4,10 +4,9 @@ import com.nec.spark.agile.core.{VeString, VeType}
 import com.nec.util.CallContext
 import com.nec.vectorengine.{VeAsyncResult, VeProcess}
 import com.nec.ve.VeProcessMetrics
-import org.bytedeco.javacpp.BytePointer
-
 import java.io.{DataInputStream, DataOutputStream, InputStream}
 import java.nio.channels.Channels
+import org.bytedeco.javacpp.BytePointer
 
 final case class UnitColVector private[colvector] (
   source: VeColVectorSource,

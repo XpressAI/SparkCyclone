@@ -55,7 +55,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
   private[cache] lazy val dataOffsets: Seq[Long] = {
     columns.flatMap(_.buffers)
       // Get the size of each buffer in bytes
-      .map { buf => vectorAlignedSize(buf.limit) }
+      .map { buf => TransferDescriptor.vectorAlignedSize(buf.limit) }
       // Start the accumulation from header total size
       // Offsets are in bytes
       .scanLeft(headerOffsets.last * 8)(_ + _)
@@ -74,16 +74,6 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
       }
       // Accumulate the offsets (offsets are in uint64_t)
       .scanLeft(0L)(_ + _)
-  }
-
-  private[cache] def vectorAlignedSize(size: Long): Long = {
-    val dangling = size % 8
-    if (dangling > 0) {
-      // If the size is not aligned on 8 bytes, add some padding
-      size + (8 - dangling)
-    } else {
-      size
-    }
   }
 
   lazy val buffer: BytePointer = {

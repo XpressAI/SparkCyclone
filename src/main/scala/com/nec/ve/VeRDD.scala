@@ -230,7 +230,7 @@ abstract class ChainedVeRDD[T](
     }
 
     val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
-    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    out.setSerializer(new VeSerializer(sparkContext.getConf))
     new VeConcatGroups[K, T](out)
   }
 
@@ -255,7 +255,7 @@ abstract class ChainedVeRDD[T](
       mapped,
       new RangePartitioner(this.partitions.length, mapped, ascending)
     ).setKeyOrdering(ord)
-    shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    shuffle.setSerializer(new VeSerializer(sparkContext.getConf))
     val values = shuffle.map(_._2)
 
     VeConcatRDD[T, T](values, newFunc.types.copy(output = newFunc.types.input))
@@ -356,7 +356,7 @@ class BasicVeRDD[T](
     }
 
     val out = new ShuffledRDD[K, VeColBatch, VeColBatch](mapped, new HashPartitioner(this.partitions.length))
-    out.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    out.setSerializer(new VeSerializer(sparkContext.getConf))
     new VeConcatGroups[K, T](out)
   }
 
@@ -381,7 +381,7 @@ class BasicVeRDD[T](
       mapped,
       new RangePartitioner(this.partitions.length, mapped, ascending)
     ).setKeyOrdering(ord)
-    shuffle.setSerializer(new VeSerializer(sparkContext.getConf, true))
+    shuffle.setSerializer(new VeSerializer(sparkContext.getConf))
     val values = shuffle.map(_._2)
 
     VeConcatRDD[T, T](values, newFunc.types.copy(output = newFunc.types.input))

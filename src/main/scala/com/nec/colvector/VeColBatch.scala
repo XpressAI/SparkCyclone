@@ -1,6 +1,6 @@
 package com.nec.colvector
 
-import com.nec.cache.{BpcvTransferDescriptor, UcvTransferDescriptor}
+import com.nec.cache.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
@@ -69,36 +69,15 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   }
 
   def streamedSize: Int = {
-    Seq(4, 4) ++ columns.flatMap { col =>
-      Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
-    }
+    val ucolumns = columns.map(_.toUnitColVector)
+
+    Seq(4, 4) ++
+      ucolumns.flatMap(c => Seq(4, c.streamedSize)) ++
+      Seq(4, 8) ++
+      Seq(TransferDescriptor.bufferSize(ucolumns).toInt)
   }.sum
 
-  def toStream(stream: DataOutputStream)(implicit process: VeProcess,
-                                         metrics: VeProcessMetrics): Unit = {
-    val hostBuffersAsync = columns.map(_.toBytePointersAsync())
-    val channel = Channels.newChannel(stream)
-
-    stream.writeInt(VeColBatch.ColLengthsId)
-    stream.writeInt(columns.size)
-    columns.zip(hostBuffersAsync).foreach { case (vec, buffers) =>
-      stream.writeInt(VeColBatch.DescLengthId)
-      stream.writeInt(-1)
-      stream.writeInt(VeColBatch.DescDataId)
-      vec.toUnitColVector.toStream(stream)
-      stream.writeInt(VeColBatch.PayloadBytesLengthId)
-      // no bytes length as it's a stream here
-      stream.writeInt(-1)
-      stream.writeInt(VeColBatch.PayloadBytesId)
-      buffers.map(_.get).filterNot(_.limit() == 0).foreach{ bytePointer =>
-        val numWritten = channel.write(bytePointer.asBuffer())
-        require(numWritten == bytePointer.limit(), s"Written ${numWritten}, expected ${bytePointer.limit()}")
-      }
-    }
-  }
-
-  def toStream2(stream: DataOutputStream)(implicit process: VeProcess,
-                                         metrics: VeProcessMetrics): Unit = {
+  def toStream(stream: DataOutputStream)(implicit process: VeProcess): Unit = {
     val bcolumns = columns.map(_.toBytePointerColVector)
     val channel = Channels.newChannel(stream)
 
@@ -121,6 +100,9 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
 
     // Write the buffer to the stream via a channel
     channel.write(descriptor.buffer.asBuffer)
+
+    // Close the descriptor
+    descriptor.close
   }
 
   def toBytes(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
@@ -188,43 +170,7 @@ object VeColBatch {
     require(v == e, s"Expected id ${e}, got ${v}")
   }
 
-  def fromStream(din: DataInputStream)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    context: CallContext
-  ): VeColBatch = {
-    ensureId(din.readInt(), ColLengthsId)
-
-    val numCols = din.readInt()
-    val columns = (0 until numCols).map { i =>
-      try {
-        ensureId(din.readInt(), DescLengthId)
-
-        // not used, stream based now
-        val descLength = din.readInt()
-        ensureId(din.readInt(), DescDataId)
-        val unitColVector = UnitColVector.fromStream(din)
-        ensureId(din.readInt(), PayloadBytesLengthId)
-        // ignored here, because we read stream-based
-        val payloadLength = din.readInt()
-        ensureId(din.readInt(), PayloadBytesId)
-        unitColVector.withData(din)
-      } catch {
-        case e: Throwable =>
-          val stuffAfter =
-            (0 until 12).map(_ => Try(din.read()).toOption.fold("-")(_.toString)).toList
-          throw new RuntimeException(
-            s"Failed to read: stream is ${din}; there were ${numCols} columns described; we are at the ${i}th; error ${e}; bytes after = ${stuffAfter}",
-            e
-          )
-      }
-    }.map(_.apply()).map(_.get)
-
-    VeColBatch(columns)
-  }
-
-  def fromStream2(stream: DataInputStream)(implicit engine: VectorEngine,
-                                          source: VeColVectorSource,
+  def fromStream(stream: DataInputStream)(implicit engine: VectorEngine,
                                           context: CallContext): VeColBatch = {
     val channel = Channels.newChannel(stream)
 

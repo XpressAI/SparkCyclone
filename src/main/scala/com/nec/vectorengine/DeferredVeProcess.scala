@@ -41,8 +41,12 @@ final case class DeferredVeProcess(newproc: () => VeProcess) extends VeProcess w
     underlying.version
   }
 
-  lazy val numThreads: Int = {
+  def numThreads: Int = {
     if (instantiated) underlying.numThreads else 0
+  }
+
+  def cycloneLibrary: Option[LibraryReference] = {
+    if (instantiated) underlying.cycloneLibrary else None
   }
 
   def heapAllocations: Map[Long, VeAllocation] = {
