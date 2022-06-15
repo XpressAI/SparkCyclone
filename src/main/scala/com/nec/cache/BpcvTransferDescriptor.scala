@@ -3,9 +3,8 @@ package com.nec.cache
 import com.nec.colvector.{BytePointerColVector, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.agile.core.{VeScalarType, VeString}
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-
 import scala.collection.mutable.ListBuffer
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
   extends TransferDescriptor with LazyLogging {
