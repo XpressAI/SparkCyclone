@@ -3,9 +3,8 @@ package com.nec.cache
 import com.nec.colvector.{BytePointerColVector, VeColBatch, VeColVector, VeColVectorSource}
 import com.nec.spark.agile.core.{VeScalarType, VeString}
 import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
-
 import scala.collection.mutable.ListBuffer
+import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
 
 case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
   extends TransferDescriptor with LazyLogging {
@@ -56,7 +55,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
   private[cache] lazy val dataOffsets: Seq[Long] = {
     columns.flatMap(_.buffers)
       // Get the size of each buffer in bytes
-      .map { buf => vectorAlignedSize(buf.limit) }
+      .map { buf => TransferDescriptor.vectorAlignedSize(buf.limit) }
       // Start the accumulation from header total size
       // Offsets are in bytes
       .scanLeft(headerOffsets.last * 8)(_ + _)
@@ -77,16 +76,6 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
       .scanLeft(0L)(_ + _)
   }
 
-  private[cache] def vectorAlignedSize(size: Long): Long = {
-    val dangling = size % 8
-    if (dangling > 0) {
-      // If the size is not aligned on 8 bytes, add some padding
-      size + (8 - dangling)
-    } else {
-      size
-    }
-  }
-
   lazy val buffer: BytePointer = {
     require(nbatches > 0, "Need more than 0 batches for transfer!")
     require(ncolumns > 0, "Need more than 0 columns for transfer!")
@@ -94,7 +83,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     logger.debug(s"Preparing transfer buffer for ${nbatches} batches of ${ncolumns} columns")
 
     // Total size of the buffer is computed from scan-left of the header and data sizes
-    val tsize = (headerOffsets.last * 8) + dataOffsets.last
+    val tsize = dataOffsets.last
 
     logger.debug(s"Allocating transfer buffer of ${tsize} bytes")
     val outbuffer = new BytePointer(tsize)
@@ -197,14 +186,14 @@ object BpcvTransferDescriptor {
     }
 
     def addColumns(columns: Seq[BytePointerColVector]): Builder = {
-      if(curBatch.isEmpty) newBatch()
+      if (curBatch.isEmpty) newBatch()
       curBatch.get ++= columns
       this
     }
 
     def build(): BpcvTransferDescriptor = {
       val batchesList = batches.map(_.toList).toList
-      if(batchesList.nonEmpty){
+      if (batchesList.nonEmpty) {
         val size = batchesList.head.size
         require(batchesList.forall(_.size == size), "All batches must have the same column count!")
       }

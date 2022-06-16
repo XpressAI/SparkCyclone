@@ -52,7 +52,7 @@ object VeRDDOps extends LazyLogging {
         }
         (idx, veColBatch)
       }
-      .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf, cleanUpInput)), partitions)
+      .repartitionByKey(Some(new VeSerializer(rdd.sparkContext.getConf)), partitions)
       .map { case (_, vb) => vb }
 
   def joinExchange[K: ClassTag](
@@ -82,7 +82,7 @@ object VeRDDOps extends LazyLogging {
       ),
       new HashPartitioner(HashExchangeBuckets)
     )
-    cg.setSerializer(new VeSerializer(left.sparkContext.getConf, cleanUpInput))
+    cg.setSerializer(new VeSerializer(left.sparkContext.getConf))
     cg.mapValues { case Array(vs, w1s) =>
       (vs.asInstanceOf[Iterable[DualBatchOrBytes]], w1s.asInstanceOf[Iterable[DualBatchOrBytes]])
     }.map{ case (_, (leftIter, rightIter)) =>

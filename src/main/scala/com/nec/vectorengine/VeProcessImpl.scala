@@ -158,6 +158,10 @@ final case class WrappingVeo private (val node: Int,
     tcontexts.size
   }
 
+  def cycloneLibrary: Option[LibraryReference] = {
+    Option(libCyclone)
+  }
+
   def heapAllocations: Map[Long, VeAllocation] = {
     heapRecords.toMap
   }
@@ -351,7 +355,7 @@ final case class WrappingVeo private (val node: Int,
       val throughput = (buffer.nbytes / 1024 / 1024) / (duration / 1e9)
       putThroughputsHistogram.update(throughput.toLong)
       putSizesHistogram.update(buffer.nbytes)
-      logger.debug(s"[${handle.address}] Transfer of ${buffer.nbytes} bytes to the VE took ${duration / 1e6} ms (${throughput} MB/s")
+      logger.debug(s"[${handle.address}] Transfer of ${buffer.nbytes} bytes to the VE took ${duration / 1e6} ms (${throughput} MB/s)")
 
       allocation
     }
@@ -557,7 +561,7 @@ final case class WrappingVeo private (val node: Int,
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     withVeoThread { tcontext =>
-      logger.trace(s"[${handle.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
+      logger.trace(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
 
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(

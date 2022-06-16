@@ -1,15 +1,16 @@
 package com.nec.colvector
 
+import com.nec.cache.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.spark.agile.core.VeType
 import com.nec.util.CallContext
 import com.nec.ve.VeProcessMetrics
-import com.nec.vectorengine.VeProcess
+import com.nec.vectorengine.{VeProcess, VectorEngine}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
-
+import org.bytedeco.javacpp.BytePointer
 import java.io._
 import java.nio.channels.Channels
 import scala.reflect.ClassTag
@@ -68,32 +69,40 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   }
 
   def streamedSize: Int = {
-    Seq(4, 4) ++ columns.flatMap { col =>
-      Seq(4, 4, 4, col.toUnitColVector.streamedSize, 4, 4, 4, col.bufferSizes.sum)
-    }
+    val ucolumns = columns.map(_.toUnitColVector)
+
+    Seq(4, 4) ++
+      ucolumns.flatMap(c => Seq(4, c.streamedSize)) ++
+      Seq(4, 8) ++
+      Seq(TransferDescriptor.bufferSize(ucolumns).toInt)
   }.sum
 
-  def toStream(stream: DataOutputStream)(implicit process: VeProcess,
-                                         metrics: VeProcessMetrics): Unit = {
-    val hostBuffersAsync = columns.map(_.toBytePointersAsync())
+  def toStream(stream: DataOutputStream)(implicit process: VeProcess): Unit = {
+    val bcolumns = columns.map(_.toBytePointerColVector)
     val channel = Channels.newChannel(stream)
 
+    // Set number of columns
     stream.writeInt(VeColBatch.ColLengthsId)
-    stream.writeInt(columns.size)
-    columns.zip(hostBuffersAsync).foreach { case (vec, buffers) =>
-      stream.writeInt(VeColBatch.DescLengthId)
-      stream.writeInt(-1)
+    stream.writeInt(bcolumns.size)
+
+    // Write UnitColVector data for each column
+    bcolumns.foreach { column =>
       stream.writeInt(VeColBatch.DescDataId)
-      vec.toUnitColVector.toStream(stream)
-      stream.writeInt(VeColBatch.PayloadBytesLengthId)
-      // no bytes length as it's a stream here
-      stream.writeInt(-1)
-      stream.writeInt(VeColBatch.PayloadBytesId)
-      buffers.map(_.get).filterNot(_.limit() == 0).foreach{ bytePointer =>
-        val numWritten = channel.write(bytePointer.asBuffer())
-        require(numWritten == bytePointer.limit(), s"Written ${numWritten}, expected ${bytePointer.limit()}")
-      }
+      column.toUnitColVector.toStream(stream)
     }
+
+    // Create the transfer descriptor
+    val descriptor = BpcvTransferDescriptor(Seq(bcolumns))
+
+    // Generate the buffer and write its size
+    stream.writeInt(VeColBatch.PayloadBytesLengthId)
+    stream.writeLong(descriptor.buffer.limit())
+
+    // Write the buffer to the stream via a channel
+    channel.write(descriptor.buffer.asBuffer)
+
+    // Close the descriptor
+    descriptor.close
   }
 
   def toBytes(implicit process: VeProcess, metrics: VeProcessMetrics): Array[Byte] = {
@@ -161,39 +170,40 @@ object VeColBatch {
     require(v == e, s"Expected id ${e}, got ${v}")
   }
 
-  def fromStream(din: DataInputStream)(implicit
-    veProcess: VeProcess,
-    source: VeColVectorSource,
-    context: CallContext
-  ): VeColBatch = {
-    ensureId(din.readInt(), ColLengthsId)
+  def fromStream(stream: DataInputStream)(implicit engine: VectorEngine,
+                                          context: CallContext): VeColBatch = {
+    val channel = Channels.newChannel(stream)
 
-    val numCols = din.readInt()
-    val columns = (0 until numCols).map { i =>
-      try {
-        ensureId(din.readInt(), DescLengthId)
+    // Read the number of columns
+    ensureId(stream.readInt, ColLengthsId)
+    val ncolumns = stream.readInt
 
-        // not used, stream based now
-        val descLength = din.readInt()
-        ensureId(din.readInt(), DescDataId)
-        val unitColVector = UnitColVector.fromStream(din)
-        ensureId(din.readInt(), PayloadBytesLengthId)
-        // ignored here, because we read stream-based
-        val payloadLength = din.readInt()
-        ensureId(din.readInt(), PayloadBytesId)
-        unitColVector.withData(din)
-      } catch {
-        case e: Throwable =>
-          val stuffAfter =
-            (0 until 12).map(_ => Try(din.read()).toOption.fold("-")(_.toString)).toList
-          throw new RuntimeException(
-            s"Failed to read: stream is ${din}; there were ${numCols} columns described; we are at the ${i}th; error ${e}; bytes after = ${stuffAfter}",
-            e
-          )
+    // Read the UnitColVector data for each column
+    val ucolumns = 0.until(ncolumns).map { _ =>
+      ensureId(stream.readInt, DescDataId)
+      UnitColVector.fromStream(stream)
+    }
+
+    // Read the transfer descriptor buffer size
+    ensureId(stream.readInt, PayloadBytesLengthId)
+    val nbytes = stream.readLong
+
+    // Read the buffer
+    val buffer = {
+      val ptr = new BytePointer(nbytes)
+      val buf = ptr.asBuffer
+      var bytesRead = 0L
+      while (bytesRead < nbytes) {
+        bytesRead += channel.read(buf)
       }
-    }.map(_.apply()).map(_.get)
+      ptr
+    }
 
-    VeColBatch(columns)
+    // Construct the UcvTransferDescriptor from the UnitColVector's and buffer
+    val descriptor = UcvTransferDescriptor(ucolumns, buffer)
+
+    // Perform the transfer and return VeColBatch
+    engine.executeTransfer(descriptor)
   }
 
   def fromBytes(data: Array[Byte])(implicit source: VeColVectorSource,

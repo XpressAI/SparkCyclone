@@ -64,6 +64,8 @@ trait VeProcess {
 
   def numThreads: Int
 
+  def cycloneLibrary: Option[LibraryReference]
+
   def heapAllocations: Map[Long, VeAllocation]
 
   def stackAllocations: Map[Long, VeCallArgsStack]
