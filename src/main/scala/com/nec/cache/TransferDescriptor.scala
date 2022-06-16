@@ -64,6 +64,6 @@ object TransferDescriptor {
     }
 
     // Total size of the buffer is computed from scan-left of the header and data sizes
-    (headerOffsets.last * 8) + dataOffsets.last
+    dataOffsets.last
   }
 }

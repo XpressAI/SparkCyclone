@@ -5,13 +5,13 @@ import com.nec.spark.agile.core.{VeScalarType, VeString}
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, LongPointer}
 
-case class UcvTransferDescriptor(batch: Seq[UnitColVector],
+case class UcvTransferDescriptor(columns: Seq[UnitColVector],
                                  val buffer: BytePointer)
                                  extends TransferDescriptor with LazyLogging {
   require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
 
   lazy val isEmpty: Boolean = {
-    batch.isEmpty
+    columns.isEmpty
   }
 
   lazy val nonEmpty: Boolean = {
@@ -19,15 +19,15 @@ case class UcvTransferDescriptor(batch: Seq[UnitColVector],
   }
 
   private[cache] lazy val nbatches: Long = {
-    batch.size.toLong
+    columns.size.toLong
   }
 
   private[cache] lazy val ncolumns: Long = {
-    batch.headOption.map(_.numItems.toLong).getOrElse(0L)
+    columns.headOption.map(_.numItems.toLong).getOrElse(0L)
   }
 
   private[cache] lazy val resultOffsets: Seq[Long] = {
-    batch.map(_.veType)
+    columns.map(_.veType)
       .map {
         case _: VeScalarType =>
           // scalar vectors prodduce 3 pointers (struct, data buffer, validity buffer)
@@ -51,7 +51,7 @@ case class UcvTransferDescriptor(batch: Seq[UnitColVector],
   }
 
   def resultToColBatch(implicit source: VeColVectorSource): VeColBatch = {
-    val vcolumns = batch.zipWithIndex.map { case (column, i) =>
+    val vcolumns = columns.zipWithIndex.map { case (column, i) =>
       logger.debug(s"Reading output pointers for column ${i}")
 
       val cbuf = resultBuffer.position(resultOffsets(i))

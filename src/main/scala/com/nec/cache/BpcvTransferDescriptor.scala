@@ -83,7 +83,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     logger.debug(s"Preparing transfer buffer for ${nbatches} batches of ${ncolumns} columns")
 
     // Total size of the buffer is computed from scan-left of the header and data sizes
-    val tsize = (headerOffsets.last * 8) + dataOffsets.last
+    val tsize = dataOffsets.last
 
     logger.debug(s"Allocating transfer buffer of ${tsize} bytes")
     val outbuffer = new BytePointer(tsize)
@@ -186,14 +186,14 @@ object BpcvTransferDescriptor {
     }
 
     def addColumns(columns: Seq[BytePointerColVector]): Builder = {
-      if(curBatch.isEmpty) newBatch()
+      if (curBatch.isEmpty) newBatch()
       curBatch.get ++= columns
       this
     }
 
     def build(): BpcvTransferDescriptor = {
       val batchesList = batches.map(_.toList).toList
-      if(batchesList.nonEmpty){
+      if (batchesList.nonEmpty) {
         val size = batchesList.head.size
         require(batchesList.forall(_.size == size), "All batches must have the same column count!")
       }

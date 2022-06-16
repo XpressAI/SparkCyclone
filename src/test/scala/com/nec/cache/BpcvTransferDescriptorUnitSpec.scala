@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
+final class BpcvTransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
   private def batch1: Seq[BytePointerColVector] = {
     Seq(
       Array[Short](1, 2).toBytePointerColVector("1a"),
@@ -44,7 +44,7 @@ final class TransferDescriptorUnitSpec extends AnyWordSpec with WithVeProcess {
     BpcvTransferDescriptor(Seq(batch1, batch2, batch3))
   }
 
-  "TransferDescriptor" should {
+  "BpcvTransferDescriptor" should {
     "correctly write the transfer header into the buffer" in {
       val descriptor = sampleDescriptor
 

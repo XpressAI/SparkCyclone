@@ -1,26 +1,32 @@
 package com.nec.ve.serializer
 
-import com.nec.colvector.ArrayTConversions._
-import com.nec.colvector.VeColBatch
+import com.nec.colvector.SeqOptTConversions._
+import com.nec.colvector.{InputSamples, VeColBatch}
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.util.CallContextOps._
 import com.nec.ve.serializer.DualBatchOrBytes.ColBatchWrapper
-import com.nec.ve.VeKernelInfra
 import com.nec.vectorengine.WithVeProcess
+import scala.util.Random
 import java.io._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeSerializerSpec extends AnyWordSpec with WithVeProcess with VeKernelInfra {
-  import com.nec.util.CallContextOps._
-
+final class VeSerializerSpec extends AnyWordSpec with WithVeProcess {
   "VeSerializer" should {
-    "check serializer fully" in {
-      val array1 = Array[Double](1, 2, 3)
-      val array2 = Array[Double](-1, -2, -3)
-      val batch1 = VeColBatch(Seq(array1, array2).map(_.toBytePointerColVector("_").toVeColVector))
+    s"correctly serialize and deserialize ${classOf[VeColBatch]}'s" in {
+      val size = Random.nextInt(100) + 10
+      val input1 = InputSamples.seqOpt[Int](size)
+      val input2 = InputSamples.seqOpt[Double](size)
+      val input3 = InputSamples.seqOpt[String](size)
 
-      val bostream = new ByteArrayOutputStream()
+      val batch1 = VeColBatch(Seq(
+        input1.toBytePointerColVector("_").toVeColVector,
+        input2.toBytePointerColVector("_").toVeColVector,
+        input3.toBytePointerColVector("_").toVeColVector
+      ))
+
+      val bostream = new ByteArrayOutputStream
       val ostream = new VeSerializationStream(bostream)
       ostream.writeObject(ColBatchWrapper(batch1))
       ostream.flush
@@ -28,13 +34,16 @@ final class VeSerializerSpec extends AnyWordSpec with WithVeProcess with VeKerne
 
       val bistream = new ByteArrayInputStream(bostream.toByteArray)
       val istream = new VeDeserializationStream(bistream)
-      val bytesOnly = istream
+      val bytes = istream
         .readObject[DualBatchOrBytes]()
-        .fold(bytesOnly => bytesOnly, _ => sys.error(s"Got col batch, expected bytes"))
+        .fold(x => x, _ => sys.error(s"Got col batch, expected bytes"))
 
-      val batch2 = VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytesOnly.bytes)))
-      val output = batch2.columns.map(_.toBytePointerColVector.toArray[Double].toSeq)
-      output should be(Seq(array1, array2).map(_.toSeq))
+      val batch2 = VeColBatch.fromStream(new DataInputStream(new ByteArrayInputStream(bytes.bytes)))
+
+      batch2.columns.size should be (3)
+      batch2.columns(0).toBytePointerColVector.toSeqOpt[Int] should be (input1)
+      batch2.columns(1).toBytePointerColVector.toSeqOpt[Double] should be (input2)
+      batch2.columns(2).toBytePointerColVector.toSeqOpt[String] should be (input3)
     }
   }
 }
