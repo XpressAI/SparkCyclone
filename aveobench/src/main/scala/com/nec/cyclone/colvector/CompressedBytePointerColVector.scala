@@ -12,7 +12,7 @@ final case class CompressedBytePointerColVector private[colvector] (
   val numItems: Int,
   buffer: BytePointer,
   val dataSize: Option[Int]
-) extends ColVectorUtilsTrait {
+) extends ColVectorLike {
   private[colvector] def newStruct(location: Long): BytePointer = {
     val lens = bufferSizes
 

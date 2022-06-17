@@ -12,7 +12,7 @@ final case class BytePointerColVector private[colvector] (
   veType: VeType,
   numItems: Int,
   buffers: Seq[BytePointer],
-) {
+) extends ColVectorLike {
   require(
     numItems >= 0,
     s"[${getClass.getName}] numItems should be >= 0"

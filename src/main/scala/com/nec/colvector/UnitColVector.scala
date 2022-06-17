@@ -14,7 +14,7 @@ final case class UnitColVector private[colvector] (
   veType: VeType,
   numItems: Int,
   dataSize: Option[Int]
-) extends ColVectorUtilsTrait {
+) extends ColVectorLike {
   require(
     numItems >= 0,
     s"[${getClass.getName}] numItems should be >= 0"
