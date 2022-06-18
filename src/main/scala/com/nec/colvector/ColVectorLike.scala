@@ -2,7 +2,7 @@ package com.nec.colvector
 
 import com.nec.spark.agile.core.{VeScalarType, VeString, VeType}
 
-trait ColVectorUtilsTrait {
+trait ColVectorLike {
   def numItems: Int
   def veType: VeType
   def dataSize: Option[Int]

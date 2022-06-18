@@ -10,41 +10,15 @@ case class UcvTransferDescriptor(columns: Seq[UnitColVector],
                                  extends TransferDescriptor with LazyLogging {
   require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
 
-  lazy val isEmpty: Boolean = {
-    columns.isEmpty
-  }
-
   lazy val nonEmpty: Boolean = {
-    !isEmpty
-  }
-
-  private[cache] lazy val nbatches: Long = {
-    columns.size.toLong
-  }
-
-  private[cache] lazy val ncolumns: Long = {
-    columns.headOption.map(_.numItems.toLong).getOrElse(0L)
+    columns.nonEmpty
   }
 
   private[cache] lazy val resultOffsets: Seq[Long] = {
-    columns.map(_.veType)
-      .map {
-        case _: VeScalarType =>
-          // scalar vectors prodduce 3 pointers (struct, data buffer, validity buffer)
-          3L
-
-        case VeString =>
-          // nullable_varchar_vector produce 5 pointers (struct, data buffer, offsets, lengths, validity buffer)
-          5L
-      }
-      // Accumulate the offsets (offsets are in uint64_t)
-      .scanLeft(0L)(_ + _)
+    TransferDescriptor.resultOffsets(columns)
   }
 
   lazy val resultBuffer: LongPointer = {
-    require(nbatches > 0, "Need more than 0 batches for creating a result buffer!")
-    require(ncolumns > 0, "Need more than 0 columns for creating a result buffer!")
-
     // Total size of the buffer is computed from scan-left of the result sizes
     logger.debug(s"Allocating transfer output pointer of ${resultOffsets.last} bytes")
     new LongPointer(resultOffsets.last)
@@ -54,6 +28,7 @@ case class UcvTransferDescriptor(columns: Seq[UnitColVector],
     val vcolumns = columns.zipWithIndex.map { case (column, i) =>
       logger.debug(s"Reading output pointers for column ${i}")
 
+      // The first offset is the pointer to the container struct
       val cbuf = resultBuffer.position(resultOffsets(i))
 
       // Fetch the pointers to the nullable_t_vector

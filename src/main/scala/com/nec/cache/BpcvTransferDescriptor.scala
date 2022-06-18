@@ -29,51 +29,22 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
   }
 
   private[cache] lazy val columns: Seq[BytePointerColVector] = {
-    // Transpose the columns such that the first column of each batch comes first, followed by the second column of each batch, etc.
+    // Transpose the columns such that the first column of each batch comes first,
+    // followed by the second column of each batch, etc.
     batchwiseColumns.flatten
   }
 
   private[cache] lazy val headerOffsets: Seq[Long] = {
-    columns.map(_.veType)
-      .map {
-        case _: VeScalarType =>
-          // The header info for a scalar column contains 4 uint64_t values:
-          // [column_type][element_count][data_size][validity_buffer_size]
-          4L
-
-        case VeString =>
-          // The header info for a scalar column contains 6 uint64_t values:
-          // [column_type][element_count][data_size][offsets_size][lengths_size][validity_buffer_size]
-          6L
-      }
-      // The transfer descriptor header contains 3 uint64_t values:
-      // [header_size, batch_count, column_count]
-      // Offsets are in uint64_t
-      .scanLeft(3L)(_ + _)
+    TransferDescriptor.headerOffsets(columns)
   }
 
   private[cache] lazy val dataOffsets: Seq[Long] = {
-    columns.flatMap(_.buffers)
-      // Get the size of each buffer in bytes
-      .map { buf => TransferDescriptor.vectorAlignedSize(buf.limit) }
-      // Start the accumulation from header total size
-      // Offsets are in bytes
-      .scanLeft(headerOffsets.last * 8)(_ + _)
+    TransferDescriptor.dataOffsets(columns)
   }
 
   private[cache] lazy val resultOffsets: Seq[Long] = {
-    batches.head.map(_.veType)
-      .map {
-        case _: VeScalarType =>
-          // scalar vectors prodduce 3 pointers (struct, data buffer, validity buffer)
-          3L
-
-        case VeString =>
-          // nullable_varchar_vector produce 5 pointers (struct, data buffer, offsets, lengths, validity buffer)
-          5L
-      }
-      // Accumulate the offsets (offsets are in uint64_t)
-      .scanLeft(0L)(_ + _)
+    // Use columns from just one batch to avoid over-counting columns
+    TransferDescriptor.resultOffsets(batches.headOption.getOrElse(Seq.empty[BytePointerColVector]))
   }
 
   lazy val buffer: BytePointer = {
@@ -137,6 +108,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
       logger.debug(s"Reading output pointers for column ${i}")
 
       val batch = batchwiseColumns(i)
+      // The first offset is the pointer to the container struct
       val cbuf = resultBuffer.position(resultOffsets(i))
 
       // Fetch the pointers to the nullable_t_vector

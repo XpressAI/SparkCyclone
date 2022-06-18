@@ -17,7 +17,7 @@ final case class VeColVector private[colvector] (
   buffers: Seq[Long],
   dataSize: Option[Int],
   container: Long
-) extends ColVectorUtilsTrait {
+) extends ColVectorLike {
   private val logger = LoggerFactory.getLogger(getClass)
   private var open = true
 
