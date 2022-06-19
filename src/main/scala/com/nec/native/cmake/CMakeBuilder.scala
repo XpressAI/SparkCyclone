@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.cmake
+package com.nec.native.cmake
 
 import java.time.Instant
 import org.apache.commons.io.FileUtils
@@ -26,8 +26,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import scala.sys.process._
-import com.nec.cmake.CMakeBuilder.{Builder, IncludeFile}
-import com.nec.spark.agile.CppResource.CppResources
+import com.nec.native.cmake.CMakeBuilder.{Builder, IncludeFile}
+import com.nec.native.compiler.CppResource.CppResources
 import com.typesafe.scalalogging.LazyLogging
 import javassist.compiler.CompileError
 

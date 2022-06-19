@@ -19,7 +19,8 @@
  */
 package com.nec.ve
 
-import com.nec.spark.agile.CppResource.CppResources
+import com.nec.native.compiler.CppResource.CppResources
+import com.nec.util.ProcessRunner
 import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf
@@ -110,15 +111,6 @@ object VeKernelCompiler {
     }
   }
 
-  def compile_cpp(
-    buildDir: Path = Paths.get("_ve_build"),
-    config: VeCompilerConfig,
-    code: String
-  ): Path = {
-    VeKernelCompiler(compilationPrefix = "_spark", buildDir.toAbsolutePath, config)
-      .compile_c(code)
-  }
-
   val PlatformLibrarySoName = "libcyclone.so"
 }
 
@@ -157,7 +149,6 @@ final case class VeKernelCompiler(
       val soFile = buildDir.resolve(s"${compilationPrefix}.so")
       import config._
 
-      import scala.sys.process._
       val includesArgs = includes.map(i => s"-I${i}")
       val command: Seq[String] =
         Seq(nccPath) ++ compilerArguments ++ includesArgs ++ Seq(
@@ -170,17 +161,11 @@ final case class VeKernelCompiler(
         )
       logger.info(s"Compilation command = ${command}")
 
-      ProcessRunner.runHopeOk(
-        command,
-        Process(command = command, cwd = buildDir.toFile),
-        doDebug = config.doDebug
-      )
+
+      ProcessRunner(command, buildDir).run(config.doDebug)
+
       // make sure everyone can read this
-      ProcessRunner.runHopeOk(
-        List("chmod", "777", oFile.toString),
-        Process(command = List("chmod", "777", oFile.toString), cwd = buildDir.toFile),
-        doDebug = config.doDebug
-      )
+      ProcessRunner(Seq("chmod", "777", oFile.toString), buildDir).run(config.doDebug)
 
       val command2: Seq[String] = {
         Seq(nccPath, "-shared", "-pthread" /*, "-ftrace", "-lveftrace_p"*/ ) ++ Seq(
@@ -191,11 +176,7 @@ final case class VeKernelCompiler(
       }
       logger.info(s"Compilation command 2 = ${command2}")
 
-      ProcessRunner.runHopeOk(
-        command2,
-        Process(command = command2, cwd = buildDir.toFile),
-        doDebug = config.doDebug
-      )
+      ProcessRunner(command2, buildDir).run(config.doDebug)
 
       soFile
     } catch {

@@ -17,10 +17,10 @@
  * limitations under the License.
  *
  */
-package com.nec.spark.agile
+package com.nec.native.compiler
 
-import com.nec.spark.agile.CppResource.CppResources
-import com.nec.spark.agile.ListCppResourcesSpec.LowerBound
+import com.nec.native.compiler.CppResource.CppResources
+import com.nec.native.compiler.ListCppResourcesSpec.LowerBound
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.nio.file.Files

@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.spark.agile
+package com.nec.native.compiler
 
 import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException

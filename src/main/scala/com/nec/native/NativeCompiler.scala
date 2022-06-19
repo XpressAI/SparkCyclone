@@ -21,7 +21,6 @@ package com.nec.native
 import com.typesafe.scalalogging.LazyLogging
 
 import java.nio.file.Paths
-import com.nec.cmake.CMakeBuilder
 import com.nec.spark.agile.core.CodeLines
 import org.apache.spark.SparkConf
 
@@ -119,25 +118,6 @@ object NativeCompiler extends LazyLogging {
       val sourcePath = Paths.get(sourceDir).resolve(s"_spark_${cc.hashCode}.so").toAbsolutePath
       logger.debug(s"Will be loading source from path: $sourcePath")
       sourcePath
-    }
-  }
-
-  object CNativeCompiler extends NativeCompiler {
-    override def forCode(code: String): Path = {
-      CMakeBuilder.buildCLogging(
-        List(code)
-          .mkString("\n\n")
-      )
-    }
-  }
-
-  object CNativeCompilerDebug extends NativeCompiler {
-    override def forCode(code: String): Path = {
-      CMakeBuilder.buildCLogging(
-        cSource = List(code)
-          .mkString("\n\n"),
-        debug = true
-      )
     }
   }
 }

@@ -1,7 +1,7 @@
-package com.nec.ve
+package com.nec.native.compiler
 
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.spark.agile.CppResource.CppResources
+import com.nec.native.compiler.CppResource.CppResources
 import com.nec.ve.VeKernelCompiler.PlatformLibrarySoName
 import org.scalatest.freespec.AnyFreeSpec
 
