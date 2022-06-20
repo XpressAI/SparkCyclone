@@ -2,7 +2,7 @@ package com.nec.vectorengine
 
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.colvector.InputSamples
-import com.nec.ve.VeKernelInfra
+import com.nec.native.compiler.VeKernelInfra
 import scala.concurrent.duration._
 import scala.util.Random
 import java.io.File
@@ -497,7 +497,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
     }
 
     "handle the case of looking up a whitespace or non-existent symbol in a loaded library" in {
-      val fnName = "func"
+      val fnName = s"func_${Random.nextInt(1000)}"
       val code = s"""
         | extern "C" double ${fnName} (double input) {
         |   return input * 2.0;
@@ -541,7 +541,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
     }
 
     "correctly load a library and execute a function call (sync)" in {
-      val fnName = s"func_${Random.nextInt(10)}"
+      val fnName = s"func_${Random.nextInt(1000)}"
       val retval = Random.nextLong
 
       // Define a function that multplies the input values by 2
@@ -620,7 +620,7 @@ final class VeProcessUnitSpec extends AnyWordSpec
     }
 
     "correctly load a library and execute a function call (async)" in {
-      val fnName = s"func_${Random.nextInt(10)}"
+      val fnName = s"func_${Random.nextInt(1000)}"
       // Need to return a positive value for peek and await to not throw exception
       val retval = Random.nextLong.abs
 

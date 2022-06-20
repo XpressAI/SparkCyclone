@@ -5,6 +5,7 @@ import com.nec.colvector.BytePointerColVector
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.spark.agile.core.VeNullableDouble
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.spark.SparkCycloneExecutorPlugin._

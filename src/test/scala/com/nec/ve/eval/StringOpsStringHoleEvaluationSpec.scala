@@ -11,7 +11,7 @@ import com.nec.spark.agile.groupby.GroupByOutline
 import com.nec.util.CallContext
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
-import com.nec.ve.VeKernelInfra
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.vectorengine.{VectorEngine, VeProcess, WithVeProcess}
 import org.apache.arrow.memory.RootAllocator
 import org.scalatest.Ignore

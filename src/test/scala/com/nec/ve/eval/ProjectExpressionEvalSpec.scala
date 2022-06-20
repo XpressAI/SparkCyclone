@@ -21,6 +21,7 @@ package com.nec.ve.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.SparkExpressionToCExpression.EvalFallback
 import com.nec.ve._

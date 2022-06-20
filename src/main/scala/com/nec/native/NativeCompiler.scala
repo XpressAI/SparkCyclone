@@ -18,17 +18,12 @@
  *
  */
 package com.nec.native
-import com.typesafe.scalalogging.LazyLogging
 
-import java.nio.file.Paths
-import com.nec.spark.agile.core.CodeLines
-import org.apache.spark.SparkConf
-
-import java.nio.file.Files
-import java.nio.file.Path
 import com.nec.native.compiler.{VeCompilerConfig, VeKernelCompiler}
-// import com.nec.ve.VeKernelCompiler
-// import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
+import com.nec.spark.agile.core.CodeLines
+import java.nio.file.{Files, Path, Paths}
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.SparkConf
 
 trait NativeCompiler extends Serializable {
 

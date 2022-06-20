@@ -11,7 +11,7 @@ import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.join.SimpleEquiJoinFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.CallContextOps._
-import com.nec.ve.VeKernelInfra
+import com.nec.native.compiler.VeKernelInfra
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 

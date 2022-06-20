@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.SparkAdditions
 import com.nec.tpc.TPCHVESqlSpec

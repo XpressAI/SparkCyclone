@@ -20,6 +20,7 @@
 package com.nec.ve.eval
 
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
 import com.nec.spark.agile.join.JoinUtils.TypedJoinExpression
 import com.nec.spark.agile.CFunctionGeneration._
