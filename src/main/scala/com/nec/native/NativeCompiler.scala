@@ -26,8 +26,9 @@ import org.apache.spark.SparkConf
 
 import java.nio.file.Files
 import java.nio.file.Path
-import com.nec.ve.VeKernelCompiler
-import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
+import com.nec.native.compiler.{VeCompilerConfig, VeKernelCompiler}
+// import com.nec.ve.VeKernelCompiler
+// import com.nec.ve.VeKernelCompiler.{FileAttributes, VeCompilerConfig}
 
 trait NativeCompiler extends Serializable {
 
@@ -40,7 +41,7 @@ trait NativeCompiler extends Serializable {
 
 object NativeCompiler extends LazyLogging {
   def fromConfig(sparkConf: SparkConf): NativeCompiler = {
-    val compilerConfig = VeKernelCompiler.VeCompilerConfig.fromSparkConf(sparkConf)
+    val compilerConfig = VeCompilerConfig.fromSparkConf(sparkConf)
     logger.info(s"Compiler configuration: ${compilerConfig}")
     sparkConf.getOption("spark.com.nec.spark.kernel.precompiled") match {
       case Some(directory) => PreCompiled(directory)
@@ -55,7 +56,7 @@ object NativeCompiler extends LazyLogging {
   }
 
   def fromTemporaryDirectory(compilerConfig: VeCompilerConfig): (Path, NativeCompiler) = {
-    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", FileAttributes)
+    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompiler.FileAttributes)
     (tmpBuildDir, OnDemandCompilation(tmpBuildDir.toAbsolutePath.toString, compilerConfig))
   }
 
@@ -100,11 +101,10 @@ object NativeCompiler extends LazyLogging {
         val startTime = System.currentTimeMillis()
         val soName =
           VeKernelCompiler(
-            compilationPrefix = s"_spark_${cc.hashCode}",
+            s"_spark_${cc.hashCode}",
             Paths.get(buildDir),
             veCompilerConfig
-          )
-            .compile_c(cc)
+          ).compile(cc)
         val endTime = System.currentTimeMillis() - startTime
         logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
         soName

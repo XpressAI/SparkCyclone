@@ -1,5 +1,6 @@
 package com.nec.ve
 
+import com.nec.native.compiler.VeKernelCompiler
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CFunctionGeneration.{CFunction, KeyHeaders}
 import com.nec.spark.agile.core.CFunction2
@@ -24,7 +25,7 @@ trait VeKernelInfra { this: Suite =>
     val veBuildPath = Paths.get("target", "ve", s"${Instant.now().toEpochMilli}").toAbsolutePath
     val oPath =
       VeKernelCompiler(s"${getClass.getSimpleName.replaceAllLiterally("$", "")}", veBuildPath)
-        .compile_c(cCode)
+        .compile(cCode)
     f(oPath)
   }
 }

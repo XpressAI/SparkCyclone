@@ -20,29 +20,26 @@
 package com.nec.native.compiler
 
 import com.nec.native.compiler.CppResource.CppResources
-import com.nec.native.compiler.ListCppResourcesSpec.LowerBound
-import org.scalatest.freespec.AnyFreeSpec
-
 import java.nio.file.Files
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 
-object ListCppResourcesSpec {
+final class CppResourcesSpec extends AnyWordSpec {
   val LowerBound = CppResource(
     "frovedis/core/lower_bound.hpp",
     "/com/nec/cyclone/cpp/frovedis/core/lower_bound.hpp"
   )
-}
 
-final class ListCppResourcesSpec extends AnyFreeSpec {
+  "CppResources" should {
+    "correctly list lower_bound.hpp" in {
+      CppResources.All.all should contain (LowerBound)
+    }
 
-  "It lists lower_bound.hpp" in {
-    com.eed3si9n.expecty.Expecty.assert(CppResources.All.all.contains(LowerBound))
+    "be able to copy resources" in {
+      val tmpdir = Files.createTempDirectory("test")
+      val file = tmpdir.resolve(LowerBound.name)
+      LowerBound.copyTo(tmpdir)
+      Files.exists(file) should be (true)
+    }
   }
-
-  "A resource can be copied" in {
-    val tempDir = Files.createTempDirectory("tst")
-    val expectedFile = tempDir.resolve(LowerBound.name)
-    LowerBound.copyTo(tempDir)
-    assert(Files.exists(expectedFile))
-  }
-
 }

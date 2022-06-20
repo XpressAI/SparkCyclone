@@ -17,18 +17,16 @@
  * limitations under the License.
  *
  */
-package com.nec.spark
+package com.nec.native.compiler
 
-import com.nec.spark.VeKernelCompilerConfigSpec.stringValue
-import com.nec.ve.VeKernelCompiler.VeCompilerConfig
-import org.scalatest.freespec.AnyFreeSpec
 import org.apache.spark.SparkConf
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpec
 
-object VeKernelCompilerConfigSpec {
-
-  private def compilerConfig: VeCompilerConfig = VeCompilerConfig.fromSparkConf(
+final class VeKernelCompilerConfigSpec extends AnyWordSpec {
+  val config = VeCompilerConfig.fromSparkConf(
     new SparkConf().setAll(
-      List(
+      Seq(
         "spark.com.nec.spark.ncc.debug" -> "true",
         "spark.com.nec.spark.ncc.o" -> "3",
         "spark.com.nec.spark.ncc.openmp" -> "false",
@@ -38,20 +36,23 @@ object VeKernelCompilerConfigSpec {
     )
   )
 
-  private def stringValue = compilerConfig.compilerArguments.toString
+  "VeCompilerConfig" should {
+    "capture the DEBUG option" in {
+      config.compilerFlags should contain ("DEBUG=1")
+    }
 
-}
-final class VeKernelCompilerConfigSpec extends AnyFreeSpec {
-  "it captures DEBUG option" in {
-    assert(stringValue.contains("DEBUG=1"))
-  }
-  "it captures Optimization override" in {
-    assert(stringValue.contains("-O3"))
-  }
-  "It captures disabling OpenMP" in {
-    assert(!stringValue.contains("openmp"))
-  }
-  "It can include extra arguments" in {
-    assert(stringValue.contains("-X, -Y"))
+    "capture the optimization override" in {
+      config.compilerFlags should contain ("-O3")
+    }
+
+    "capture the disabling of OpenMP" in {
+      config.compilerFlags should not contain ("-fopenmp")
+    }
+
+    "include the extra arguments" in {
+      Seq("-X", "-Y").foreach { flag =>
+        config.compilerFlags should contain (flag)
+      }
+    }
   }
 }

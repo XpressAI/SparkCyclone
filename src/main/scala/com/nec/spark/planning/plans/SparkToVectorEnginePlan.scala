@@ -7,7 +7,6 @@ import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.spark.planning._
 import com.nec.util.CallContextOps._
-import com.nec.ve.VeKernelCompiler
 import com.nec.vectorengine.LibCyclone
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
