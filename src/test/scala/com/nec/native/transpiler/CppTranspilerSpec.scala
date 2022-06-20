@@ -1,4 +1,4 @@
-package com.nec.native
+package com.nec.native.transpiler
 
 import org.scalatest.Assertion
 import org.scalatest.wordspec.AnyWordSpec

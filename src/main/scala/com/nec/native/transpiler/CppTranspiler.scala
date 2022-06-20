@@ -1,6 +1,6 @@
-package com.nec.native
+package com.nec.native.transpiler
 
-import com.nec.native.SyntaxTreeOps._
+import com.nec.native.transpiler.SyntaxTreeOps._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, PointerPointerPointer, Raw}
 import com.nec.spark.agile.core.CFunction2.DefaultHeaders
 import com.nec.spark.agile.core.{CFunction2, CVector, CodeLines}

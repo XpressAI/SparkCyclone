@@ -5,7 +5,7 @@ import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.native.CppTranspiler
+import com.nec.native.transpiler.CppTranspiler
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.join.SimpleEquiJoinFunction

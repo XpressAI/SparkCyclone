@@ -1,6 +1,6 @@
-package com.nec.native
+package com.nec.native.transpiler
 
-import com.nec.native.SyntaxTreeOps._
+import com.nec.native.transpiler.SyntaxTreeOps._
 import scala.reflect.runtime.universe._
 import java.time.Instant
 import org.scalatest.matchers.should.Matchers._

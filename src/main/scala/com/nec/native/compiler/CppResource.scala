@@ -72,19 +72,17 @@ final case class CppResource(name: String, fullPath: String) {
   def resourceUrl: URL = {
     val resource = this.getClass.getResource(fullPath)
     if (resource == null) {
-        throw new ResourceNotFoundException(s"Not found: ${name} // '${fullPath}'")
+      throw new ResourceNotFoundException(s"Not found: ${name} // '${fullPath}'")
     }
     resource
   }
 
-  def readString: String = IOUtils.toString(resourceUrl.openStream(), "UTF-8")
-
-  def resourceFile(inRoot: Path): Path = inRoot.resolve(name)
-
-  def containingDir(inRoot: Path): Path = resourceFile(inRoot).getParent
+  def containingDir(inRoot: Path): Path = {
+    inRoot.resolve(name).getParent
+  }
 
   def copyTo(destRoot: Path): Unit = {
-    val targetFile = resourceFile(destRoot)
+    val targetFile = destRoot.resolve(name)
     if (!Files.exists(targetFile.getParent)) {
       Files.createDirectories(targetFile.getParent)
     }

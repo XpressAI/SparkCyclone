@@ -111,7 +111,7 @@ object VeKernelCompiler {
     }
   }
 
-  val PlatformLibrarySoName = "libcyclone.so"
+  // val PlatformLibrarySoName = "libcyclone.so"
 }
 
 final case class VeKernelCompiler(

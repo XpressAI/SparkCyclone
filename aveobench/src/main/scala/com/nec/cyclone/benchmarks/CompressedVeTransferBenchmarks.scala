@@ -30,7 +30,7 @@ object CompressedVeTransferBenchmarks {
     @Setup(Level.Trial)
     def setup0: Unit = {
       process = DeferredVeProcess { () =>
-        VeProcess.create(getClass.getName)
+        VeProcess.create(getClass.getName, 4)
       }
       implicit val source = process.source
 

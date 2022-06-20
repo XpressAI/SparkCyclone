@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.native.CompiledVeFunction
+import com.nec.native.transpiler.CompiledVeFunction
 
 import scala.language.experimental.macros
 import scala.reflect.ClassTag
