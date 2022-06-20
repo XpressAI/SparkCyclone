@@ -1,4 +1,4 @@
-package com.nec.native
+package com.nec.native.transpiler
 
 import scala.reflect.runtime.universe.reify
 import scala.reflect.runtime.{universe, currentMirror => cm}

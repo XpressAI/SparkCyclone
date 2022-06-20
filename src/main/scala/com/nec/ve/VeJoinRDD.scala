@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.native.CompiledVeFunction
+import com.nec.native.transpiler.CompiledVeFunction
 import com.nec.spark.agile.join.SimpleEquiJoinFunction
 import com.nec.colvector.VeBatchOfBatches
 import com.nec.colvector.{VeColVector, VeColBatch}
@@ -45,7 +45,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
   override protected def getPartitions: Array[Partition] = joinedInputs.partitions
 
   def computeJoinVe(): RDD[VeColBatch] = {
-    import com.nec.native.SyntaxTreeOps._
+    import com.nec.native.transpiler.SyntaxTreeOps._
 
     val leftInputTypes = implicitly[universe.TypeTag[IN]].tpe.toVeTypes
     val rightInputTypes = implicitly[universe.TypeTag[OUT]].tpe.toVeTypes

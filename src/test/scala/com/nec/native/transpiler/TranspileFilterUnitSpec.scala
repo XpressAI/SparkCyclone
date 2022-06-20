@@ -1,4 +1,4 @@
-package com.nec.native
+package com.nec.native.transpiler
 
 import scala.reflect.runtime.universe._
 import java.time.Instant

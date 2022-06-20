@@ -1,6 +1,6 @@
-package com.nec.native
+package com.nec.native.transpiler
 
-import com.nec.native.SyntaxTreeOps._
+import com.nec.native.transpiler.SyntaxTreeOps._
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe

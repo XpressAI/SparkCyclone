@@ -1,7 +1,7 @@
 package com.nec.ve
 
 import com.nec.colvector.{VeColVector, VeColBatch}
-import com.nec.native.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
+import com.nec.native.transpiler.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import com.nec.spark.agile.SparkExpressionToCExpression
 import com.nec.spark.agile.core.VeType
 import com.nec.util.DateTimeOps._

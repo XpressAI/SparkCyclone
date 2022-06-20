@@ -1,17 +1,16 @@
 package com.nec.ve.eval
 
-import com.nec.cmake.CMakeBuilder
+import com.nec.native.cmake.CMakeBuilder
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core.{CodeLines, VeNullableInt}
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import com.nec.spark.agile.core.{CVector, VeScalarType}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation.InStringHoleEvaluation
 import com.nec.spark.agile.groupby.GroupByOutline
+import scala.util.Random
 import org.scalatest.Ignore
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.util.Random
 
 @Ignore
 @VectorEngineTest

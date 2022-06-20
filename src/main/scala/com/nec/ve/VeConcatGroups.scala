@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.native.CompiledVeFunction
+import com.nec.native.transpiler.CompiledVeFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.colvector.VeBatchOfBatches
 import com.nec.colvector.{VeColVector, VeColBatch}
@@ -31,7 +31,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
   override protected def getPartitions: Array[Partition] = concatInputs.partitions
 
   def computeMergeVe(): RDD[(K, VeColBatch)] = {
-    import com.nec.native.SyntaxTreeOps._
+    import com.nec.native.transpiler.SyntaxTreeOps._
 
     val outputTypes = implicitly[universe.TypeTag[T]].tpe.toVeTypes
 

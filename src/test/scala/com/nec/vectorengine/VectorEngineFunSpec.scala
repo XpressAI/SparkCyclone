@@ -5,13 +5,13 @@ import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.SeqOptTConversions._
 import com.nec.colvector._
 import com.nec.cyclone.annotations.VectorEngineTest
-import com.nec.native.CppTranspiler
+import com.nec.native.transpiler.CppTranspiler
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.exchange.GroupingFunction
 import com.nec.spark.agile.join.SimpleEquiJoinFunction
 import com.nec.spark.agile.merge.MergeFunction
 import com.nec.util.CallContextOps._
-import com.nec.ve.VeKernelInfra
+import com.nec.native.compiler.VeKernelInfra
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 

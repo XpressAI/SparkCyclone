@@ -7,7 +7,7 @@ import com.nec.colvector.VeColBatch
 import com.nec.spark.SparkCycloneExecutorPlugin._
 import com.nec.spark.planning._
 import com.nec.util.CallContextOps._
-import com.nec.ve.VeKernelCompiler
+import com.nec.vectorengine.LibCyclone
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.TaskContext
@@ -97,7 +97,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
               Iterator.empty
             }else{
               // TODO: find a better way of calling a library function ("handle_transfer") from here
-              val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
+              val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(LibCyclone.FileName))
               val batch = withInvocationMetrics(VE) {
                 vectorEngine.executeTransfer(libRef, transferDescriptor)
               }
@@ -136,7 +136,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
 
               // TODO: find a better way of calling a library function ("handle_transfer") from here
               val batch = withInvocationMetrics(VE) {
-                val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(VeKernelCompiler.PlatformLibrarySoName))
+                val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(LibCyclone.FileName))
                 vectorEngine.executeTransfer(libRef, descriptor)
               }
 

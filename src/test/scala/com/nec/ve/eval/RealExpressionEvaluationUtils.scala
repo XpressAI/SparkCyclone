@@ -26,7 +26,7 @@ import com.nec.spark.agile.join.JoinUtils._
 import com.nec.spark.agile.projection.ProjectionFunction
 import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.util.CallContext
-import com.nec.ve.VeKernelInfra
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.vectorengine.{VeProcess, VectorEngine}
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.ve.eval.StaticTypingTestAdditions._

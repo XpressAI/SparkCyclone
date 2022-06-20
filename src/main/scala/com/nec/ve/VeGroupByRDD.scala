@@ -1,6 +1,6 @@
 package com.nec.ve
 
-import com.nec.native.CompiledVeFunction
+import com.nec.native.transpiler.CompiledVeFunction
 import com.nec.colvector.VeBatchOfBatches
 import com.nec.colvector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.RDD

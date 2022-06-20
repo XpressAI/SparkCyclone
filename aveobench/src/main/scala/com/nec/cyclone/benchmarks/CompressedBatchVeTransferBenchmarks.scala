@@ -1,7 +1,7 @@
 package com.nec.cyclone.benchmarks
 
 import com.nec.cyclone.colvector._
-import com.nec.colvector._
+import com.nec.colvector.VeColVectorSource
 import com.nec.vectorengine._
 import scala.collection.mutable.{ArrayBuffer => MBuf}
 import org.openjdk.jmh.annotations._
@@ -31,7 +31,7 @@ object CompressedBatchVeTransferBenchmarks {
     @Setup(Level.Trial)
     def setup0: Unit = {
       process = DeferredVeProcess { () =>
-        VeProcess.create(getClass.getName)
+        VeProcess.create(getClass.getName, 4)
       }
 
       // Initialize CompressedBytePointerColBatch

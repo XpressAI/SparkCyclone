@@ -1,4 +1,4 @@
-import com.nec.native.CppTranspiler
+import com.nec.native.transpiler.CppTranspiler
 import org.apache.spark._
 import org.scalatest.freespec.AnyFreeSpec
 

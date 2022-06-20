@@ -1,8 +1,8 @@
 package com.nec.native
 
+import com.nec.native.transpiler.CppTranspilerSpec
 import com.nec.spark.agile.core.VeNullableInt
 import com.nec.spark.agile.join.SimpleEquiJoinFunction
-
 
 final class SimpleEquiJoinFunctionUnitSpec extends CppTranspilerSpec {
   "SimpleEuqiJoinFunction" should {

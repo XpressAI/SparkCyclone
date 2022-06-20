@@ -3,6 +3,7 @@ package com.nec.ve
 import com.nec.colvector.ArrayTConversions._
 import com.nec.colvector.ArrowVectorConversions._
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.ve.DetectVectorEngineSpec.VeClusterConfig
 import com.nec.colvector.{VeColBatch, VeColVector, VeColVectorSource}

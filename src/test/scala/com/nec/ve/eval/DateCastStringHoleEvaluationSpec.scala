@@ -1,6 +1,6 @@
 package com.nec.ve.eval
 
-import com.nec.cmake.CMakeBuilder
+import com.nec.native.cmake.CMakeBuilder
 import com.nec.cyclone.annotations.VectorEngineTest
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.CFunction

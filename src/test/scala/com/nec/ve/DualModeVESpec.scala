@@ -5,6 +5,7 @@ import com.nec.cache.{ArrowEncodingSettings, CycloneCacheBase}
 import com.nec.colvector.SparkSqlColumnVectorConversions._
 import com.nec.colvector.{VeColBatch, VeColVectorSource}
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.compiler.VeKernelInfra
 import com.nec.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
 import com.nec.util.CallContextOps._
 import com.nec.vectorengine._
