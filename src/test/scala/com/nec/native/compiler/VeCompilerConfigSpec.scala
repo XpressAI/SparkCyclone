@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
-final class VeKernelCompilerConfigSpec extends AnyWordSpec {
+final class VeCompilerConfigSpec extends AnyWordSpec {
   val config = VeCompilerConfig.fromSparkConf(
     new SparkConf().setAll(
       Seq(

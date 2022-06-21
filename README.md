@@ -71,7 +71,7 @@ Alternatively you can use a script if you want/need more control over which VE i
 
 ## Compilation lifecycle
 
-The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.  
+The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.
 Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
 you can optimize the compilation time by specifying a directory to cache kernels using the following config.
 
@@ -83,18 +83,6 @@ scratch.
 ```
 --conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
 ```
-
-### Use a precompiled directory
-
-You can also disable on-demand compilation by specifying a precompiled directory instead.  
-
-Note: If compilation is necessary to execute a query it will fail when used in this mode.
-
-```
---conf spark.com.nec.spark.kernel.precompiled=/path/to/precompiled/dir
-```
-
-If neither are specified, then a random temporary directory will be used (not removed, however).
 
 ## Batching
 

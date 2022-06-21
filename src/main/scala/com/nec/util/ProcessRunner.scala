@@ -37,7 +37,7 @@ final case class ProcessRunner(command: Seq[String],
       }
     )
 
-    logger.debug(s"[${hashCode.abs}] Running process for command:\n${command.mkString(" ")}")
+    logger.debug(s"[${hashCode.abs}] Running process for command: ${command.mkString(" ")}")
     logger.debug(s"[${hashCode.abs}] Process working directory: ${cwd.normalize.toAbsolutePath}")
     logger.debug(s"[${hashCode.abs}] Process environment: ${env}")
 

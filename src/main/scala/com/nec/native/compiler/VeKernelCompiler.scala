@@ -97,6 +97,7 @@ final case class VeKernelCompiler(prefix: String,
     try {
       // Write out the source code to file
       Files.write(cFile, code.getBytes)
+      logger.debug(s"Compiling C++ code for the VE:\n${code}\n")
 
       // Compile the source file
       logger.info(s"Compilation command:  ${command1}")
