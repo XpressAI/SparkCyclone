@@ -1,6 +1,7 @@
 package com.nec.native.compiler
 
 import com.nec.cyclone.annotations.VectorEngineTest
+import com.nec.native.NativeFunctionSamples
 import com.nec.util.ProcessRunner
 import scala.util.Random
 import java.nio.file.Paths
@@ -11,7 +12,7 @@ import org.scalatest.wordspec.AnyWordSpec
 @VectorEngineTest
 final class VeCodeCompilerUnitSpec extends AnyWordSpec {
   "OnDemandVeCodeCompiler" should {
-    "be able to compile well-formed C++ code using NC++" in {
+    "be able to build an .SO from well-formed C++ code" in {
       val fnName = s"func_${Random.nextInt(1000)}"
       // Define a simple function
       val code = s"""
@@ -34,30 +35,30 @@ final class VeCodeCompilerUnitSpec extends AnyWordSpec {
         val libpath2 = compiler.build(code)
         val output2 = ProcessRunner(Seq("stat", libpath2.toString), Paths.get(".")).run(true)
 
-        // The returned library paths should be the same, and the `stat` output (touch timestamps) should be the same
+        // The returned library paths should be the same
         libpath1 should be (libpath2)
+        // The `stat` output (touch timestamps) should be the same (i.e. the .SO file was written only once)
         output1.stdout should be (output2.stdout)
       }
     }
 
-    // "throw an exception if NC++ compilation failed" in {
-    //   // Define a function with bad syntax
-    //   val code = s"""
-    //     | #include <stdlib.h>
-    //     |
-    //     | extern "C" double func_${Random.nextInt(1000)} (double input) {
-    //     |   return input *
-    //     | }
-    //     """.stripMargin
+    "be able to build an .SO from a list of NativeFunction's" in {
+      val funcs = 0.to(Random.nextInt(3)).map(_ => NativeFunctionSamples.sampleFunction)
 
-    //   intercept[RuntimeException] {
-    //     val compiler = VeKernelCompiler(
-    //       s"${getClass.getSimpleName}",
-    //       Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath
-    //     )
+      noException should be thrownBy {
+        val compiler = OnDemandVeCodeCompiler(Paths.get("target", "ve", s"${Instant.now.toEpochMilli}"))
 
-    //     val libpath = compiler.compile(code)
-    //   }
-    // }
+        // Compile the functions
+        val libpaths = compiler.build(funcs)
+        libpaths.keys should be (funcs.map(_.hashId).toSet)
+        libpaths.values.toSet.size should be (1)
+
+        // Run nm on the .SO filepath to check that the functions are indeed defined
+        val output = ProcessRunner(Seq("nm", libpaths.values.head.toString), Paths.get(".")).run(true)
+        funcs.foreach { func =>
+          output.stdout.split("\n").find(_.contains(func.name)) should not be empty
+        }
+      }
+    }
   }
 }

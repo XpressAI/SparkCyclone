@@ -66,7 +66,7 @@ final case class VeKernelCompiler(prefix: String,
     // Accumulate the set of pre-compiled libraries
     val libraries = CppResource.CppResources.AllVe.all
       .filter(_.name.endsWith(".so"))
-    assert(libraries.nonEmpty, s"Expected to have at least 1 .so file, found nond. Source: ${CppResource.CppResources.AllVe}")
+    assert(libraries.nonEmpty, s"Expected to have at least 1 .so file, found none. Source: ${CppResource.CppResources.AllVe}")
 
     // Source, Object, and SO filepaths
     val cFile = buildDir.resolve(s"${prefix}.c")
