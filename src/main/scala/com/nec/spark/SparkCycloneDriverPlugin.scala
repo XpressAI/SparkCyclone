@@ -19,64 +19,59 @@
  */
 package com.nec.spark
 
-import com.nec.native.NativeCompiler
-import com.nec.native.NativeCompiler.CachingNativeCompiler
-import com.nec.spark.SparkCycloneDriverPlugin.currentCompiler
+import com.nec.native.{CachingNativeCodeCompiler, NativeCodeCompiler}
+import scala.collection.JavaConverters._
+import java.nio.file.{Files, Paths}
+import java.util.{Map => JMap}
 import com.typesafe.scalalogging.LazyLogging
-import okio.ByteString
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext}
-
-import java.nio.file.{Files, Paths}
-import scala.collection.JavaConverters.mapAsJavaMapConverter
+import okio.ByteString
 
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
   private[spark] var launched: Boolean = false
-  var currentCompiler: NativeCompiler = _
+
+  @transient var currentCompiler: NativeCodeCompiler = _
 }
 
 class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
+  override def init(sparkContext: SparkContext,
+                    pluginContext: PluginContext): JMap[String, String] = {
+    logger.info(s"Initializing ${getClass.getSimpleName}...")
 
-  private[spark] var nativeCompiler: NativeCompiler = _
+    // Initialize the native code compiler
+    SparkCycloneDriverPlugin.currentCompiler = NativeCodeCompiler.createFromContext(sparkContext.getConf, pluginContext)
+    logger.info(s"Using native code compiler: ${SparkCycloneDriverPlugin.currentCompiler}")
+
+    // Inject the extensions into the Spark plugin context
+    val extensions = Seq(classOf[LocalVeoExtension])
+    pluginContext.conf.set(
+      "spark.sql.extensions",
+      extensions.map(_.getCanonicalName).mkString(",") + "," + sparkContext.getConf.get("spark.sql.extensions", "")
+    )
+    logger.info(s"Injected Spark SQL extensions ${extensions} into the Spark plugin context")
+
+    SparkCycloneDriverPlugin.launched = true
+    Map.empty[String, String].asJava
+  }
+
   override def receive(message: Any): AnyRef = {
     message match {
-      case RequestCompiledLibraryForCode(codePath) =>
-        logger.debug(s"Received request for compiled code at path: '${codePath}'")
-        val localLocation = Paths.get(codePath)
-        if (Files.exists(localLocation)) {
-          RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(localLocation): _*))
+      case RequestCompiledLibraryForCode(path) =>
+        logger.debug(s"Received request for compiled code at path: '${path}'")
+        val location = Paths.get(path)
 
+        if (Files.exists(location)) {
+          RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(location): _*))
         } else {
-          throw new RuntimeException(s"Received request for code at path ${codePath} but it's not present on driver.")
+          throw new RuntimeException(s"Received request for code at path ${path} but it's not present on driver.")
         }
     }
   }
 
-  override def init(
-    sc: SparkContext,
-    pluginContext: PluginContext
-  ): java.util.Map[String, String] = {
-    nativeCompiler = CachingNativeCompiler(NativeCompiler.fromConfig(sc.getConf))
-    currentCompiler = nativeCompiler
-    logger.info(s"SparkCycloneDriverPlugin is launched. Will use compiler: ${nativeCompiler}")
-    logger.info(s"Will use native compiler: ${nativeCompiler}")
-    SparkCycloneDriverPlugin.launched = true
-
-    val allExtensions = List(classOf[LocalVeoExtension])
-    pluginContext
-      .conf()
-      .set(
-        "spark.sql.extensions",
-        allExtensions.map(_.getCanonicalName).mkString(",") + "," + sc.getConf
-          .get("spark.sql.extensions", "")
-      )
-
-    val testArgs: Map[String, String] = Map.empty
-    testArgs.asJava
-  }
-
-  override def shutdown(): Unit = {
+  override def shutdown: Unit = {
+    logger.info(s"Shutting down ${getClass.getSimpleName}...")
     SparkCycloneDriverPlugin.launched = false
   }
 }

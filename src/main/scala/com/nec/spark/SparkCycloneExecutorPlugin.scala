@@ -86,8 +86,9 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
     SparkCycloneExecutorPlugin.veProcess.apiVersion
   }
 
-  override def shutdown(): Unit = {
+  override def shutdown: Unit = {
     import SparkCycloneExecutorPlugin.veProcess
+    logger.info(s"Shutting down ${getClass.getSimpleName}...")
 
     logger.info(s"Clearing the VeColBatch cache...")
     SparkCycloneExecutorPlugin.batchesCache.cleanup
