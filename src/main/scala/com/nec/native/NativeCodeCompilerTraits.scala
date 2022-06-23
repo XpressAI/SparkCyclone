@@ -54,7 +54,6 @@ trait NativeCodeCompiler extends Serializable {
 
   def build(functions: Seq[NativeFunction]): Map[Int, Path]
 
-  // NOTE: This will be deprecated
   def build(code: String): Path
 }
 
@@ -68,7 +67,7 @@ object NativeCodeCompiler extends LazyLogging {
         OnDemandVeCodeCompiler(dir, veconfig)
 
       case None =>
-        val dir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompiler.FileAttributes).toAbsolutePath
+        val dir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompilation.FileAttributes).toAbsolutePath
         OnDemandVeCodeCompiler(dir, veconfig)
     }
 

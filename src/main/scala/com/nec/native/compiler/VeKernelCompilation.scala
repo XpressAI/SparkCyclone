@@ -25,7 +25,7 @@ import java.nio.file.{Files, Path}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import com.typesafe.scalalogging.LazyLogging
 
-object VeKernelCompiler {
+object VeKernelCompilation {
   final val FileAttributes = {
     val permissions = Set[PosixFilePermission](
       PosixFilePermission.OWNER_READ,
@@ -42,16 +42,18 @@ object VeKernelCompiler {
   final val PrefixPattern = "[a-zA-Z0-9_.-]+".r.pattern
 }
 
-final case class VeKernelCompiler(prefix: String,
-                                  buildDir: Path,
-                                  config: VeCompilerConfig = VeCompilerConfig.defaults) extends LazyLogging {
-  require(VeKernelCompiler.PrefixPattern.matcher(prefix).matches, s"Prefix must match the following regex: ${VeKernelCompiler.PrefixPattern}")
+final case class VeKernelCompilation(prefix: String,
+                                     buildDir: Path,
+                                     code: String,
+                                     config: VeCompilerConfig = VeCompilerConfig.defaults) extends LazyLogging {
+  require(VeKernelCompilation.PrefixPattern.matcher(prefix).matches, s"Prefix must match the following regex: ${VeKernelCompilation.PrefixPattern}")
   require(buildDir.normalize.toAbsolutePath == buildDir, "Target build directory should be a normalized absolute path")
+  require(code.nonEmpty, "Raw code should be non-empty")
 
-  def compile(code: String): Path = {
+  def run: Path = {
     // Create the build directory if not existent
     if (!Files.exists(buildDir)) {
-      Files.createDirectories(buildDir, VeKernelCompiler.FileAttributes)
+      Files.createDirectories(buildDir, VeKernelCompilation.FileAttributes)
     }
 
     // Copy libcyclone sources over to the build directory

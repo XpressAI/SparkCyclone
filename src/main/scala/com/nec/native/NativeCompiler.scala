@@ -19,7 +19,7 @@
  */
 package com.nec.native
 
-import com.nec.native.compiler.{VeCompilerConfig, VeKernelCompiler}
+import com.nec.native.compiler.{VeCompilerConfig, VeKernelCompilation}
 import com.nec.spark.agile.core.CodeLines
 import java.nio.file.{Files, Path, Paths}
 import com.typesafe.scalalogging.LazyLogging
@@ -51,7 +51,7 @@ object NativeCompiler extends LazyLogging {
   }
 
   def fromTemporaryDirectory(compilerConfig: VeCompilerConfig): (Path, NativeCompiler) = {
-    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompiler.FileAttributes)
+    val tmpBuildDir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompilation.FileAttributes)
     (tmpBuildDir, OnDemandCompilation(tmpBuildDir.toAbsolutePath.toString, compilerConfig))
   }
 
@@ -95,11 +95,12 @@ object NativeCompiler extends LazyLogging {
         logger.info(s"Compiler config ==> ${veCompilerConfig}")
         val startTime = System.currentTimeMillis()
         val soName =
-          VeKernelCompiler(
+          VeKernelCompilation(
             s"_spark_${cc.hashCode}",
             Paths.get(buildDir),
+            cc,
             veCompilerConfig
-          ).compile(cc)
+          ).run
         val endTime = System.currentTimeMillis() - startTime
         logger.debug(s"Compiled code in ${endTime}ms to path ${soName}.")
         soName

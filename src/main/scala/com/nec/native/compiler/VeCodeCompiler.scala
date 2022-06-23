@@ -24,7 +24,7 @@ final case class OnDemandVeCodeCompiler(cwd: Path,
       tmp
 
     } else {
-      VeKernelCompiler(prefix, cwd.normalize.toAbsolutePath, config).compile(code)
+      VeKernelCompilation(prefix, cwd.normalize.toAbsolutePath, code, config).run
     }
   }
 }

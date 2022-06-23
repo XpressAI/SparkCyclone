@@ -9,8 +9,8 @@ import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
 
 @VectorEngineTest
-final class VeKernelCompilerUnitSpec extends AnyWordSpec {
-  "VeKernelCompiler" should {
+final class VeKernelCompilationUnitSpec extends AnyWordSpec {
+  "VeKernelCompilation" should {
     "be able to compile well-formed C++ code using NC++" in {
       val fnName = s"func_${Random.nextInt(1000)}"
       // Define a simple function
@@ -23,14 +23,15 @@ final class VeKernelCompilerUnitSpec extends AnyWordSpec {
         """.stripMargin
 
       noException should be thrownBy {
-        // Initialize the compiler
-        val compiler = VeKernelCompiler(
+        // Define the compilation
+        val compilation = VeKernelCompilation(
           s"${getClass.getSimpleName}",
-          Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath
+          Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath,
+          code
         )
 
         // Compile the code and get back to .SO filepath
-        val libpath = compiler.compile(code)
+        val libpath = compilation.run
 
         // Run nm on the .SO filepath to check that the function is indeed defined
         val output = ProcessRunner(Seq("nm", libpath.toString), Paths.get(".")).run(true)
@@ -49,12 +50,11 @@ final class VeKernelCompilerUnitSpec extends AnyWordSpec {
         """.stripMargin
 
       intercept[RuntimeException] {
-        val compiler = VeKernelCompiler(
+        VeKernelCompilation(
           s"${getClass.getSimpleName}",
-          Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath
-        )
-
-        val libpath = compiler.compile(code)
+          Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath,
+          code
+        ).run
       }
     }
   }
