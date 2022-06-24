@@ -20,16 +20,19 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
       val fgroup2 = Seq(func2, func3)
 
       noException should be thrownBy {
-        val compiler = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(Paths.get("target", "ve", s"${Instant.now.toEpochMilli}")))
+        val cwd = Paths.get("target", "ve", s"${Instant.now.toEpochMilli}")
+
+        // Create the caching compiler
+        val compiler1 = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(cwd))
 
         // Compile func1 and func2 together
-        val libpaths1 = compiler.build(fgroup1)
+        val libpaths1 = compiler1.build(fgroup1)
         libpaths1.keys should be (fgroup1.map(_.hashId).toSet)
         // Only one library should be returned
         libpaths1.values.toSet.size should be (1)
 
         // Compile func2 and func3 together - func2 should be already cached from the first compilation
-        val libpaths2 = compiler.build(fgroup2)
+        val libpaths2 = compiler1.build(fgroup2)
         libpaths2.keys should be (fgroup2.map(_.hashId).toSet)
         // Two libraries should be returned - one for func2 (cached) and one for func3 (new)
         libpaths2.values.toSet.size should be (2)
@@ -53,6 +56,16 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
           output1.find(_.contains(func.name)).nonEmpty should be (expected)
           output2.find(_.contains(func.name)).nonEmpty should be (! expected)
         }
+
+        // Create a second instance of the caching compiler
+        val compiler2 = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(cwd))
+
+        // The cache should be rebuilt from the indices written out to the build directory
+        compiler2.buildcache.keys should be (Set(func1, func2, func3).map(_.hashId))
+
+        // Building with the second instance of the compiler should hit the cache
+        compiler2.build(fgroup1) should be (libpaths1)
+        compiler2.build(fgroup2) should be (libpaths2)
       }
     }
   }

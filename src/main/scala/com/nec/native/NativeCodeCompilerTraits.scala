@@ -52,6 +52,8 @@ trait NativeCodeCompiler extends Serializable {
     ).cCode
   }
 
+  def cwd: Path
+
   def build(functions: Seq[NativeFunction]): Map[Int, Path]
 
   def build(code: String): Path
