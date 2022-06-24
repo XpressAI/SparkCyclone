@@ -14,7 +14,7 @@ case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transie
     if (SparkCycloneDriverPlugin.currentCompiler != null) {
       SparkCycloneDriverPlugin
         .currentCompiler
-        .forCode(func.toCodeLinesWithHeaders)
+        .build(func.toCodeLinesWithHeaders.cCode)
         .toAbsolutePath
         .toString
     } else {

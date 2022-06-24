@@ -36,7 +36,7 @@ object ParallelCompilationColumnarRule extends ColumnarRule with LazyLogging {
 
       val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
         .map { sourceCode =>
-          sourceCode -> SparkCycloneDriverPlugin.currentCompiler.forCode(sourceCode.sourceCode)
+          sourceCode -> SparkCycloneDriverPlugin.currentCompiler.build(sourceCode.sourceCode)
         }
         .toMap
         .toList

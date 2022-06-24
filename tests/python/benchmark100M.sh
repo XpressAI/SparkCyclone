@@ -19,14 +19,13 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.driver.resource.ve.amount=1 \
 --conf spark.executor.resource.ve.amount=1 \
 --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin \
---conf spark.com.nec.spark.kernel.precompiled=/opt/spark/work/muhdlaziem \
 run_benchmark.py  --outputfile "yarn_test_ve_100M" --clearcache --ntest 5 \
 column "data/XY_doubles_R100000000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"
 
 /opt/hadoop/bin/hadoop dfs -rm -r -f temp/
 
-# GPU 
+# GPU
 /opt/spark/bin/spark-submit --master yarn \
 --name GPU_Benchmark_column_100M \
 --deploy-mode cluster \

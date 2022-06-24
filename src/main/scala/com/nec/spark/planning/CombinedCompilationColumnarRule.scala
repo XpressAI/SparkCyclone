@@ -40,7 +40,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
         CodeStructure.from(CodeLines.parse(sourceCode.sourceCode))
       })
 
-      val compiledPath: Path = SparkCycloneDriverPlugin.currentCompiler.forCode(combined.cCode)
+      val compiledPath: Path = SparkCycloneDriverPlugin.currentCompiler.build(combined.cCode)
 
       logger.info(s"Compiled all the code")
 

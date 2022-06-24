@@ -9,19 +9,20 @@ import org.scalatest.Suite
 trait VeKernelInfra { this: Suite =>
   protected implicit def kernelInfra: VeKernelInfra = this
 
-  def compiledWithHeaders[T](cCode: CFunction, name: String)(thunk: Path => T): T = {
-    withCompiled(cCode.toCodeLinesHeaderPtr(name).cCode)(thunk)
+  def compiledWithHeaders[T](func: CFunction, name: String)(thunk: Path => T): T = {
+    withCompiled(func.toCodeLinesHeaderPtr(name).cCode)(thunk)
   }
 
   def compiledWithHeaders[T](func: CFunction2)(thunk: Path => T): T = {
     withCompiled(func.toCodeLinesWithHeaders.cCode)(thunk)
   }
 
-  def withCompiled[T](cCode: String)(thunk: Path => T): T = {
-    val libpath = VeKernelCompiler(
+  def withCompiled[T](code: String)(thunk: Path => T): T = {
+    val libpath = VeKernelCompilation(
       s"${getClass.getSimpleName.replaceAllLiterally("$", "")}",
-      Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath
-    ).compile(cCode)
+      Paths.get("target", "ve", s"${Instant.now.toEpochMilli}").normalize.toAbsolutePath,
+      code
+    ).run
 
     thunk(libpath)
   }
