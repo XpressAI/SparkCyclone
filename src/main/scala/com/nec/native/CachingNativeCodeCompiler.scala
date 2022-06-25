@@ -76,7 +76,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
       Seq.empty[Path]
     }
 
-    logger.info(s"Found the following compilation indices (with ${CachingNativeCodeCompiler.extension} extension):\n${ipaths.mkString("\n")}\n")
+    logger.info(s"Found the following compilation indices (with ${CachingNativeCodeCompiler.extension} file extension):\n${ipaths.mkString("\n")}\n")
 
     // Read through each file and accumulate the cache
     val indices = MMap.empty[Int, Path]

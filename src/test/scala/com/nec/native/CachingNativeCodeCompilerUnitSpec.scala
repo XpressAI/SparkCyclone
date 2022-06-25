@@ -57,7 +57,7 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
           output2.find(_.contains(func.name)).nonEmpty should be (! expected)
         }
 
-        // Create a second instance of the caching compiler
+        // Create a second instance of the caching compiler with the same build directory
         val compiler2 = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(cwd))
 
         // The cache should be rebuilt from the indices written out to the build directory

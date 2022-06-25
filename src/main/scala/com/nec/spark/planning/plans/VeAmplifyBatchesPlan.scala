@@ -47,9 +47,9 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                         VeColBatch(
                           vectorEngine.executeMultiIn(
                             libRefExchange,
-                            amplifyFunction.functionName,
+                            amplifyFunction.name,
                             VeBatchOfBatches(inputBatches.toList),
-                            amplifyFunction.namedResults
+                            amplifyFunction.outputs
                           )
                         )
                       }

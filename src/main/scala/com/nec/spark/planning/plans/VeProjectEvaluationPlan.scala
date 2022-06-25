@@ -79,9 +79,9 @@ final case class VeProjectEvaluationPlan(
                     withInvocationMetrics(VE){
                       vectorEngine.execute(
                         libRef,
-                        veFunction.functionName,
+                        veFunction.name,
                         veColBatch.columns.toList,
-                        veFunction.namedResults
+                        veFunction.outputs
                       )
                     }
                   }

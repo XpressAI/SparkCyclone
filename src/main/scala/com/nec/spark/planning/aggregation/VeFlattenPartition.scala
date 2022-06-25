@@ -50,9 +50,9 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                           try {
                             vectorEngine.executeMultiIn(
                               libRefExchange,
-                              flattenFunction.functionName,
+                              flattenFunction.name,
                               VeBatchOfBatches(inputBatches),
-                              flattenFunction.namedResults
+                              flattenFunction.outputs
                             )
                           } finally {
                             logger.debug("Transformed input.")

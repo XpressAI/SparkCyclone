@@ -36,7 +36,6 @@ import com.nec.spark.agile.sort.{SortFunction, VeSortExpression}
 import com.nec.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import com.nec.spark.planning.TransformUtil.RichTreeNode
 import com.nec.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
-import com.nec.spark.planning.VeFunction.VeFunctionStatus
 import com.nec.spark.planning.aggregation.VeHashExchangePlan
 import com.nec.spark.planning.hints._
 import com.nec.spark.planning.plans._
@@ -384,9 +383,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
     } yield {
       val veFunction = VeFunction(
-        veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-        functionName = partialName,
-        namedResults = partialCFunction.outputs
+        status = VeFunctionStatus.fromCodeLines(code),
+        name = partialName,
+        outputs = partialCFunction.outputs
       )
 
       val pag = VePartialAggregate(
@@ -413,9 +412,9 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val finalAggregate = VeFinalAggregate(
         expectedOutputs = aggregateExpressions,
         finalFunction = VeFunction(
-          veFunctionStatus = VeFunctionStatus.fromCodeLines(code),
-          functionName = finalName,
-          namedResults = ff.outputs
+          status = VeFunctionStatus.fromCodeLines(code),
+          name = finalName,
+          outputs = ff.outputs
         ),
         child = flt
       )
@@ -573,19 +572,19 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     val rightExchangePlan = getJoinExchangePlan(s"r_$functionPrefix", rightChild, inputsRight, genericJoiner)
 
     val joinFunction = VeFunction(
-        veFunctionStatus = {
-          val produceIndicesFName = s"produce_indices_${functionName}"
-          VeFunctionStatus.fromCodeLines(CodeLines.from(
-                CFunctionGeneration.KeyHeaders,
-                genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
-                genericJoiner
-                  .cFunction(functionName, produceIndicesFName)
-                  .toCodeLines
-              )
-          )
+      status = {
+        val produceIndicesFName = s"produce_indices_${functionName}"
+        VeFunctionStatus.fromCodeLines(CodeLines.from(
+              CFunctionGeneration.KeyHeaders,
+              genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
+              genericJoiner
+                .cFunction(functionName, produceIndicesFName)
+                .toCodeLines
+            )
+        )
       },
-      functionName = functionName,
-      namedResults = genericJoiner.outputs.map(_.cVector)
+      name = functionName,
+      outputs = genericJoiner.outputs.map(_.cVector)
     )
     val joinPlan = VectorEngineJoinPlan(
       outputExpressions = leftChild.output ++ rightChild.output,

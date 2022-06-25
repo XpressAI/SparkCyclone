@@ -1,67 +1,84 @@
 package com.nec.spark.planning
 
-import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
+import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CodeStructure
+import com.nec.spark.planning.LibLocation.DistributedLibLocation
 import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
-import com.nec.spark.planning.VeFunction.VeFunctionStatus
-import com.nec.spark.planning.VeFunction.VeFunctionStatus.SourceCode
+import com.nec.spark.planning.VeFunctionStatus._
 import com.typesafe.scalalogging.LazyLogging
-
+import java.nio.file.Path
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
-import java.nio.file.Path
-import java.time.Instant
-
-import com.nec.spark.planning.LibLocation.DistributedLibLocation
 
 object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
+  private[planning] def measureTime[T](thunk: => T): (T, Long) = {
+    val start = System.nanoTime
+    val result = thunk
+    (result, System.nanoTime - start)
+  }
+
+  private[planning] def compileRawCodes(uncompiled: Seq[VeFunction]): Path = {
+    val codes = uncompiled.collect { case VeFunction(c: SourceCode, _, _) => c }.toSet
+    logger.info(s"There are ${codes.size} uncompiled raw code chunks")
+
+    // Combine the code chunks
+    val combined = CodeStructure.combine(codes.toSeq.map { code =>
+      CodeStructure.from(CodeLines.parse(code.code))
+    })
+
+    // Build the code and return the .SO
+    SparkCycloneDriverPlugin.currentCompiler.build(combined.cCode)
+  }
+
+  private[planning] def compileNativeFunctions(uncompiled: Seq[VeFunction]): Map[Int, Path] = {
+    val functions = uncompiled.collect { case VeFunction(n: NativeFunctions, _, _) => n.functions }.flatten.toSet
+    logger.info(s"There are ${functions.size} uncompiled native functions")
+
+    // Build the code and return the .SO
+    SparkCycloneDriverPlugin.currentCompiler.build(functions.toSeq)
+  }
+
+  private[planning] def transformRawCodePlans(path: Path): PartialFunction[SparkPlan, SparkPlan] = {
+    case UncompiledPlan(plan) =>
+      plan.updateVeFunction {
+        case f @ VeFunction(_: SourceCode, _, _) =>
+          f.copy(status = Compiled(DistributedLibLocation(path.toString)))
+
+        case other =>
+          other
+      }
+  }
+
+  // private[planning] def transformNativeFunctionPlans(cache: Map[Int, Path]): PartialFunction[SparkPlan, SparkPlan] = {
+  //   case UncompiledPlan(plan) =>
+  //     plan.updateVeFunction {
+  //       case f @ VeFunction(n: NativeFunctions, _, _) =>
+  //         f.copy(status = Compiled(DistributedLibLocation(path.toString)))
+
+  //       case other =>
+  //         other
+  //     }
+  // }
+
   override def preColumnarTransitions: Rule[SparkPlan] = { plan =>
-    val uncompiledOnes = plan.collect { case UncompiledPlan(plan) =>
-      plan
-    }
-    if (uncompiledOnes.nonEmpty) {
-      val preMatchStart = Instant.now()
-      logger.info(s"Found an uncompiled plan - proceeding.")
+    val uncompiled = plan.collect { case UncompiledPlan(plan) => plan.veFunction }
 
-      logger.debug(s"Found ${uncompiledOnes.length} plans uncompiled")
-      val compilationStart = Instant.now()
+    if (uncompiled.nonEmpty) {
+      val (outplan, duration) = measureTime {
+        logger.info(s"Found ${uncompiled.length} uncompiled plans; proceeding to compile VE functions embedded in them")
 
-      val uncompiledCodes = uncompiledOnes
-        .map(_.sparkPlan.veFunction)
-        .collect { case VeFunction(sc @ SourceCode(_), _, _) =>
-          sc
-        }
-        .toSet
+        val soPath = compileRawCodes(uncompiled)
+        logger.info(s"Finished compiling .SO files; transforming existing plans...")
 
-      logger.info(s"Found ${uncompiledCodes.size} codes uncompiled")
-
-      val combined = CodeStructure.combine(uncompiledCodes.toList.map { sourceCode =>
-        CodeStructure.from(CodeLines.parse(sourceCode.sourceCode))
-      })
-
-      val compiledPath: Path = SparkCycloneDriverPlugin.currentCompiler.build(combined.cCode)
-
-      logger.info(s"Compiled all the code")
-
-      val result = plan.transformUp { case UncompiledPlan(plan) =>
-        plan.sparkPlan.updateVeFunction {
-          case f @ VeFunction(source @ SourceCode(_), _, _) =>
-            f.copy(veFunctionStatus =
-              VeFunctionStatus.Compiled(DistributedLibLocation(compiledPath.toString))
-            )
-          case other => other
-        }
+        plan.transformUp(transformRawCodePlans(soPath))
       }
 
-      val compilationEnd = Instant.now()
-      val timeTaken = java.time.Duration.between(compilationStart, compilationEnd)
-      val timeTakenMatch = java.time.Duration.between(preMatchStart, compilationEnd)
-      logger.info(
-        s"Took ${timeTaken} to transform functions to compiled status (total: ${timeTakenMatch})."
-      )
-      logger.info(s"Compilation time: ${timeTakenMatch}")
-      result
-    } else plan
+      logger.info(s"Plan compilation + transformation took ${duration.toDouble / 1e9}s")
+      outplan
+
+    } else {
+      plan
+    }
   }
 }

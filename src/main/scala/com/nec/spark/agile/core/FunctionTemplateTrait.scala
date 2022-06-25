@@ -1,7 +1,7 @@
 package com.nec.spark.agile.core
 
 import com.nec.spark.planning.VeFunction
-import com.nec.spark.planning.VeFunction.VeFunctionStatus
+import com.nec.spark.planning.VeFunctionStatus
 
 trait FunctionTemplateTrait {
   def name: String

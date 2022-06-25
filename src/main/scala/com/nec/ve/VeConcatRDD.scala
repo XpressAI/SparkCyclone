@@ -35,7 +35,7 @@ object VeConcatRDD {
     val code = MergeFunction(funcName, outputTypes)
     val func = CompiledVeFunction(
       code.toCFunction,
-      code.toVeFunction.namedResults,
+      code.toVeFunction.outputs,
       funcTypes
     )
 

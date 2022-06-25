@@ -42,9 +42,9 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                 val multiBatches = withInvocationMetrics(VE){
                   vectorEngine.executeMulti(
                     libRefExchange,
-                    exchangeFunction.functionName,
-                    veColBatch.columns.toList,
-                    exchangeFunction.namedResults
+                    exchangeFunction.name,
+                    veColBatch.columns,
+                    exchangeFunction.outputs
                   )
                 }
                 logger.debug(s"Mapped to ${multiBatches} completed.")
@@ -93,9 +93,9 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
                   val multiBatches = withInvocationMetrics(VE){
                     vectorEngine.executeMulti(
                       libRefExchange,
-                      exchangeFunction.functionName,
+                      exchangeFunction.name,
                       veColBatch.columns.toList,
-                      exchangeFunction.namedResults
+                      exchangeFunction.outputs
                     )
                   }
                   logger.debug(s"Mapped to ${multiBatches} completed.")

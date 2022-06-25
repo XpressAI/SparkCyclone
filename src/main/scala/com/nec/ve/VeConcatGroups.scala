@@ -37,7 +37,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
 
     val funcName = s"merge_${outputTypes.mkString("_")}_2"
     val code = MergeFunction(funcName, outputTypes)
-    val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.namedResults, null)
+    val func = CompiledVeFunction(code.toCFunction, code.toVeFunction.outputs, null)
 
     shuffled.mapPartitions { batchIter =>
      import com.nec.util.CallContextOps._

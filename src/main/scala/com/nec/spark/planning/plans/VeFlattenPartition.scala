@@ -47,9 +47,9 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
                         val res = withInvocationMetrics(VE){
                           vectorEngine.executeMultiIn(
                             libRefExchange,
-                            flattenFunction.functionName,
+                            flattenFunction.name,
                             VeBatchOfBatches(inputBatches),
-                            flattenFunction.namedResults
+                            flattenFunction.outputs
                           )
                         }
                         logger.info(s"Transformed input, got ${res}")

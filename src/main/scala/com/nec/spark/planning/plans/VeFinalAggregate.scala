@@ -46,9 +46,9 @@ case class VeFinalAggregate(
                   try {
                     vectorEngine.execute(
                       libRef,
-                      finalFunction.functionName,
+                      finalFunction.name,
                       veColBatch.columns.toList,
-                      finalFunction.namedResults
+                      finalFunction.outputs
                     )
                   } finally {
                     logger.debug("Completed a final-aggregate of  a batch...")

@@ -7,7 +7,7 @@ import com.nec.util.CallContext
 import scala.reflect.ClassTag
 import java.nio.file.Paths
 
-case class CompiledVeFunction(func: CFunction2, outputs: List[CVector], @transient types: FunctionTyping[_, _]) {
+case class CompiledVeFunction(func: CFunction2, outputs: Seq[CVector], @transient types: FunctionTyping[_, _]) {
   import com.nec.spark.SparkCycloneExecutorPlugin.{vectorEngine, veProcess, source}
 
   lazy val libraryPath: String = {
