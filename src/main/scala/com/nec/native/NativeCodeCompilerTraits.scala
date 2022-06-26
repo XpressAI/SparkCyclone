@@ -40,6 +40,10 @@ trait NativeFunction {
   def func: CFunction2
 }
 
+case class CompiledCodeInfo(hashId: Int,
+                            name: String,
+                            path: Path)
+
 trait NativeCodeCompiler extends Serializable {
   private[native] def combinedCode(functions: Seq[NativeFunction]): String = {
     val cfunctions = functions.map(_.func)
@@ -54,7 +58,7 @@ trait NativeCodeCompiler extends Serializable {
 
   def cwd: Path
 
-  def build(functions: Seq[NativeFunction]): Map[Int, Path]
+  def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo]
 
   def build(code: String): Path
 }

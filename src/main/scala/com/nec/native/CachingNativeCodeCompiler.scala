@@ -30,7 +30,7 @@ object CachingNativeCodeCompiler {
 }
 
 final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
-                                           buildcache: MMap[Int, Path] = MMap.empty)
+                                           buildcache: MMap[Int, CompiledCodeInfo] = MMap.empty)
                                            extends NativeCodeCompiler with LazyLogging {
   logger.info(s"External provided build cache: ${buildcache}")
 
@@ -43,7 +43,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
   }
 
   private[native] def writeCacheToDisk(funcs: Seq[NativeFunction],
-                                       cache: Map[Int, Path]): Unit = {
+                                       cache: Map[Int, CompiledCodeInfo]): Unit = {
     val indexGroups = cache.toSeq
       // Group by the same Paths
       .groupBy(_._2)
@@ -63,7 +63,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
     }
   }
 
-  private[native] def loadOnDiskCache: Map[Int, Path] = {
+  private[native] def loadOnDiskCache: Map[Int, CompiledCodeInfo] = {
     val fcwd = cwd.toFile
 
     // Look for all index files in the build directory
@@ -79,7 +79,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
     logger.info(s"Found the following compilation indices (with ${CachingNativeCodeCompiler.extension} file extension):\n${ipaths.mkString("\n")}\n")
 
     // Read through each file and accumulate the cache
-    val indices = MMap.empty[Int, Path]
+    val indices = MMap.empty[Int, CompiledCodeInfo]
     ipaths.foreach { ipath =>
       val sopath = Paths.get(s"${ipath}".replaceAll(s"\\${CachingNativeCodeCompiler.extension}$$", ""))
 
@@ -93,8 +93,13 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
 
         Files.lines(ipath).toArray.zipWithIndex.foreach { case (line, i) =>
           logger.info(s"Reading line ${i}: ${line}")
-          val hash = Try { line.asInstanceOf[String].split(CachingNativeCodeCompiler.delimiter).head.toInt }.getOrElse(0)
-          indices += (hash -> sopath)
+          // Split the line
+          val tokens = line.asInstanceOf[String].split(CachingNativeCodeCompiler.delimiter)
+
+          val hash = Try { tokens.head.toInt }.getOrElse(0)
+          val name = Try { tokens(1) }.getOrElse("_UNKNOWN_")
+
+          indices += (hash -> CompiledCodeInfo(hash, name, sopath))
         }
       }
     }
@@ -102,10 +107,10 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
     indices.toMap
   }
 
-  def build(functions: Seq[NativeFunction]): Map[Int, Path] = {
+  def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     // Get library paths for the subset of functions that have been previously compiled and cached
-    val cached = functions.map { func => buildcache.get(func.hashId).map(x => (func, x)) }.flatten
-    logger.info(s"Returning cached .SO paths for the following old functions: ${cached.map(_._1.name).mkString("[ ", ", ", " ]")}")
+    val cached = functions.map { func => buildcache.get(func.hashId).map(info => (func, info)) }.flatten
+    logger.info(s"Returning cached .SO info for the following old functions: ${cached.map(_._1.name).mkString("[ ", ", ", " ]")}")
 
     // Get the subset of functions that have yet been compiled and cached
     val newfuncs = functions.filterNot { func => buildcache.contains(func.hashId) }
@@ -116,7 +121,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
       underlying.build(newfuncs)
 
     } else {
-      Map.empty[Int, Path]
+      Map.empty[Int, CompiledCodeInfo]
     }
 
     // Write indices to disk
@@ -126,21 +131,21 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
     buildcache ++= newcache
 
     // Return the cached + new mappings
-    cached.map { case (func, path) => (func.hashId, path) }.toMap ++ newcache
+    cached.map { case (_, info) => (info.hashId, info) }.toMap ++ newcache
   }
 
   def build(code: String): Path = {
     buildcache.get(code.hashCode) match {
-      case Some(path) =>
+      case Some(info) =>
         logger.debug(s"Cache hit for compilation.")
-        path
+        info.path
 
       case None =>
         logger.debug(s"Cache miss for compilation.")
         val path = underlying.build(code)
 
         // Update the build cache with the new mappings
-        buildcache ++= Map(code.hashCode -> path)
+        buildcache += (code.hashCode -> CompiledCodeInfo(code.hashCode, "_RAW_CODE_", path))
         path
     }
   }

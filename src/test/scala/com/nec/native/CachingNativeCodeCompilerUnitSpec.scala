@@ -40,12 +40,12 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
         // The paths returned by the first compilation should be a subset of those returned by the second compilation
         libpaths1.values.toSet.subsetOf(libpaths2.values.toSet) should be (true)
 
-        val path1 = libpaths1.values.head.toString
-        val path2 = (libpaths2.values.toSet -- libpaths1.values.toSet).head.toString
+        val path1 = libpaths1.values.head.path
+        val path2 = (libpaths2.values.toSet -- libpaths1.values.toSet).head.path
 
         // Run nm on the .SO filepath to check that the functions are indeed defined
-        val output1 = ProcessRunner(Seq("nm", path1), Paths.get(".")).run(true).stdout.split("\n")
-        val output2 = ProcessRunner(Seq("nm", path2), Paths.get(".")).run(true).stdout.split("\n")
+        val output1 = ProcessRunner(Seq("nm", path1.toString), Paths.get(".")).run(true).stdout.split("\n")
+        val output2 = ProcessRunner(Seq("nm", path2.toString), Paths.get(".")).run(true).stdout.split("\n")
 
         // The functions should be defined in the libraries that they were first compiled to
         Seq(

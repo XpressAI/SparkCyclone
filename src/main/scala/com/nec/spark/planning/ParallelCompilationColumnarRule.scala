@@ -2,7 +2,7 @@
 
 // import com.nec.spark.{SparkCycloneDriverPlugin, SparkCycloneExecutorPlugin}
 // import com.nec.spark.planning.PlanCallsVeFunction.UncompiledPlan
-// import com.nec.spark.planning.VeFunctionStatus.SourceCode
+// import com.nec.spark.planning.VeFunctionStatus.RawCode
 // import com.typesafe.scalalogging.LazyLogging
 
 // import org.apache.spark.sql.catalyst.rules.Rule
@@ -26,14 +26,14 @@
 
 //       val uncompiledCodes = uncompiledOnes
 //         .map(_.sparkPlan.veFunction)
-//         .collect { case VeFunction(sc @ SourceCode(_), _, _) =>
+//         .collect { case VeFunction(sc @ RawCode(_), _, _) =>
 //           sc
 //         }
 //         .toSet
 
 //       logger.info(s"Found ${uncompiledCodes.size} codes uncompiled")
 
-//       val compiled: Map[SourceCode, Path] = uncompiledCodes.toList.par
+//       val compiled: Map[RawCode, Path] = uncompiledCodes.toList.par
 //         .map { sourceCode =>
 //           sourceCode -> SparkCycloneDriverPlugin.currentCompiler.build(sourceCode.sourceCode)
 //         }
@@ -44,7 +44,7 @@
 
 //       val result = plan.transformUp { case UncompiledPlan(plan) =>
 //         plan.sparkPlan.updateVeFunction {
-//           case f @ VeFunction(source @ SourceCode(_), _, _) if compiled.contains(source) =>
+//           case f @ VeFunction(source @ RawCode(_), _, _) if compiled.contains(source) =>
 //             f.copy(status =
 //               VeFunctionStatus.Compiled(DistributedLibLocation(compiled(source).toString))
 //             )
