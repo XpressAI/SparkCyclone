@@ -579,7 +579,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
               genericJoiner.cFunctionExtra.toCodeLinesNoHeader(produceIndicesFName),
               genericJoiner
                 .cFunction(functionName, produceIndicesFName)
-                .toCodeLines
+                .definition
             )
         )
       },

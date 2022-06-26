@@ -564,7 +564,7 @@ final case class WrappingVeo private (val node: Int,
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     withVeoThread { tcontext =>
-      logger.trace(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
+      logger.debug(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
 
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(

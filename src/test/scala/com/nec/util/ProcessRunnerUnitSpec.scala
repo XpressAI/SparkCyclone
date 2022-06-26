@@ -10,7 +10,7 @@ class ProcessRunnerUnitSpec extends AnyWordSpec {
       val process = ProcessRunner(
         Seq("ls", "-la"),
         Paths.get("."),
-        Seq(("FOO", "42"))
+        Map("TARGETDIR" -> "42")
       )
 
       val output = process.run(true)

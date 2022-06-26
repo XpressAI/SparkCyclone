@@ -10,9 +10,10 @@ final case class ProcessOutput(stdout: String,
 
 final case class ProcessRunner(command: Seq[String],
                                cwd: Path,
-                               env: Seq[(String, String)] = Seq.empty) extends LazyLogging {
+                               env: Map[String, String] = Map.empty) extends LazyLogging {
   def run(debug: Boolean): ProcessOutput = {
-    val process = Process(command, cwd.normalize.toAbsolutePath.toFile, env: _*)
+    val fcwd = cwd.normalize.toAbsolutePath
+    val process = Process(command, fcwd.toFile, env.toSeq: _*)
 
     var stdoutS = ""
     var stderrS = ""
@@ -38,7 +39,7 @@ final case class ProcessRunner(command: Seq[String],
     )
 
     logger.debug(s"[${hashCode.abs}] Running process for command: ${command.mkString(" ")}")
-    logger.debug(s"[${hashCode.abs}] Process working directory: ${cwd.normalize.toAbsolutePath}")
+    logger.debug(s"[${hashCode.abs}] Process working directory: ${fcwd}")
     logger.debug(s"[${hashCode.abs}] Process environment: ${env}")
 
     val proc = process.run(procio)
@@ -51,7 +52,12 @@ final case class ProcessRunner(command: Seq[String],
 
     assert(
       exitcode == 0,
-      s"[${hashCode.abs}] Process exited with non-zero code ${exitcode}: ${command.mkString(" ")}"
+      s"""[${hashCode.abs}] Process exited with non-zero code ${exitcode}:
+          |Working directory:   ${fcwd}
+          |Environment:         ${env}
+          |Command:             ${command.mkString(" ")}
+          |Stderr:              ${stderrS}
+          |""".stripMargin
     )
 
     ProcessOutput(stdoutS, stderrS)

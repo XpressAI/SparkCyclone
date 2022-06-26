@@ -76,7 +76,9 @@ trait NativeCodeCompiler extends Serializable {
     CodeLines.from(
       headers.toSeq.sortBy(_.name).map(_.toString),
       "",
-      cfuncs.map(_.toCodeLines)
+      // Put all function declarations first before the definitions
+      cfuncs.map(_.declaration),
+      cfuncs.map(_.definition)
     ).cCode
   }
 

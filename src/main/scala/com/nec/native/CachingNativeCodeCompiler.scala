@@ -78,7 +78,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
 
     logger.info(s"Found the following compilation indices (with ${CachingNativeCodeCompiler.extension} file extension):\n${ipaths.mkString("\n")}\n")
 
-    // Read through each file and accumulate the cache
+    // Read through each index file and accumulate the cache
     val indices = MMap.empty[Int, CompiledCodeInfo]
     ipaths.foreach { ipath =>
       val sopath = Paths.get(s"${ipath}".replaceAll(s"\\${CachingNativeCodeCompiler.extension}$$", ""))

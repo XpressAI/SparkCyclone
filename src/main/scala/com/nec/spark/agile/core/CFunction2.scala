@@ -62,11 +62,20 @@ final case class CFunction2(name: String,
     CodeLines.from(
       headers.map(_.toString).mkString("\n"),
       "",
-      toCodeLines
+      definition
     )
   }
 
-  def toCodeLines: CodeLines = {
+  def declaration: CodeLines = {
+    CodeLines.from(
+      s"""extern "C" long ${name} (""",
+      arguments.map(arg => s"  ${arg.render}").mkString(",\n"),
+      ");",
+      ""
+    )
+  }
+
+  def definition: CodeLines = {
     CodeLines.from(
       s"""extern "C" long ${name} (""",
       arguments.map(arg => s"  ${arg.render}").mkString(",\n"),
