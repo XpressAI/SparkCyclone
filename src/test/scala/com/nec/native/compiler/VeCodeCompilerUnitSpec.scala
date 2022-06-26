@@ -49,14 +49,15 @@ final class VeCodeCompilerUnitSpec extends AnyWordSpec {
         val compiler = OnDemandVeCodeCompiler(Paths.get("target", "ve", s"${Instant.now.toEpochMilli}"))
 
         // Compile the functions
-        val libpaths = compiler.build(funcs)
-        libpaths.keys should be (funcs.map(_.hashId).toSet)
-        libpaths.values.toSet.size should be (1)
+        val libinfos = compiler.build(funcs)
+        libinfos.keys should be (funcs.map(_.hashId).toSet)
+        libinfos.values.map(_.path).toSet.size should be (1)
 
         // Run nm on the .SO filepath to check that the functions are indeed defined
-        val output = ProcessRunner(Seq("nm", libpaths.values.head.toString), Paths.get(".")).run(true)
-        funcs.foreach { func =>
-          output.stdout.split("\n").find(_.contains(func.name)) should not be empty
+        val output = ProcessRunner(Seq("nm", libinfos.values.head.path.toString), Paths.get(".")).run(true)
+        // The names of all CFunctions defined in each NativeFunction should be found in the .SO
+        funcs.flatMap(_.cfunctions).foreach { cfunc =>
+          output.stdout.split("\n").find(_.contains(cfunc.name)) should not be empty
         }
       }
     }

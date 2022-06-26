@@ -58,7 +58,12 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
           // Look up the cache by the native function's hashId
           cache.get(c.function.hashId) match {
             case Some(info) =>
-              // If entry exists, replace the VeFunction status AND the name
+              /*
+                If the entry exists, replace the VeFunction status AND the name,
+                since the already-compiled function with the same hashId was
+                defined with another name
+              */
+              logger.debug(s"Mapping VEFunction name '${vefunc.name}' -> '${info.name}")
               vefunc.copy(
                 status = Compiled(DistributedLibLocation(info.path.toString)),
                 name = info.name
@@ -88,7 +93,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
 
         logger.info(s"Finished compiling all code into .SO files; transforming existing plans...")
 
-        // Apply transformations to the SparkPlan tree by replacing all uncompiled VeFunction with comopiled variants
+        // Apply transformations to the SparkPlan tree by replacing all uncompiled VeFunctions with comopiled variants
         plan
           .transformUp(transformRawCodePlans(soPath))
           .transformUp(transformSourceCodePlans(funcCache))

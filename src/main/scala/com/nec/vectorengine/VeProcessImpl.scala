@@ -416,7 +416,7 @@ final case class WrappingVeo private (val node: Int,
   private[vectorengine] def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
-        val npath = path.normalize
+        val npath = path.normalize.toAbsolutePath
         loadedLibRecords.get(npath.toString) match {
           case Some(lib) =>
             logger.debug(s"[${handle.address}] Library .SO has already been loaded: ${npath}")
@@ -457,7 +457,7 @@ final case class WrappingVeo private (val node: Int,
   private[vectorengine] def _unload(lib: LibraryReference): Unit = {
     withVeoProc {
       loadedLibRecords.synchronized {
-        val npath = Paths.get(lib.path).normalize
+        val npath = Paths.get(lib.path).normalize.toAbsolutePath
         loadedLibRecords.get(npath.toString) match {
           case Some(lib) =>
             logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")

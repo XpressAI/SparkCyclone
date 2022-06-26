@@ -46,7 +46,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
                                        cache: Map[Int, CompiledCodeInfo]): Unit = {
     val indexGroups = cache.toSeq
       // Group by the same Paths
-      .groupBy(_._2)
+      .groupBy(_._2.path)
       // Turn into Map[Path, Seq[Int]]
       .mapValues(_.map(_._1))
 

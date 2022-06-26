@@ -27,17 +27,41 @@ import org.apache.spark.SparkConf
 import org.apache.spark.api.plugin.PluginContext
 
 trait NativeFunction {
+  /*
+    The name of the primary function, which will be the symbol available for the
+    VE process to invoke upon.
+  */
   final def name: String = {
-    func.name
+    primary.name
   }
 
   /*
-    The hashId of the function should be a hash of the "semantic identity" of
-    the function, rather than that of the concrete function body itself.
+    All the CFunctions that are packaged in this NativeFunction definition.
+  */
+  final def cfunctions: Seq[CFunction2] = {
+    Seq(primary) ++ secondary
+  }
+
+  /*
+    The hashId of the function group should be a hash of the "semantic identity"
+    of the function, rather than that of the concrete function body itself.
   */
   def hashId: Int
 
-  def func: CFunction2
+  /*
+    This is the function whose compiled symbol will be invoked by the VE process
+    as part of the execution of a Spark Plan.
+  */
+  def primary: CFunction2
+
+  /*
+    A list of secondary functions that are intended to be called from the body
+    of the primary function, but NOT intended to be called directly by the VE
+    process itself.  This abstraction is provided to support native code generated
+    for advanced SQL operations that are defined in groups of functions, such
+    as joins.
+  */
+  def secondary: Seq[CFunction2]
 }
 
 case class CompiledCodeInfo(hashId: Int,
@@ -46,13 +70,13 @@ case class CompiledCodeInfo(hashId: Int,
 
 trait NativeCodeCompiler extends Serializable {
   private[native] def combinedCode(functions: Seq[NativeFunction]): String = {
-    val cfunctions = functions.map(_.func)
-    val headers = cfunctions.map(_.additionalHeaders).flatten.toSet
+    val cfuncs = functions.flatMap(_.cfunctions)
+    val headers = cfuncs.map(_.additionalHeaders).flatten.toSet ++ CFunction2.DefaultHeaders
 
     CodeLines.from(
-      headers.map(_.toString).toSeq,
+      headers.toSeq.sortBy(_.name).map(_.toString),
       "",
-      cfunctions.map(_.toCodeLines)
+      cfuncs.map(_.toCodeLines)
     ).cCode
   }
 
