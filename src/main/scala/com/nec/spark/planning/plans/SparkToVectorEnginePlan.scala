@@ -17,8 +17,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{Distribution, OrderedDistri
 import org.apache.spark.sql.execution.{RowToColumnarTransition, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.util.ArrowUtilsExposed
 
-import java.nio.file.Paths
-
 // SparkToVectorEnginePlan calls handleTransfer, a library function. It uses the parentVeFunction
 // to get access to the library.
 case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFunction, sortOrder: Option[Seq[SortOrder]] = None)
@@ -97,7 +95,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
               Iterator.empty
             }else{
               // TODO: find a better way of calling a library function ("handle_transfer") from here
-              val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(LibCyclone.FileName))
+              val libRef = veProcess.load(veFunction.libraryPath.getParent.resolve("sources").resolve(LibCyclone.FileName))
               val batch = withInvocationMetrics(VE) {
                 vectorEngine.executeTransfer(libRef, transferDescriptor)
               }
@@ -136,7 +134,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
 
               // TODO: find a better way of calling a library function ("handle_transfer") from here
               val batch = withInvocationMetrics(VE) {
-                val libRef = veProcess.load(Paths.get(veFunction.libraryPath).getParent.resolve("sources").resolve(LibCyclone.FileName))
+                val libRef = veProcess.load(veFunction.libraryPath.getParent.resolve("sources").resolve(LibCyclone.FileName))
                 vectorEngine.executeTransfer(libRef, descriptor)
               }
 

@@ -12,28 +12,31 @@ import org.apache.spark.api.plugin.PluginContext
 
 object LibLocation {
   trait LibLocation {
-    def resolveLocation(): Path
+    def resolve: Path
   }
 
   case class DistributedLibLocation(libraryPath: String) extends LibLocation {
-    override def resolveLocation(): Path = {
+    override def resolve: Path = {
       val path = Paths.get(libraryPath)
-      if (Files.exists(path)) {
-        path.toAbsolutePath
+
+      val tmp = if (Files.exists(path)) {
+        path
+
       } else {
         SparkCycloneExecutorPlugin.pluginContext.ask(
           RequestCompiledLibraryForCode(libraryPath)
         ) match {
-          case RequestCompiledLibraryResponse(bytez) =>
+          case RequestCompiledLibraryResponse(bytes) =>
             Files.write(
               path,
-              bytez.toByteArray,
+              bytes.toByteArray,
               StandardOpenOption.CREATE_NEW,
               StandardOpenOption.WRITE
             )
         }
       }
+
+      tmp.normalize.toAbsolutePath
     }
   }
-
 }

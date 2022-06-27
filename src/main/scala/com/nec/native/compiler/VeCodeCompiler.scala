@@ -1,17 +1,22 @@
 package com.nec.native.compiler
 
-import com.nec.native.{NativeCodeCompiler, NativeFunction}
-import java.nio.file.Path
+import com.nec.native.{CompiledCodeInfo, NativeCodeCompiler, NativeFunction}
+import java.nio.file.{Files, Path}
 import com.typesafe.scalalogging.LazyLogging
 
 final case class OnDemandVeCodeCompiler(cwd: Path,
                                         config: VeCompilerConfig = VeCompilerConfig.defaults)
                                         extends NativeCodeCompiler with LazyLogging {
-  logger.info(s"VE Kernel Compiler configuration: ${config}")
+  logger.info(s"VE kernel compiler configuration: ${config}")
 
-  def build(functions: Seq[NativeFunction]): Map[Int, Path] = {
+  if (! Files.exists(cwd)) {
+    logger.info(s"Creating build directory for the VE kernel compiler: ${cwd}")
+    Files.createDirectories(cwd, VeKernelCompilation.FileAttributes)
+  }
+
+  def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     val soPath = build(combinedCode(functions))
-    functions.map(f => (f.hashId -> soPath)).toMap
+    functions.map { f => (f.hashId -> CompiledCodeInfo(f.hashId, f.name, soPath)) }.toMap
   }
 
   def build(code: String): Path = {

@@ -47,9 +47,9 @@ case class VePartialAggregate(
                 val result = withInvocationMetrics(VE) {
                   vectorEngine.executeMulti(
                     libRef,
-                    partialFunction.functionName,
+                    partialFunction.name,
                     veColBatch.columns.toList,
-                    partialFunction.namedResults
+                    partialFunction.outputs
                   )
                 }
                 logger.debug(s"Mapped $veColBatch to $result")

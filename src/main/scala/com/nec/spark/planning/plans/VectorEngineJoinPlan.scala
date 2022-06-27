@@ -59,10 +59,10 @@ case class VectorEngineJoinPlan(
                   withInvocationMetrics(VE){
                     vectorEngine.executeJoin(
                       libRefJoin,
-                      joinFunction.functionName,
+                      joinFunction.name,
                       leftBatchesBatch,
                       rightBatchesBatch,
-                      joinFunction.namedResults
+                      joinFunction.outputs
                     )
                   }
                 } finally {

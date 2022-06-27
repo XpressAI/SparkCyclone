@@ -2,7 +2,8 @@ package com.nec.vectorengine
 
 import com.nec.colvector.{VeColVectorSource => VeSource}
 import com.nec.util.PointerOps._
-import scala.collection.concurrent.{TrieMap => MMap}
+import scala.collection.concurrent.{TrieMap => TMap}
+import scala.collection.mutable.{Map => MMap}
 import scala.util.Try
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -33,7 +34,7 @@ final case class WrappingVeo private (val node: Int,
   private var libCyclone: LibraryReference = _
 
   // Internal allocation and library records for tracking
-  private var heapRecords = MMap.empty[Long, VeAllocation]
+  private var heapRecords = TMap.empty[Long, VeAllocation]
   private var stackRecords = MMap.empty[Long, VeCallArgsStack]
   private var loadedLibRecords = MMap.empty[String, LibraryReference]
 
@@ -415,7 +416,7 @@ final case class WrappingVeo private (val node: Int,
   private[vectorengine] def _load(path: Path): LibraryReference = {
     withVeoProc {
       loadedLibRecords.synchronized {
-        val npath = path.normalize
+        val npath = path.normalize.toAbsolutePath
         loadedLibRecords.get(npath.toString) match {
           case Some(lib) =>
             logger.debug(s"[${handle.address}] Library .SO has already been loaded: ${npath}")
@@ -456,7 +457,7 @@ final case class WrappingVeo private (val node: Int,
   private[vectorengine] def _unload(lib: LibraryReference): Unit = {
     withVeoProc {
       loadedLibRecords.synchronized {
-        val npath = Paths.get(lib.path).normalize
+        val npath = Paths.get(lib.path).normalize.toAbsolutePath
         loadedLibRecords.get(npath.toString) match {
           case Some(lib) =>
             logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")
@@ -520,7 +521,9 @@ final case class WrappingVeo private (val node: Int,
 
       // Create an allocation record to track the allocation
       val allocation = VeCallArgsStack(inputs, args)
-      stackRecords.put(args.address, allocation)
+      stackRecords.synchronized {
+        stackRecords.put(args.address, allocation)
+      }
       allocation
     }
   }
@@ -561,7 +564,7 @@ final case class WrappingVeo private (val node: Int,
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     withVeoThread { tcontext =>
-      logger.trace(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
+      logger.debug(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
 
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(

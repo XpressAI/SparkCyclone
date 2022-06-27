@@ -3,13 +3,13 @@ package com.nec.spark.agile
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CodeStructure.CodeSection
 
-final case class CodeStructure(sections: List[CodeSection])
+final case class CodeStructure(sections: Seq[CodeSection])
 
 object CodeStructure {
 
-  def combine(list: List[CodeStructure]): CodeLines = {
+  def combine(codes: Seq[CodeStructure]): CodeLines = {
     CodeLines.from(
-      list
+      codes
         .flatMap(_.sections)
         .sortBy {
           case CodeSection.Header(_)    => 1
@@ -20,7 +20,7 @@ object CodeStructure {
     )
   }
 
-  val empty: CodeStructure = CodeStructure(sections = Nil)
+  val empty: CodeStructure = CodeStructure(sections = Seq.empty)
   sealed trait CodeSection {
     def codeLines: CodeLines
   }
@@ -56,6 +56,6 @@ object CodeStructure {
       }
     }
 
-    CodeStructure(sections = foundParts.toList)
+    CodeStructure(sections = foundParts.toSeq)
   }
 }

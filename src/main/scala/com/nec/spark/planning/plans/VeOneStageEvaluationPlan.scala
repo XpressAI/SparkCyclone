@@ -70,9 +70,9 @@ final case class VeOneStageEvaluationPlan(
                 val cols = withInvocationMetrics(VE){
                   vectorEngine.execute(
                     libRef,
-                    veFunction.functionName,
-                    inputBatch.columns.toList,
-                    veFunction.namedResults
+                    veFunction.name,
+                    inputBatch.columns,
+                    veFunction.outputs
                   )
                 }
 

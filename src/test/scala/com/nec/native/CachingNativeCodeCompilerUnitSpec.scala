@@ -19,41 +19,52 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
       val fgroup1 = Seq(func1, func2)
       val fgroup2 = Seq(func2, func3)
 
-      noException should be thrownBy {
-        val compiler = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(Paths.get("target", "ve", s"${Instant.now.toEpochMilli}")))
+      val cwd = Paths.get("target", "ve", s"${Instant.now.toEpochMilli}")
 
-        // Compile func1 and func2 together
-        val libpaths1 = compiler.build(fgroup1)
-        libpaths1.keys should be (fgroup1.map(_.hashId).toSet)
-        // Only one library should be returned
-        libpaths1.values.toSet.size should be (1)
+      // Create the caching compiler
+      val compiler1 = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(cwd))
 
-        // Compile func2 and func3 together - func2 should be already cached from the first compilation
-        val libpaths2 = compiler.build(fgroup2)
-        libpaths2.keys should be (fgroup2.map(_.hashId).toSet)
-        // Two libraries should be returned - one for func2 (cached) and one for func3 (new)
-        libpaths2.values.toSet.size should be (2)
+      // Compile func1 and func2 together
+      val libinfos1 = compiler1.build(fgroup1)
+      libinfos1.keys should be (fgroup1.map(_.hashId).toSet)
+      // Only one library should be returned
+      libinfos1.values.map(_.path).toSet.size should be (1)
 
-        // The paths returned by the first compilation should be a subset of those returned by the second compilation
-        libpaths1.values.toSet.subsetOf(libpaths2.values.toSet) should be (true)
+      // Compile func2 and func3 together - func2 should be already cached from the first compilation
+      val libinfos2 = compiler1.build(fgroup2)
+      libinfos2.keys should be (fgroup2.map(_.hashId).toSet)
+      // Two libraries should be returned - one for func2 (cached) and one for func3 (new)
+      libinfos2.values.map(_.path).toSet.size should be (2)
 
-        val path1 = libpaths1.values.head.toString
-        val path2 = (libpaths2.values.toSet -- libpaths1.values.toSet).head.toString
+      // The paths returned by the first compilation should be a subset of those returned by the second compilation
+      libinfos1.values.map(_.path).toSet.subsetOf(libinfos2.values.map(_.path).toSet) should be (true)
 
-        // Run nm on the .SO filepath to check that the functions are indeed defined
-        val output1 = ProcessRunner(Seq("nm", path1), Paths.get(".")).run(true).stdout.split("\n")
-        val output2 = ProcessRunner(Seq("nm", path2), Paths.get(".")).run(true).stdout.split("\n")
+      val path1 = libinfos1.values.head.path
+      val path2 = (libinfos2.values.toSet -- libinfos1.values.toSet).head.path
 
-        // The functions should be defined in the libraries that they were first compiled to
-        Seq(
-          (func1, true),
-          (func2, true),
-          (func3, false)
-        ).foreach { case (func, expected) =>
-          output1.find(_.contains(func.name)).nonEmpty should be (expected)
-          output2.find(_.contains(func.name)).nonEmpty should be (! expected)
-        }
+      // Run nm on the .SO filepath to check that the functions are indeed defined
+      val output1 = ProcessRunner(Seq("nm", path1.toString), Paths.get(".")).run(true).stdout.split("\n")
+      val output2 = ProcessRunner(Seq("nm", path2.toString), Paths.get(".")).run(true).stdout.split("\n")
+
+      // The functions should be defined in the libraries that they were first compiled to
+      Seq(
+        (func1, true),
+        (func2, true),
+        (func3, false)
+      ).foreach { case (func, expected) =>
+        output1.find(_.contains(func.name)).nonEmpty should be (expected)
+        output2.find(_.contains(func.name)).nonEmpty should be (! expected)
       }
+
+      // Create a second instance of the caching compiler with the same build directory
+      val compiler2 = CachingNativeCodeCompiler(OnDemandVeCodeCompiler(cwd))
+
+      // The cache should be rebuilt from the indices written out to the build directory
+      compiler2.buildcache.keys should be (Set(func1, func2, func3).map(_.hashId))
+
+      // Building with the second instance of the compiler should hit the cache
+      compiler2.build(fgroup1) should be (libinfos1)
+      compiler2.build(fgroup2) should be (libinfos2)
     }
   }
 }
