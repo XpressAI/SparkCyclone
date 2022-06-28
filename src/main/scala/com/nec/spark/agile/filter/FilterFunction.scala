@@ -9,18 +9,16 @@ object FilterFunction {
   final val MatchListId = "matching_ids"
 }
 
-case class FilterFunction(
-  name: String,
-  filter: VeFilter[CVector, CExpression],
-  onVe: Boolean = true
-) extends FunctionTemplateTrait {
+case class FilterFunction(name: String,
+                          filter: VeFilter[CVector, CExpression],
+                          onVe: Boolean = true) extends VeFunctionTemplate {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
   private[filter] lazy val inputs: List[CVector] = {
     filter.data.map { vec => vec.withNewName(s"${vec.name}_m") }
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     filter.data.map { vec =>
       vec.withNewName(s"${vec.name.replaceAllLiterally("input", "output")}_m")
     }
@@ -92,6 +90,14 @@ case class FilterFunction(
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the FilterFunction will be determined by the
+      filter expression and whether or not it is intended to run on VE.
+    */
+    (filter, onVe).hashCode
+  }
+
   def toCFunction: CFunction2 = {
     val body = CodeLines.from(
       // Declare some pointers
@@ -104,5 +110,9 @@ case class FilterFunction(
     )
 
     CFunction2(name, arguments, body)
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

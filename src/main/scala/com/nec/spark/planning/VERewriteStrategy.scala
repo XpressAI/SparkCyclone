@@ -351,24 +351,6 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
 
       ff = groupByPartialGenerator.finalGenerator.createFinal
 
-      dataDescriptions = {
-        child.output.map { expx =>
-          val contained =
-            groupingExpressions.exists(exp =>
-              exp == expx || exp.collect { case `expx` => exp }.nonEmpty
-            ) ||
-              groupingExpressions
-                .collect { case ar: AttributeReference => ar.exprId }
-                .toSet
-                .contains(expx.exprId)
-
-          GroupingFunction.DataDescription(
-            sparkTypeToVeType(expx.dataType),
-            if (contained) GroupingFunction.Key else GroupingFunction.Value
-          )
-        }
-      }
-
       partialName = s"partial_$functionPrefix"
       finalName = s"final_$functionPrefix"
 

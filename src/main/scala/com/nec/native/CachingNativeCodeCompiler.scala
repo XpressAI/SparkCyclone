@@ -55,7 +55,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
         // Filter for functions whose hashId is in the bucket
         .filter(x => hashes.contains(x.hashId))
         // For each entry, create a line
-        .map { func => s"${func.hashId}${CachingNativeCodeCompiler.delimiter}${func.name}" }
+        .map { func => s"${func.hashId}${CachingNativeCodeCompiler.delimiter}${func.identifier}" }
 
       // Write the compilation index of the .SO file in a corresponding .so.cidx file
       // The format for each line is: `<Function Hash ID> <delim> <Function Name (for debugging purposes)>
@@ -110,14 +110,14 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
   def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     // Get library paths for the subset of functions that have been previously compiled and cached
     val cached = functions.map { func => buildcache.get(func.hashId).map(info => (func, info)) }.flatten
-    logger.info(s"Returning cached .SO info for the following old functions: ${cached.map(_._1.name).mkString("[ ", ", ", " ]")}")
+    logger.info(s"Returning cached .SO info for the following old functions: ${cached.map(_._1.identifier).mkString("[ ", ", ", " ]")}")
 
     // Get the subset of functions that have yet been compiled and cached
     val newfuncs = functions.filterNot { func => buildcache.contains(func.hashId) }
 
     // If there are new functions, compile them and get back the library path mappings
     val newcache = if (newfuncs.nonEmpty) {
-      logger.info(s"Building .SO for the following new functions: ${newfuncs.map(_.name).mkString("[ ", ", ", " ]")}")
+      logger.info(s"Building .SO for the following new functions: ${newfuncs.map(_.identifier).mkString("[ ", ", ", " ]")}")
       underlying.build(newfuncs)
 
     } else {

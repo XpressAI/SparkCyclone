@@ -1,5 +1,6 @@
 package com.nec.native.compiler
 
+import com.nec.native.NativeFunction
 import com.nec.spark.agile.core.{CFunction2, CodeLines}
 import com.nec.spark.agile.CFunctionGeneration.CFunction
 import java.nio.file.{Path, Paths}
@@ -9,12 +10,16 @@ import org.scalatest.Suite
 trait VeKernelInfra { this: Suite =>
   protected implicit def kernelInfra: VeKernelInfra = this
 
-  def compiledWithHeaders[T](func: CFunction, name: String)(thunk: Path => T): T = {
+  def withCompiled[T](func: CFunction, name: String)(thunk: Path => T): T = {
     withCompiled(func.toCodeLinesHeaderPtr(name).cCode)(thunk)
   }
 
-  def compiledWithHeaders[T](func: CFunction2)(thunk: Path => T): T = {
+  def withCompiled[T](func: CFunction2)(thunk: Path => T): T = {
     withCompiled(func.toCodeLinesWithHeaders.cCode)(thunk)
+  }
+
+  def withCompiled[T](func: NativeFunction)(thunk: Path => T): T = {
+    withCompiled(func.codelines.cCode)(thunk)
   }
 
   def withCompiled[T](code: String)(thunk: Path => T): T = {

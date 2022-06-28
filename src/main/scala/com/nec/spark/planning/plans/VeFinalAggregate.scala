@@ -21,8 +21,8 @@ case class VeFinalAggregate(
   with PlanCallsVeFunction {
 
   require(
-    expectedOutputs.size == finalFunction.results.size,
-    s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${finalFunction.results.size}"
+    expectedOutputs.size == finalFunction.outputs.size,
+    s"Expected outputs ${expectedOutputs.size} to match final function results size, but got ${finalFunction.outputs.size}"
   )
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)

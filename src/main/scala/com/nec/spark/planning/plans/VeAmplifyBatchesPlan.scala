@@ -19,8 +19,8 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
   with PlanCallsVeFunction {
 
   require(
-    output.size == amplifyFunction.results.size,
-    s"Expected output size ${output.size} to match flatten function results size, but got ${amplifyFunction.results.size}"
+    output.size == amplifyFunction.outputs.size,
+    s"Expected output size ${output.size} to match flatten function results size, but got ${amplifyFunction.outputs.size}"
   )
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)

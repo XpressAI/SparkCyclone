@@ -24,7 +24,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
     "correctly execute a basic VE function [1] (single input, single output)" in {
       val func = SampleVeFunctions.DoublingFunction
 
-      compiledWithHeaders(func) { path =>
+      withCompiled(func) { path =>
         val lib = process.load(path)
 
         val inputs = InputSamples.seqOpt[Double](Random.nextInt(20) + 10)
@@ -56,7 +56,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
     "correctly execute a basic VE function [2] (multi input, multi output)" in {
       val func = SampleVeFunctions.FilterEvensFunction
 
-      compiledWithHeaders(func) { path =>
+      withCompiled(func) { path =>
         val lib = process.load(path)
 
         val inputs0 = InputSamples.array[Int](Random.nextInt(20) + 10)
@@ -92,7 +92,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
     "correctly execute a multi-function [1] (simple partitioning)" in {
       val func = SampleVeFunctions.PartitioningFunction
 
-      compiledWithHeaders(func) { path =>
+      withCompiled(func) { path =>
         val lib = process.load(path)
         val colvec = Seq[Double](95, 99, 105, 500, 501).map(Some(_)).toBytePointerColVector("_").toVeColVector
 
@@ -141,7 +141,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
         2
       )
 
-      compiledWithHeaders(groupingFn.toCFunction) { path =>
+      withCompiled(groupingFn.toCFunction) { path =>
         val lib = process.load(path)
 
         val lastString = "cccc"
@@ -181,7 +181,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
     "correctly execute a multi-in function [1] (merge multiple VeColBatches)" in {
       val mergeFn = MergeFunction("merge_func", Seq(VeNullableDouble, VeString))
 
-      compiledWithHeaders(mergeFn.toCFunction) { path =>
+      withCompiled(mergeFn.toCFunction) { path =>
         val lib = process.load(path)
 
         val colvec1 = Seq[Double](1, 2, 3, -1).map(Some(_)).toBytePointerColVector("_").toVeColVector
@@ -251,7 +251,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
       // Define join function
       val joinFn = SimpleEquiJoinFunction("join_func", lbatches.veTypes , rbatches.veTypes)
 
-      compiledWithHeaders(joinFn.toCFunction) { path =>
+      withCompiled(joinFn.toCFunction) { path =>
         val lib = process.load(path)
 
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${joinFn.name}") should be (null)
@@ -299,7 +299,7 @@ final class VectorEngineFunSpec extends AnyWordSpec with WithVeProcess with VeKe
 
       val groupFn = CppTranspiler.transpileGroupBy(reify { a: (Long, Long) => a._2 % 7 })
 
-      compiledWithHeaders(groupFn.func) { path =>
+      withCompiled(groupFn.func) { path =>
         val lib = process.load(path)
 
         engine.metrics.getTimers.get(s"${VectorEngine.ExecCallDurationsMetric}.${groupFn.func.name}") should be (null)

@@ -16,7 +16,7 @@ final case class OnDemandVeCodeCompiler(cwd: Path,
 
   def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     val soPath = build(combinedCode(functions))
-    functions.map { f => (f.hashId -> CompiledCodeInfo(f.hashId, f.name, soPath)) }.toMap
+    functions.map { f => (f.hashId -> CompiledCodeInfo(f.hashId, f.identifier, soPath)) }.toMap
   }
 
   def build(code: String): Path = {

@@ -24,7 +24,7 @@ object GroupingFunction {
 
 case class GroupingFunction(name: String,
                             columns: List[GroupingFunction.DataDescription],
-                            nbuckets: Int) extends FunctionTemplateTrait {
+                            nbuckets: Int) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
   private[exchange] lazy val inputs: List[CVector] = {
@@ -33,7 +33,7 @@ case class GroupingFunction(name: String,
     }
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"output_${kvType.render}_${idx}")
     }
@@ -133,6 +133,14 @@ case class GroupingFunction(name: String,
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the GroupingFunction will be determined by the
+      grouping columns and number of buckets.
+    */
+    (columns, nbuckets).hashCode
+  }
+
   def toCFunction: CFunction2 = {
     val body = if (keycols.isEmpty) {
       CodeLines.from(
@@ -154,5 +162,9 @@ case class GroupingFunction(name: String,
     }
 
     CFunction2(name, arguments, body)
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

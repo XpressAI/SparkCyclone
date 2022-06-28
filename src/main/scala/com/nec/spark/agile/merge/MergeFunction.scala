@@ -4,7 +4,7 @@ import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.core._
 
 case class MergeFunction(name: String,
-                         columns: Seq[VeType]) extends FunctionTemplateTrait {
+                         columns: Seq[VeType]) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Merge to have at least one data column")
 
   private[merge] lazy val inputs: List[CVector] = {
@@ -13,7 +13,7 @@ case class MergeFunction(name: String,
     }
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     columns.toList.zipWithIndex.map { case (veType, idx) =>
       veType.makeCVector(s"output_${idx}_g")
     }
@@ -51,7 +51,19 @@ case class MergeFunction(name: String,
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the MergeFunction will be determined by the
+      grouping columns and number of buckets.
+    */
+    columns.hashCode
+  }
+
   def toCFunction: CFunction2 = {
     CFunction2(name, arguments, columns.zipWithIndex.map((mergeCVecStmt _).tupled))
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

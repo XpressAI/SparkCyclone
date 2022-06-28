@@ -10,23 +10,23 @@ object SortFunction {
 
 case class SortFunction(
   name: String,
-  data: List[CScalarVector],
-  sorts: List[VeSortExpression]
-) extends FunctionTemplateTrait {
+  data: Seq[CScalarVector],
+  sorts: Seq[VeSortExpression]
+) extends VeFunctionTemplate {
   require(data.nonEmpty, "Expected Sort to have at least one data column")
   require(sorts.nonEmpty, "Expected Sort to have at least one projection expression")
 
-  private[sort] lazy val inputs: List[CVector] = {
+  private[sort] lazy val inputs: Seq[CVector] = {
     data
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     data.map { case CScalarVector(name, vetype) =>
       CScalarVector(s"${name.replaceAllLiterally("input", "output")}", vetype)
     }
   }
 
-  private[sort] lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[sort] lazy val arguments: Seq[CFunction2.CFunctionArgument] = {
     inputs.map { vec => CFunction2.CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_m")) } ++
       outputs.map { vec => CFunction2.CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_mo")) }
   }
@@ -107,11 +107,23 @@ case class SortFunction(
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the SortFunction will be determined by the
+      data columns and sort expressions.
+    */
+    (data.map(_.veType), sorts).hashCode
+  }
+
   def toCFunction: CFunction2 = {
     CFunction2(
       name,
       arguments,
       CodeLines.from(inputPtrDeclStmts, "", outputPtrDeclStmts, "", prepareColumnsStmts, "", sortColumnsStmts, "", reorderStmts)
     )
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

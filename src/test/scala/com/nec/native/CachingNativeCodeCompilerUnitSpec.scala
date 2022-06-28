@@ -52,8 +52,8 @@ final class CachingNativeCodeCompilerUnitSpec extends AnyWordSpec {
         (func2, true),
         (func3, false)
       ).foreach { case (func, expected) =>
-        output1.find(_.contains(func.name)).nonEmpty should be (expected)
-        output2.find(_.contains(func.name)).nonEmpty should be (! expected)
+        output1.find(_.contains(func.identifier)).nonEmpty should be (expected)
+        output2.find(_.contains(func.identifier)).nonEmpty should be (! expected)
       }
 
       // Create a second instance of the caching compiler with the same build directory

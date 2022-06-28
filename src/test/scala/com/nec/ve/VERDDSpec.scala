@@ -29,7 +29,7 @@ final class VERDDSpec
   ) { sparkSession =>
     import SparkCycloneExecutorPlugin._
 
-    val result = compiledWithHeaders(DoublingFunction) { path =>
+    val result = withCompiled(DoublingFunction) { path =>
       val ref = veProcess.load(path)
 
       VERDDSpec.doubleBatches {
