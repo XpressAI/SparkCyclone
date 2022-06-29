@@ -112,7 +112,7 @@ case class SortFunction(
       The semantic identity of the SortFunction will be determined by the
       data columns and sort expressions.
     */
-    (data.map(_.veType), sorts).hashCode
+    (getClass.getName, data.map(_.veType), sorts).hashCode
   }
 
   def toCFunction: CFunction2 = {

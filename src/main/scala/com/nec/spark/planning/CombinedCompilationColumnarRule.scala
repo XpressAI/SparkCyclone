@@ -1,6 +1,6 @@
 package com.nec.spark.planning
 
-import com.nec.native.CompiledCodeInfo
+import com.nec.native.{CompiledCodeInfo, NativeFunction}
 import com.nec.spark.SparkCycloneDriverPlugin
 import com.nec.spark.agile.core.CodeLines
 import com.nec.spark.agile.CodeStructure
@@ -19,36 +19,56 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
     (result, System.nanoTime - start)
   }
 
-  private[planning] def compileRawCodes(uncompiled: Seq[VeFunction]): Path = {
-    val chunks = uncompiled.collect { case VeFunction(c: RawCode, name, _) => (name, c) }.toSet
-    logger.info(s"There are ${chunks.size} uncompiled VeFunctions that are raw code chunks: ${chunks.map(_._1).mkString("[ ", ", ", " ]")}")
+  private[planning] def compileRawCodes(uncompiled: Seq[VeFunction]): Option[Path] = {
+    val chunks = uncompiled.collect { case VeFunction(c: RawCode, name, _) => (name, c) }
+      .toSet[(String, VeFunctionStatus.RawCode)].toSeq
+      .sortBy(_._1)
 
-    // Combine the code chunks
-    val combined = CodeStructure.combine(chunks.toSeq.map { chunk =>
-      CodeStructure.from(CodeLines.parse(chunk._2.code))
-    })
+    // Skip building an .SO if there are no uncompiled raw code chunks
+    if (chunks.nonEmpty) {
+      logger.info(s"There are ${chunks.size} uncompiled VeFunctions that are raw code chunks: ${chunks.map(_._1).mkString("[ ", ", ", " ]")}")
 
-    // Build the code and return the .SO
-    SparkCycloneDriverPlugin.currentCompiler.build(combined.cCode)
+      // Combine the code chunks
+      val combined = CodeStructure.combine(chunks.toSeq.map { chunk =>
+        CodeStructure.from(CodeLines.parse(chunk._2.code))
+      })
+
+      // Build the code and return the .SO
+      Some(SparkCycloneDriverPlugin.currentCompiler.build(combined.cCode))
+
+    } else {
+      Option.empty[Path]
+    }
   }
 
   private[planning] def compileSourceCodes(uncompiled: Seq[VeFunction]): Map[Int, CompiledCodeInfo] = {
-    val functions = uncompiled.collect { case VeFunction(c: SourceCode, _, _) => c.function }.toSet
-    logger.info(s"There are ${functions.size} uncompiled VeFunctions that are NativeFunctions: ${functions.map(_.identifier).mkString("[ ", ", ", " ]")}")
+    val functions = uncompiled.collect { case VeFunction(c: SourceCode, _, _) => c.function }
+      .toSet[NativeFunction].toSeq
+      .sortBy(_.identifier)
 
-    // Build the code and return the .SO
-    SparkCycloneDriverPlugin.currentCompiler.build(functions.toSeq)
+    // Skip building / lookup if there are no uncompiled NativeFunctions
+    if (functions.nonEmpty) {
+      logger.info(s"There are ${functions.size} uncompiled VeFunctions that are NativeFunctions: ${functions.map(_.identifier).mkString("[ ", ", ", " ]")}")
+
+      // Build the code and return the .SO
+      SparkCycloneDriverPlugin.currentCompiler.build(functions.toSeq)
+
+    } else {
+      Map.empty[Int, CompiledCodeInfo]
+    }
   }
 
-  private[planning] def transformRawCodePlans(path: Path): PartialFunction[SparkPlan, SparkPlan] = {
-    case UncompiledPlan(plan) =>
-      plan.updateVeFunction {
-        case f @ VeFunction(_: RawCode, _, _) =>
-          f.copy(status = Compiled(DistributedLibLocation(path.toString)))
+  private[planning] def transformRawCodePlans(pathO: Option[Path]): PartialFunction[SparkPlan, SparkPlan] = { planT =>
+    (planT, pathO) match {
+      case (UncompiledPlan(plan), Some(path)) =>
+        plan.updateVeFunction {
+          case f @ VeFunction(_: RawCode, _, _) =>
+            f.copy(status = Compiled(DistributedLibLocation(path.toString)))
 
-        case other =>
-          other
-      }
+          case other =>
+            other
+        }
+    }
   }
 
   private[planning] def transformSourceCodePlans(cache: Map[Int, CompiledCodeInfo]): PartialFunction[SparkPlan, SparkPlan] = {
@@ -90,7 +110,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
         logger.info(s"Found ${uncompiled.length} uncompiled plans; proceeding to compile VE functions embedded in them")
 
         // Compile all VeFunctionStatus.RawCodes
-        val soPath = compileRawCodes(uncompiled)
+        val soPathO = compileRawCodes(uncompiled)
 
         // Compile all VeFunctionStatus.SourceCode
         val funcCache = compileSourceCodes(uncompiled)
@@ -99,7 +119,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
 
         // Apply transformations to the SparkPlan tree by replacing all uncompiled VeFunctions with comopiled variants
         plan
-          .transformUp(transformRawCodePlans(soPath))
+          .transformUp(transformRawCodePlans(soPathO))
           .transformUp(transformSourceCodePlans(funcCache))
       }
 

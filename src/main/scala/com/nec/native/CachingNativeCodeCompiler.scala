@@ -68,9 +68,12 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
 
     // Look for all index files in the build directory
     val ipaths = if (fcwd.exists && fcwd.isDirectory) {
-      fcwd.listFiles.toSeq.filter { f =>
-        f.isFile && f.getPath.endsWith(CachingNativeCodeCompiler.extension)
-      }.map(_.toPath)
+      fcwd.listFiles.toSeq
+        .filter { f =>
+          f.isFile && f.getPath.endsWith(CachingNativeCodeCompiler.extension)
+        }
+        .map(_.toPath)
+        .sorted
 
     } else {
       Seq.empty[Path]
@@ -109,15 +112,15 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
 
   def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     // Get library paths for the subset of functions that have been previously compiled and cached
-    val cached = functions.map { func => buildcache.get(func.hashId).map(info => (func, info)) }.flatten
-    logger.info(s"Returning cached .SO info for the following old NativeFunction: ${cached.map(_._1.identifier).mkString("[ ", ", ", " ]")}")
+    val cached = functions.map { func => buildcache.get(func.hashId).map(info => (func, info)) }.flatten.sortBy(_._1.identifier)
+    logger.info(s"Returning cached .SO info for the following old NativeFunctions: ${cached.map(_._1.identifier).mkString("[ ", ", ", " ]")}")
 
     // Get the subset of functions that have yet been compiled and cached
-    val newfuncs = functions.filterNot { func => buildcache.contains(func.hashId) }
+    val newfuncs = functions.filterNot { func => buildcache.contains(func.hashId) }.sortBy(_.identifier)
 
     // If there are new functions, compile them and get back the library path mappings
     val newcache = if (newfuncs.nonEmpty) {
-      logger.info(s"Building .SO for the following new NativeFunction: ${newfuncs.map(_.identifier).mkString("[ ", ", ", " ]")}")
+      logger.info(s"Building .SO for the following new NativeFunctions: ${newfuncs.map(_.identifier).mkString("[ ", ", ", " ]")}")
       underlying.build(newfuncs)
 
     } else {
@@ -141,7 +144,7 @@ final case class CachingNativeCodeCompiler(underlying: NativeCodeCompiler,
         info.path
 
       case None =>
-        logger.info(s".SO cache miss for the raw code chunk with hash code ${code.hashCode}:\n${code.take(256)}...\n...\n")
+        logger.info(s".SO cache miss for the raw code chunk with hash code ${code.hashCode}:\n${code.take(1024)}...\n...\n")
         val path = underlying.build(code)
 
         // Update the build cache with the new mappings

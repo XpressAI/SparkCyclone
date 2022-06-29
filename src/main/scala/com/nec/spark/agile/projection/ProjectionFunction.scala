@@ -75,7 +75,7 @@ case class ProjectionFunction(name: String,
       The semantic identity of the SortFunction will be determined by the
       data columns and projection expressions.
     */
-    (data.map(_.veType), expressions).hashCode
+    (getClass.getName, data.map(_.veType), expressions).hashCode
   }
 
   def toCFunction: CFunction2 = {

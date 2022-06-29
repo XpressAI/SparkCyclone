@@ -95,7 +95,7 @@ case class FilterFunction(name: String,
       The semantic identity of the FilterFunction will be determined by the
       filter expression and whether or not it is intended to run on VE.
     */
-    (filter, onVe).hashCode
+    (getClass.getName, filter, onVe).hashCode
   }
 
   def toCFunction: CFunction2 = {

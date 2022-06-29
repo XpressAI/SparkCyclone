@@ -56,7 +56,7 @@ case class MergeFunction(name: String,
       The semantic identity of the MergeFunction will be determined by the
       grouping columns and number of buckets.
     */
-    columns.hashCode
+    (getClass.getName, columns).hashCode
   }
 
   def toCFunction: CFunction2 = {

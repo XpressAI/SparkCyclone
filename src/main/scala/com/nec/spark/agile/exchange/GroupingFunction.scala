@@ -138,7 +138,7 @@ case class GroupingFunction(name: String,
       The semantic identity of the GroupingFunction will be determined by the
       grouping columns and number of buckets.
     */
-    (columns, nbuckets).hashCode
+    (getClass.getName, columns, nbuckets).hashCode
   }
 
   def toCFunction: CFunction2 = {

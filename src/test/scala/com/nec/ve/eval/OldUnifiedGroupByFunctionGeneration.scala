@@ -112,14 +112,14 @@ final case class OldUnifiedGroupByFunctionGeneration(
         computedProjections = cpr,
         stringVectorComputations = Nil
       )
-        .createPartial(inputs = veDataTransformation.inputs)
+        .createPartial2(inputs = veDataTransformation.inputs)
     }
       .fold(sys.error, identity)
 
     val ff = stagedGroupBy.aggregations
       .map(sa => computeAggregate(sa).map(c => sa -> c))
       .sequence
-      .map(r => GroupByPartialToFinalGenerator(stagedGroupBy, r).createFinal)
+      .map(r => GroupByPartialToFinalGenerator(stagedGroupBy, r).createFinal2)
       .fold(sys.error, identity)
 
     CFunction(

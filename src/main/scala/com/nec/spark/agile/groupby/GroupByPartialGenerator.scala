@@ -43,7 +43,7 @@ final case class GroupByPartialGenerator(
   val BatchGroupPositionsId = "batch_group_positions"
   val BatchCountsId = "batch_counts"
 
-  def createPartial(inputs: Seq[CVector]): CFunction =
+  def createPartial2(inputs: Seq[CVector]): CFunction =
     CFunction(
       inputs = inputs,
       outputs = partialOutputs,
@@ -66,8 +66,7 @@ final case class GroupByPartialGenerator(
       hasSets = true
     )
 
-
-  def createPartial2(name: String, inputs: Seq[CVector]): CFunction2 = {
+  def createPartial(name: String, inputs: Seq[CVector]): PartialAggregateFunction = {
     val arguments = {
       inputs
         .map { v => v.withNewName(s"${v.name}_m") }
@@ -97,7 +96,11 @@ final case class GroupByPartialGenerator(
       freeGroupingAllocations
     )
 
-    CFunction2(name, arguments, body)
+    PartialAggregateFunction(
+      name,
+      partialOutputs,
+      CFunction2(name, arguments, body)
+    )
   }
 
   /**
