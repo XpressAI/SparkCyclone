@@ -4,22 +4,6 @@ import com.nec.native.NativeFunction
 import com.nec.spark.planning.VeFunction
 import com.nec.spark.planning.VeFunctionStatus
 
-// trait FunctionTemplateTrait {
-//   def name: String
-
-//   def outputs: Seq[CVector]
-
-//   def toCFunction: CFunction2
-
-//   final def toVeFunction: VeFunction = {
-//     VeFunction(
-//       VeFunctionStatus.fromCodeLines(toCFunction.toCodeLinesWithHeaders),
-//       name,
-//       outputs
-//     )
-//   }
-// }
-
 trait VeFunctionTemplate extends NativeFunction {
   /*
     This is the function whose compiled symbol will be invoked by the VE process

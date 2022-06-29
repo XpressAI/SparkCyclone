@@ -261,8 +261,8 @@ object CFunctionGeneration {
   )
 
   final case class CFunction(
-    inputs: List[CVector],
-    outputs: List[CVector],
+    inputs: Seq[CVector],
+    outputs: Seq[CVector],
     body: CodeLines,
     hasSets: Boolean = false
   ) {
@@ -300,8 +300,9 @@ object CFunctionGeneration {
       toCodeLinesNoHeader(functionName)
     )
 
-    def arguments: List[CVector] = inputs ++ outputs
+    def arguments: Seq[CVector] = inputs ++ outputs
 
+    // USED
     def toCodeLinesNoHeader(functionName: String): CodeLines = {
       CodeLines.from(
         s"""extern "C" long $functionName(""",
@@ -318,16 +319,10 @@ object CFunctionGeneration {
       )
     }
 
+    // USED in tests
     def toCodeLinesHeaderPtr(functionName: String): CodeLines = {
-      CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutPtr(functionName))
-    }
-
-    def toCodeLinesHeaderBatchPtr(functionName: String): CodeLines = {
-      CodeLines.from(KeyHeaders, toCodeLinesNoHeaderOutBatchPtr(functionName))
-    }
-
-    def toCodeLinesNoHeaderOutPtr(functionName: String): CodeLines = {
       CodeLines.from(
+        KeyHeaders,
         s"""extern "C" long $functionName(""", {
           inputs
             .map { cVector =>
@@ -347,6 +342,7 @@ object CFunctionGeneration {
       )
     }
 
+    // USED
     def toCodeLinesNoHeaderOutPtr2(functionName: String): CodeLines = {
       CodeLines.from(
         s"""extern "C" long $functionName(""", {
@@ -387,6 +383,7 @@ object CFunctionGeneration {
       )
     }
 
+    // USED
     def toCodeLinesNoHeaderOutBatchPtr(functionName: String): CodeLines = {
       CodeLines.from(
         s"""extern "C" long $functionName(""", {

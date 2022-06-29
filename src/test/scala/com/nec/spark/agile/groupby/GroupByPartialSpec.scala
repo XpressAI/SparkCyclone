@@ -51,7 +51,7 @@ class GroupByPartialSpec extends AnyFreeSpec {
 
     val partialCFunction = groupByPartialGenerator
       .createPartial(inputs = inputs)
-      .toCodeLinesHeaderBatchPtr("partial_foo")
+      .toCodeLinesNoHeaderOutBatchPtr("partial_foo")
 
     println(partialCFunction.cCode)
 

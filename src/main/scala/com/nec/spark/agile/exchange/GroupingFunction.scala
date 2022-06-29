@@ -23,11 +23,11 @@ object GroupingFunction {
 }
 
 case class GroupingFunction(name: String,
-                            columns: List[GroupingFunction.DataDescription],
+                            columns: Seq[GroupingFunction.DataDescription],
                             nbuckets: Int) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
-  private[exchange] lazy val inputs: List[CVector] = {
+  private[exchange] lazy val inputs: Seq[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"${kvType.render}_${idx}")
     }
@@ -41,9 +41,9 @@ case class GroupingFunction(name: String,
 
   private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
-  private[exchange] lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[exchange] lazy val arguments: Seq[CFunction2.CFunctionArgument] = {
     inputs.map(CFunctionArgument.PointerPointer(_)) ++
-      List(CFunctionArgument.Raw("int* sets")) ++
+      Seq(CFunctionArgument.Raw("int* sets")) ++
       outputs.map(CFunctionArgument.PointerPointer(_))
   }
 

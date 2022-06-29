@@ -11,10 +11,10 @@ final case class GroupingCodeGenerator(
                                       ) {
 
   def identifyGroups(
-                      tupleTypes: List[String],
+                      tupleTypes: Seq[String],
                       tupleType: String,
                       count: String,
-                      thingsToGroup: List[Either[String, CExpression]]
+                      thingsToGroup: Seq[Either[String, CExpression]]
                     ): CodeLines = {
     val elems = thingsToGroup.map {
       case Left(g) =>

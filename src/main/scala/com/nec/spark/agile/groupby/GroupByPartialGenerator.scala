@@ -22,14 +22,16 @@ package com.nec.spark.agile.groupby
 import com.nec.spark.SparkCycloneExecutorPlugin
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
-import com.nec.spark.agile.core.{CVector, CodeLines}
 import com.nec.spark.agile.groupby.GroupByOutline._
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
+import com.nec.spark.agile.core._
+
 
 final case class GroupByPartialGenerator(
   finalGenerator: GroupByPartialToFinalGenerator,
-  computedGroupingKeys: List[(GroupingKey, Either[StringReference, TypedCExpression2])],
-  computedProjections: List[(StagedProjection, Either[StringReference, TypedCExpression2])],
-  stringVectorComputations: List[StringHoleEvaluation],
+  computedGroupingKeys: Seq[(GroupingKey, Either[StringReference, TypedCExpression2])],
+  computedProjections: Seq[(StagedProjection, Either[StringReference, TypedCExpression2])],
+  stringVectorComputations: Seq[StringHoleEvaluation],
   nBuckets: Int = SparkCycloneExecutorPlugin.totalVeCores
 ) {
   import finalGenerator._
@@ -41,27 +43,7 @@ final case class GroupByPartialGenerator(
   val BatchGroupPositionsId = "batch_group_positions"
   val BatchCountsId = "batch_counts"
 
-  def createFull(inputs: List[CVector]): CFunction = {
-    val finalFunction = finalGenerator.createFinal
-    val partialFunction = createPartial(inputs)
-    CFunction(
-      inputs = partialFunction.inputs,
-      outputs = finalFunction.outputs,
-      body = CodeLines.from(
-        CodeLines.commentHere(
-          "Declare the variables for the output of the Partial stage for the unified function"
-        ),
-        partialFunction.outputs.map(cv => GroupByOutline.declare(cv)),
-        partialFunction.body.scoped("Perform the Partial computation stage"),
-        finalFunction.body.scoped("Perform the Final computation stage"),
-        partialFunction.outputs
-          .map(cv => GroupByOutline.dealloc(cv))
-          .scoped("Deallocate the partial variables")
-      )
-    )
-  }
-
-  def createPartial(inputs: List[CVector]): CFunction =
+  def createPartial(inputs: Seq[CVector]): CFunction =
     CFunction(
       inputs = inputs,
       outputs = partialOutputs,
@@ -83,6 +65,40 @@ final case class GroupByPartialGenerator(
       ),
       hasSets = true
     )
+
+
+  def createPartial2(name: String, inputs: Seq[CVector]): CFunction2 = {
+    val arguments = {
+      inputs
+        .map { v => v.withNewName(s"${v.name}_m") }
+        .map(CFunctionArgument.PointerPointer(_)) ++
+      Seq(CFunctionArgument.Raw("int* sets")) ++
+      partialOutputs
+        .map(CFunctionArgument.PointerPointer(_))
+    }
+
+    val body = CodeLines.from(
+      inputs.map { v =>
+        s"${v.veType.cVectorType} *${v.name} = ${v.name}_m[0];"
+      },
+      allocateOutputBatchPointers,
+      performGrouping(count = s"${inputs.head.name}->count"),
+      computeBatchPlacementsPerGroup,
+      countBatchSizes,
+      allocateActualBatches,
+      stringVectorComputations.map(_.computeVector),
+      computeGroupingKeysPerGroup,
+      computedProjections.map { case (sp, e) =>
+        computeProjectionsPerGroup(sp, e)
+      },
+      computedAggregates.map { case (a, ag) =>
+        computeAggregatePartialsPerGroup(a, ag)
+      },
+      freeGroupingAllocations
+    )
+
+    CFunction2(name, arguments, body)
+  }
 
   /**
    * Allocate output as batches and set output batch count
