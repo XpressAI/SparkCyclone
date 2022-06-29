@@ -20,12 +20,12 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
   }
 
   private[planning] def compileRawCodes(uncompiled: Seq[VeFunction]): Path = {
-    val codes = uncompiled.collect { case VeFunction(c: RawCode, _, _) => c }.toSet
-    logger.info(s"There are ${codes.size} uncompiled raw code chunks")
+    val chunks = uncompiled.collect { case VeFunction(c: RawCode, name, _) => (name, c) }.toSet
+    logger.info(s"There are ${chunks.size} uncompiled VeFunctions that are raw code chunks: ${chunks.map(_._1).mkString("[ ", ", ", " ]")}")
 
     // Combine the code chunks
-    val combined = CodeStructure.combine(codes.toSeq.map { code =>
-      CodeStructure.from(CodeLines.parse(code.code))
+    val combined = CodeStructure.combine(chunks.toSeq.map { chunk =>
+      CodeStructure.from(CodeLines.parse(chunk._2.code))
     })
 
     // Build the code and return the .SO
@@ -34,7 +34,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
 
   private[planning] def compileSourceCodes(uncompiled: Seq[VeFunction]): Map[Int, CompiledCodeInfo] = {
     val functions = uncompiled.collect { case VeFunction(c: SourceCode, _, _) => c.function }.toSet
-    logger.info(s"There are ${functions.size} uncompiled native functions")
+    logger.info(s"There are ${functions.size} uncompiled VeFunctions that are NativeFunctions: ${functions.map(_.identifier).mkString("[ ", ", ", " ]")}")
 
     // Build the code and return the .SO
     SparkCycloneDriverPlugin.currentCompiler.build(functions.toSeq)
@@ -63,7 +63,11 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
                 since the already-compiled function with the same hashId was
                 defined with another name
               */
-              logger.debug(s"Mapping VEFunction name '${vefunc.name}' -> '${info.name}")
+
+              if (vefunc.name != info.name) {
+                logger.debug(s"Mapping VEFunction name '${vefunc.name}' -> '${info.name}")
+              }
+
               vefunc.copy(
                 status = Compiled(DistributedLibLocation(info.path.toString)),
                 name = info.name
@@ -91,7 +95,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
         // Compile all VeFunctionStatus.SourceCode
         val funcCache = compileSourceCodes(uncompiled)
 
-        logger.info(s"Finished compiling all code into .SO files; transforming existing plans...")
+        logger.info(s"Finished compiling all VeFunctions; transforming existing plans...")
 
         // Apply transformations to the SparkPlan tree by replacing all uncompiled VeFunctions with comopiled variants
         plan

@@ -25,7 +25,7 @@ final case class OnDemandVeCodeCompiler(cwd: Path,
     val tmp = cwd.resolve(s"${prefix}.so").normalize.toAbsolutePath
 
     if (tmp.toFile.exists) {
-      logger.debug(s".SO File with hash code ${code.hashCode} already exists; returning the pre-compiled .SO: ${tmp}")
+      logger.debug(s".SO file with hash code ${code.hashCode} already exists; returning the pre-compiled .SO: ${tmp}")
       tmp
 
     } else {
