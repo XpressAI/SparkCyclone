@@ -8,11 +8,9 @@ object SortFunction {
   final val SortedIndicesId = "sorted_indices"
 }
 
-case class SortFunction(
-  name: String,
-  data: Seq[CScalarVector],
-  sorts: Seq[VeSortExpression]
-) extends VeFunctionTemplate {
+final case class SortFunction(name: String,
+                              data: Seq[CScalarVector],
+                              sorts: Seq[VeSortExpression]) extends VeFunctionTemplate {
   require(data.nonEmpty, "Expected Sort to have at least one data column")
   require(sorts.nonEmpty, "Expected Sort to have at least one projection expression")
 

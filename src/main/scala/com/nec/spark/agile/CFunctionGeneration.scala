@@ -22,8 +22,6 @@ package com.nec.spark.agile
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
-import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector._
 import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 
@@ -230,22 +228,6 @@ object CFunctionGeneration {
     condition: Condition
   )
 
-  def allocateFrom(cVector: CVector)(implicit allocator: BufferAllocator): FieldVector =
-    cVector.veType match {
-      case VeString =>
-        new VarCharVector(cVector.name, allocator)
-      case VeNullableDouble =>
-        new Float8Vector(cVector.name, allocator)
-      case VeNullableFloat =>
-        new Float8Vector(cVector.name, allocator)
-      case VeNullableInt =>
-        new IntVector(cVector.name, allocator)
-      case VeNullableLong =>
-        new BigIntVector(cVector.name, allocator)
-      case VeNullableShort =>
-        new SmallIntVector(cVector.name, allocator)
-    }
-
   val KeyHeaders = CodeLines.from(
     """#include "cyclone/cyclone.hpp"""",
     """#include "frovedis/dataframe/join.hpp"""",
@@ -382,38 +364,5 @@ object CFunctionGeneration {
         "};"
       )
     }
-
-    // USED
-    def toCodeLinesNoHeaderOutBatchPtr(functionName: String): CodeLines = {
-      CodeLines.from(
-        s"""extern "C" long $functionName(""", {
-          inputs
-            .map { cVector =>
-              s"${cVector.veType.cVectorType} **${cVector.name}_m"
-            } ++ { if (hasSets) List("int *sets") else Nil } ++
-            outputs
-              .map { cVector =>
-                s"${cVector.veType.cVectorType} **${cVector.name}"
-              }
-        }
-          .mkString(",\n"),
-        ") {",
-        CodeLines.from(
-          inputs.map { cVector =>
-            CodeLines.from(
-              s"${cVector.veType.cVectorType} *${cVector.name} = ${cVector.name}_m[0];"
-            )
-          },
-          body
-        ).indented,
-        "  ",
-        "  return 0;",
-        "};"
-      )
-    }
   }
-
-  final case class StringGrouping(name: String)
-
-  final case class NamedStringProducer(name: String, stringProducer: StringProducer)
 }

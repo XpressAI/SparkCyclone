@@ -3,8 +3,8 @@ package com.nec.spark.agile.merge
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 import com.nec.spark.agile.core._
 
-case class MergeFunction(name: String,
-                         columns: Seq[VeType]) extends VeFunctionTemplate {
+final case class MergeFunction(name: String,
+                               columns: Seq[VeType]) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Merge to have at least one data column")
 
   private[merge] lazy val inputs: List[CVector] = {

@@ -34,30 +34,6 @@ import org.apache.arrow.memory.RootAllocator
 import com.typesafe.scalalogging.LazyLogging
 
 object RealExpressionEvaluationUtils extends LazyLogging {
-
-  def evalAggregate[Input, Output](
-    input: List[Input]
-  )(expressions: NamedGroupByExpression*)(implicit
-    veAllocator: VeAllocator[Input],
-    veRetriever: VeRetriever[Output],
-    veProcess: VeProcess,
-    vectorEngine: VectorEngine,
-    veColVectorSource: VeColVectorSource,
-    veKernelInfra: VeKernelInfra
-  ): Seq[Output] = {
-    val cFunction =
-      OldUnifiedGroupByFunctionGeneration(
-        VeGroupBy(
-          inputs = veAllocator.makeCVectors,
-          groups = Nil,
-          outputs = expressions.map(e => Right(e)).toList
-        )
-      ).renderGroupBy
-
-    import com.nec.util.CallContextOps._
-    evalFunction(cFunction, "agg")(input, veRetriever.makeCVectors)
-  }
-
   def evalInnerJoin[Input, Output](
     input: List[Input],
     leftKey: TypedCExpression2,
@@ -80,51 +56,6 @@ object RealExpressionEvaluationUtils extends LazyLogging {
           outputs = output
         )
       )
-
-    import com.nec.util.CallContextOps._
-    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
-  }
-
-  def evalGroupBySum[Input, Output](
-    input: List[Input],
-    groups: List[Either[StringGrouping, TypedCExpression2]],
-    expressions: List[Either[NamedStringProducer, NamedGroupByExpression]]
-  )(implicit
-    veAllocator: VeAllocator[Input],
-    veRetriever: VeRetriever[Output],
-    veProcess: VeProcess,
-    vectorEngine: VectorEngine,
-    veColVectorSource: VeColVectorSource,
-    veKernelInfra: VeKernelInfra
-  ): Seq[Output] = {
-    val cFunction =
-      OldUnifiedGroupByFunctionGeneration(
-        VeGroupBy(inputs = veAllocator.makeCVectors, groups = groups, outputs = expressions)
-      ).renderGroupBy
-
-    import com.nec.util.CallContextOps._
-    evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)
-
-  }
-
-  def evalGroupBySumStr[Input, Output](input: List[Input])(
-    groups: (StringGrouping, TypedCExpression2)
-  )(expressions: List[Either[NamedStringProducer, NamedGroupByExpression]])(implicit
-    veAllocator: VeAllocator[Input],
-    veRetriever: VeRetriever[Output],
-    veColVectorSource: VeColVectorSource,
-    veProcess: VeProcess,
-    vectorEngine: VectorEngine,
-    veKernelInfra: VeKernelInfra
-  ): Seq[Output] = {
-    val cFunction =
-      OldUnifiedGroupByFunctionGeneration(
-        VeGroupBy(
-          inputs = veAllocator.makeCVectors,
-          groups = List(Left(groups._1), Right(groups._2)),
-          outputs = expressions
-        )
-      ).renderGroupBy
 
     import com.nec.util.CallContextOps._
     evalFunction(cFunction, "project_f")(input, veRetriever.makeCVectors)

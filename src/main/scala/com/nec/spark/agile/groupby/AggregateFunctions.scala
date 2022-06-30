@@ -4,6 +4,12 @@ import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.groupby.GroupByOutline.{GroupingKey, StagedAggregation, StagedProjection}
 
+/*
+  NOTE: These VeFunctionTemplates are currently skeletons, and are intended to
+  host more code over time as they are migrated over from the groupby code
+  generation routines.
+*/
+
 final case class PartialAggregateFunction(name: String,
                                           outputs: Seq[CVector],
                                           func: CFunction2) extends VeFunctionTemplate {

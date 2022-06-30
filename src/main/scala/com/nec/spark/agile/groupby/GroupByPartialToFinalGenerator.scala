@@ -35,21 +35,6 @@ final case class GroupByPartialToFinalGenerator(
 ) {
   import stagedGroupBy._
 
-  def createFinal2: CFunction =
-    CFunction(
-      inputs = partialOutputs,
-      outputs = finalOutputs.map {
-        case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
-        case Right(stagedAggregation) =>
-          stagedAggregation.finalType.makeCVector(stagedAggregation.name)
-      },
-      body = CodeLines.from(
-        performGroupingOnKeys,
-        computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
-        passProjectionsPerGroup
-      )
-    )
-
   def createFinal(name: String): FinalAggregateFunction = {
     val inputs = partialOutputs
 

@@ -22,9 +22,9 @@ object GroupingFunction {
   final case class DataDescription(veType: VeType, kvType: KeyOrValue)
 }
 
-case class GroupingFunction(name: String,
-                            columns: Seq[GroupingFunction.DataDescription],
-                            nbuckets: Int) extends VeFunctionTemplate {
+final case class GroupingFunction(name: String,
+                                  columns: Seq[GroupingFunction.DataDescription],
+                                  nbuckets: Int) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
   private[exchange] lazy val inputs: Seq[CVector] = {

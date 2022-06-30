@@ -6,11 +6,10 @@ import com.nec.spark.agile.StringProducer.FrovedisStringProducer
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 
-
-case class ProjectionFunction(name: String,
-                              data: Seq[CVector],
-                              expressions: Seq[Either[NamedStringExpression, NamedTypedCExpression]])
-                              extends VeFunctionTemplate {
+final case class ProjectionFunction(name: String,
+                                    data: Seq[CVector],
+                                    expressions: Seq[Either[NamedStringExpression, NamedTypedCExpression]])
+                                    extends VeFunctionTemplate {
   require(data.nonEmpty, "Expected Projection to have at least one data column")
   require(expressions.nonEmpty, "Expected Projection to have at least one projection expression")
 

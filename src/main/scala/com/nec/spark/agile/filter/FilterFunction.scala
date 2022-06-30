@@ -9,9 +9,9 @@ object FilterFunction {
   final val MatchListId = "matching_ids"
 }
 
-case class FilterFunction(name: String,
-                          filter: VeFilter[CVector, CExpression],
-                          onVe: Boolean = true) extends VeFunctionTemplate {
+final case class FilterFunction(name: String,
+                                filter: VeFilter[CVector, CExpression],
+                                onVe: Boolean = true) extends VeFunctionTemplate {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
   private[filter] lazy val inputs: List[CVector] = {
