@@ -29,7 +29,7 @@ final class ExchangeOnLocalSpec
     DynamicVeSqlExpressionEvaluationSpec.VeConfiguration
   ) { sparkSession =>
     val result =
-      compiledWithHeaders(PartitioningFunction) { path =>
+      withCompiled(PartitioningFunction) { path =>
         val pathStr = path.toString
         exchangeBatches(sparkSession, pathStr)
           .collect()

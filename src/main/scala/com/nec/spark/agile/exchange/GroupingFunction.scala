@@ -22,18 +22,18 @@ object GroupingFunction {
   final case class DataDescription(veType: VeType, kvType: KeyOrValue)
 }
 
-case class GroupingFunction(name: String,
-                            columns: List[GroupingFunction.DataDescription],
-                            nbuckets: Int) extends FunctionTemplateTrait {
+final case class GroupingFunction(name: String,
+                                  columns: Seq[GroupingFunction.DataDescription],
+                                  nbuckets: Int) extends VeFunctionTemplate {
   require(columns.nonEmpty, "Expected Grouping to have at least one data column")
 
-  private[exchange] lazy val inputs: List[CVector] = {
+  private[exchange] lazy val inputs: Seq[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"${kvType.render}_${idx}")
     }
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     columns.zipWithIndex.map { case (GroupingFunction.DataDescription(veType, kvType), idx) =>
       veType.makeCVector(s"output_${kvType.render}_${idx}")
     }
@@ -41,9 +41,9 @@ case class GroupingFunction(name: String,
 
   private[exchange] lazy val keycols = columns.zip(inputs).filter(_._1.kvType == GroupingFunction.Key).map(_._2)
 
-  private[exchange] lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[exchange] lazy val arguments: Seq[CFunction2.CFunctionArgument] = {
     inputs.map(CFunctionArgument.PointerPointer(_)) ++
-      List(CFunctionArgument.Raw("int* sets")) ++
+      Seq(CFunctionArgument.Raw("int* sets")) ++
       outputs.map(CFunctionArgument.PointerPointer(_))
   }
 
@@ -133,6 +133,14 @@ case class GroupingFunction(name: String,
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the GroupingFunction will be determined by the
+      grouping columns and number of buckets.
+    */
+    (getClass.getName, columns, nbuckets).hashCode
+  }
+
   def toCFunction: CFunction2 = {
     val body = if (keycols.isEmpty) {
       CodeLines.from(
@@ -154,5 +162,9 @@ case class GroupingFunction(name: String,
     }
 
     CFunction2(name, arguments, body)
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

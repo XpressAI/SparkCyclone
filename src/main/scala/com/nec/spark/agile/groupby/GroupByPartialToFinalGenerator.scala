@@ -19,7 +19,8 @@
  */
 package com.nec.spark.agile.groupby
 
-import com.nec.spark.agile.core.{CodeLines, VeScalarType}
+import com.nec.spark.agile.core.CFunction2.CFunctionArgument
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration.{Aggregation, CFunction}
 import com.nec.spark.agile.groupby.GroupByOutline.StagedAggregation
 
@@ -34,20 +35,46 @@ final case class GroupByPartialToFinalGenerator(
 ) {
   import stagedGroupBy._
 
-  def createFinal: CFunction =
-    CFunction(
-      inputs = partialOutputs,
-      outputs = finalOutputs.map {
-        case Left(stagedProjection) => stagedProjection.veType.makeCVector(stagedProjection.name)
-        case Right(stagedAggregation) =>
-          stagedAggregation.finalType.makeCVector(stagedAggregation.name)
+  def createFinal(name: String): FinalAggregateFunction = {
+    val inputs = partialOutputs
+
+    val outputs = finalOutputs.map {
+      case Left(stagedProjection) =>
+        stagedProjection.veType.makeCVector(stagedProjection.name)
+      case Right(stagedAggregation) =>
+        stagedAggregation.finalType.makeCVector(stagedAggregation.name)
+    }
+
+    val arguments = {
+      inputs
+        .map { v => v.withNewName(s"${v.name}_m") }
+        .map(CFunctionArgument.PointerPointer(_)) ++
+      outputs
+        .map { v => v.withNewName(s"${v.name}_mo") }
+        .map(CFunctionArgument.PointerPointer(_))
+    }
+
+    val body = CodeLines.from(
+      inputs.map { v =>
+        s"${v.veType.cVectorType} *${v.name} = ${v.name}_m[0];"
       },
-      body = CodeLines.from(
-        performGroupingOnKeys,
-        computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
-        passProjectionsPerGroup
-      )
+      outputs.flatMap { v =>
+        Seq(
+          s"${v.veType.cVectorType} *${v.name} = ${v.veType.cVectorType}::allocate();",
+          s"*${v.name}_mo = ${v.name};"
+        )
+      },
+      performGroupingOnKeys,
+      computedAggregates.map(Function.tupled(mergeAndProduceAggregatePartialsPerGroup)),
+      passProjectionsPerGroup
     )
+
+    FinalAggregateFunction(
+      name,
+      outputs,
+      CFunction2(name, arguments, body)
+    )
+  }
 
   def mergeAndProduceAggregatePartialsPerGroup(
     sa: StagedAggregation,

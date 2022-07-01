@@ -3,22 +3,21 @@ package com.nec.spark.agile.projection
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
-import com.nec.spark.agile.core.{CFunction2, FunctionTemplateTrait}
+import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
 
-
-case class ProjectionFunction(name: String,
-                              data: List[CVector],
-                              expressions: List[Either[NamedStringExpression, NamedTypedCExpression]])
-                              extends FunctionTemplateTrait {
+final case class ProjectionFunction(name: String,
+                                    data: Seq[CVector],
+                                    expressions: Seq[Either[NamedStringExpression, NamedTypedCExpression]])
+                                    extends VeFunctionTemplate {
   require(data.nonEmpty, "Expected Projection to have at least one data column")
   require(expressions.nonEmpty, "Expected Projection to have at least one projection expression")
 
-  lazy val inputs: List[CVector] = {
+  lazy val inputs: Seq[CVector] = {
     data
   }
 
-  lazy val outputs: List[CVector] = {
+  lazy val outputs: Seq[CVector] = {
     expressions.map {
       case Right(NamedTypedCExpression(name, vetype, _)) =>
         CScalarVector(name, vetype)
@@ -28,7 +27,7 @@ case class ProjectionFunction(name: String,
     }
   }
 
-  lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  lazy val arguments: Seq[CFunction2.CFunctionArgument] = {
     inputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_m")) } ++
       outputs.map { vec => CFunctionArgument.PointerPointer(vec.withNewName(s"${vec.name}_mo")) }
   }
@@ -70,11 +69,23 @@ case class ProjectionFunction(name: String,
     }
   }
 
+  def hashId: Int = {
+    /*
+      The semantic identity of the SortFunction will be determined by the
+      data columns and projection expressions.
+    */
+    (getClass.getName, data.map(_.veType), expressions).hashCode
+  }
+
   def toCFunction: CFunction2 = {
     CFunction2(
       name,
       arguments,
       CodeLines.from(inputPtrDeclStmts, "", outputPtrDeclStmts, "", expressions.map(projectionStmt))
     )
+  }
+
+  def secondary: Seq[CFunction2] = {
+    Seq.empty
   }
 }

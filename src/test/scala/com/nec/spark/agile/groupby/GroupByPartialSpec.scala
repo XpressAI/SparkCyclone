@@ -49,12 +49,11 @@ class GroupByPartialSpec extends AnyFreeSpec {
       stringVectorComputations = stringVectorComputations
     )
 
-    val partialCFunction = groupByPartialGenerator
-      .createPartial(inputs = inputs)
-      .toCodeLinesHeaderBatchPtr("partial_foo")
+    val partialAggregateFn = groupByPartialGenerator
+      .createPartial("partial_foo", inputs)
 
-    println(partialCFunction.cCode)
+    println(partialAggregateFn.toCFunction.toCodeLinesWithHeaders)
 
-    assert(partialCFunction != null)
+    assert(partialAggregateFn != null)
   }
 }

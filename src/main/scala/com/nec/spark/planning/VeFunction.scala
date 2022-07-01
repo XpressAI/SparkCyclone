@@ -21,7 +21,7 @@ object VeFunctionStatus {
 
   final case class SourceCode(function: NativeFunction) extends VeFunctionStatus {
     override def toString: String = {
-      s"${getClass.getSimpleName} ${function.name} (${function.hashId})"
+      s"${getClass.getSimpleName} ${function.identifier} (${function.hashId})"
     }
   }
 
@@ -31,15 +31,13 @@ object VeFunctionStatus {
 final case class VeFunction(status: VeFunctionStatus,
                             name: String,
                             outputs: Seq[CVector]) {
-  def results: Seq[VeType] = {
-    outputs.map(_.veType)
-  }
-
-  def isCompiled: Boolean = status match {
-    case VeFunctionStatus.Compiled(_) =>
-      true
-    case _ =>
-      false
+  def isCompiled: Boolean = {
+    status match {
+      case VeFunctionStatus.Compiled(_) =>
+        true
+      case _ =>
+        false
+    }
   }
 
   def libraryPath: Path = {
@@ -48,7 +46,7 @@ final case class VeFunction(status: VeFunctionStatus,
         sys.error(s"Raw source code was not compiled to library: ${code.take(10)} (${code.hashCode})... Does your plan extend ${classOf[PlanCallsVeFunction]}?")
 
       case VeFunctionStatus.SourceCode(function) =>
-        sys.error(s"Native function was not compiled to library: ${(function.name, function.hashId)} Does your plan extend ${classOf[PlanCallsVeFunction]}?")
+        sys.error(s"Native function was not compiled to library: ${(function.identifier, function.hashId)} Does your plan extend ${classOf[PlanCallsVeFunction]}?")
 
       case VeFunctionStatus.Compiled(libLocation) =>
         libLocation.resolve

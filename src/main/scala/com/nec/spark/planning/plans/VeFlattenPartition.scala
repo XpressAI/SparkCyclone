@@ -18,8 +18,8 @@ case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
   with PlanCallsVeFunction {
 
   require(
-    output.size == flattenFunction.results.size,
-    s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.results.size}"
+    output.size == flattenFunction.outputs.size,
+    s"Expected output size ${output.size} to match flatten function results size, but got ${flattenFunction.outputs.size}"
   )
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)

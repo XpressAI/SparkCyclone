@@ -16,7 +16,7 @@ final case class OnDemandVeCodeCompiler(cwd: Path,
 
   def build(functions: Seq[NativeFunction]): Map[Int, CompiledCodeInfo] = {
     val soPath = build(combinedCode(functions))
-    functions.map { f => (f.hashId -> CompiledCodeInfo(f.hashId, f.name, soPath)) }.toMap
+    functions.map { f => (f.hashId -> CompiledCodeInfo(f.hashId, f.identifier, soPath)) }.toMap
   }
 
   def build(code: String): Path = {
@@ -25,7 +25,7 @@ final case class OnDemandVeCodeCompiler(cwd: Path,
     val tmp = cwd.resolve(s"${prefix}.so").normalize.toAbsolutePath
 
     if (tmp.toFile.exists) {
-      logger.debug(s".SO File with hash code ${code.hashCode} already exists; returning the pre-compiled .SO: ${tmp}")
+      logger.debug(s".SO file with hash code ${code.hashCode} already exists; returning the pre-compiled .SO: ${tmp}")
       tmp
 
     } else {

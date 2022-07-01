@@ -31,7 +31,7 @@ trait NativeFunction {
     The name of the primary function, which will be the symbol available for the
     VE process to invoke upon.
   */
-  final def name: String = {
+  final def identifier: String = {
     primary.name
   }
 
@@ -40,6 +40,19 @@ trait NativeFunction {
   */
   final def cfunctions: Seq[CFunction2] = {
     Seq(primary) ++ secondary
+  }
+
+  /*
+    Render as CodeLines (used for tests)
+  */
+  final def codelines: CodeLines = {
+    val headers = cfunctions.map(_.additionalHeaders).flatten.toSet ++ CFunction2.DefaultHeaders
+    CodeLines.from(
+      headers.toSeq.sortBy(_.name).map(_.toString),
+      "",
+      cfunctions.map(_.declaration),
+      cfunctions.map(_.definition)
+    )
   }
 
   /*

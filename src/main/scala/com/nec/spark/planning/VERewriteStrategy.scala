@@ -343,55 +343,20 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         stringVectorComputations = stringHoles.flatMap(_.stringParts).distinct
       )
 
-      partialCFunction = groupByPartialGenerator.createPartial(inputs = inputsList)
+      partialAggregateFn  = groupByPartialGenerator.createPartial(s"partial_${functionPrefix}", inputsList)
+      finalAggregateFn    = groupByPartialGenerator.finalGenerator.createFinal(s"final_${functionPrefix}")
+      mergeFn             = MergeFunction(s"merge_${functionPrefix}", partialAggregateFn.outputs.map(_.veType))
+      amplifyFn           = MergeFunction(s"amplify_${functionPrefix}", finalAggregateFn.outputs.map(_.veType))
 
       _ <-
-        if (partialCFunction.outputs.toSet.size == partialCFunction.outputs.size) Right(())
-        else Left(s"Expected to have distinct outputs from a PF, got: ${partialCFunction.outputs}")
-
-      ff = groupByPartialGenerator.finalGenerator.createFinal
-
-      dataDescriptions = {
-        child.output.map { expx =>
-          val contained =
-            groupingExpressions.exists(exp =>
-              exp == expx || exp.collect { case `expx` => exp }.nonEmpty
-            ) ||
-              groupingExpressions
-                .collect { case ar: AttributeReference => ar.exprId }
-                .toSet
-                .contains(expx.exprId)
-
-          GroupingFunction.DataDescription(
-            sparkTypeToVeType(expx.dataType),
-            if (contained) GroupingFunction.Key else GroupingFunction.Value
-          )
-        }
-      }
-
-      partialName = s"partial_$functionPrefix"
-      finalName = s"final_$functionPrefix"
-
-      mergeFn = MergeFunction(s"merge_$functionPrefix", partialCFunction.outputs.map(_.veType))
-      amplifyFn = MergeFunction(s"amplify_${functionPrefix}", ff.outputs.map(_.veType))
-
-      code = CodeLines
-        .from(
-          partialCFunction.toCodeLinesHeaderBatchPtr(partialName),
-          ff.toCodeLinesNoHeaderOutPtr2(finalName)
-        )
+        if (partialAggregateFn.outputs.toSet.size == partialAggregateFn.outputs.size) Right(())
+        else Left(s"Expected to have distinct outputs from a PF, got: ${partialAggregateFn.outputs}")
 
     } yield {
-      val veFunction = VeFunction(
-        status = VeFunctionStatus.fromCodeLines(code),
-        name = partialName,
-        outputs = partialCFunction.outputs
-      )
-
-      val pag = VePartialAggregate(
-        partialFunction = veFunction,
-        child = SparkToVectorEnginePlan(planLater(child), veFunction),
-        expectedOutputs = partialCFunction.outputs
+      val partialAggregatePlan = VePartialAggregate(
+        partialFunction = partialAggregateFn.toVeFunction,
+        child = SparkToVectorEnginePlan(planLater(child), partialAggregateFn.toVeFunction),
+        expectedOutputs = partialAggregateFn.outputs
           .map(_.veType)
           .zipWithIndex
           .map { case (veType, i) =>
@@ -404,29 +369,25 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           }
       )
 
-      val flt = VeFlattenPartition(
+      val flattenPartitionPlan = VeFlattenPartition(
         flattenFunction = mergeFn.toVeFunction,
-        child = pag
+        child = partialAggregatePlan
       )
 
-      val finalAggregate = VeFinalAggregate(
+      val finalAggregatePlan = VeFinalAggregate(
         expectedOutputs = aggregateExpressions,
-        finalFunction = VeFunction(
-          status = VeFunctionStatus.fromCodeLines(code),
-          name = finalName,
-          outputs = ff.outputs
-        ),
-        child = flt
+        finalFunction = finalAggregateFn.toVeFunction,
+        child = flattenPartitionPlan
       )
 
       VectorEngineToSparkPlan(
         if (options.amplifyBatches)
           VeAmplifyBatchesPlan(
             amplifyFunction = amplifyFn.toVeFunction,
-            child = finalAggregate
+            child = finalAggregatePlan
           )
         else
-          finalAggregate
+          finalAggregatePlan
       )
     }
 
