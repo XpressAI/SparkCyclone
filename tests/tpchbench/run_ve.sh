@@ -17,7 +17,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.com.nec.spark.aggregate-on-ve=true \
     --conf spark.com.nec.spark.sort-on-ve=true \
-    --conf spark.com.nec.spark.project-on-ve=false \
+    --conf spark.com.nec.spark.project-on-ve=true \
     --conf spark.com.nec.spark.filter-on-ve=true \
     --conf spark.com.nec.spark.exchange-on-ve=true \
     --conf spark.com.nec.spark.join-on-ve=false \
@@ -31,3 +31,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.shuffle.partitions=8 \
     target/scala-2.12/tpchbench-assembly-0.0.1.jar \
     $*
+
+#    --conf spark.executorEnv.VE_PROGINF=YES \
+#    --conf spark.executorEnv.VE_ACC_IO=1 \
+#    --conf spark.executorEnv.VEO_LOG_DEBUG=1 \

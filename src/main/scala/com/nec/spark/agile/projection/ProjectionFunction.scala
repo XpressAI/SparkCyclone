@@ -1,10 +1,9 @@
 package com.nec.spark.agile.projection
 
-import com.nec.spark.agile.core._
 import com.nec.spark.agile.CFunctionGeneration._
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
-import com.nec.spark.agile.core._
 import com.nec.spark.agile.core.CFunction2.CFunctionArgument
+import com.nec.spark.agile.core._
 
 final case class ProjectionFunction(name: String,
                                     data: Seq[CVector],
@@ -59,10 +58,24 @@ final case class ProjectionFunction(name: String,
             "#pragma _NEC vector",
             CodeLines.forLoop("i", s"${inputs.head.name}->count") {
               List(
-                s"bool validity = ${cexpr.isNotNullCode.getOrElse("1")};",
-                s"$outname->data[i] = ${cexpr.cCode};",
-                s"$outname->set_validity(i, validity);"
+                s"${outname}->data[i] = ${cexpr.cCode};",
               )
+            },
+            if (cexpr.isNotNullCode.isEmpty) {
+              CodeLines.from(
+                s"size_t vcount = ceil(${inputs.head.name}->count / 64.0);",
+                CodeLines.forLoop("i", s"vcount", vector = true) {
+                  List(
+                    s"${outname}->validityBuffer[i] = 0xffffffff;"
+                  )
+                }
+              )
+            } else {
+              CodeLines.forLoop("i", s"${inputs.head.name}->count", vector = true) {
+                List(
+                  s"$outname->set_validity(i, ${cexpr.isNotNullCode.getOrElse("1")});"
+                )
+              }
             }
           )
         }
