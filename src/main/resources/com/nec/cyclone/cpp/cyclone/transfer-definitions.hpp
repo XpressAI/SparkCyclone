@@ -28,6 +28,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <iostream>
 
 inline void set_valid_bit(uint64_t * buffer,
                           const size_t idx,
@@ -242,11 +243,12 @@ struct nullable_varchar_vector {
     int64_t out = seed;
     auto start = offsets[idx];
     auto end = offsets[idx] + lengths[idx];
-    #pragma _NEC vector
-    #pragma _NEC ivdep
-    for (int x = start; x < end; x++) {
-      out = 31 * out + data[x];
-    }
+    auto median = (end+start) / 2;
+
+    // simplified hash in constant time:
+    // sample first, median and last element in varchar
+    out = 31*(31*(31*seed+data[start])+data[median])+data[end-1];
+
     return out;
   }
 
