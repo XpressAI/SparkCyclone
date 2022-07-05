@@ -26,7 +26,7 @@
  import com.nec.spark.agile.StringProducer.FrovedisStringProducer
  import org.apache.arrow.memory.BufferAllocator
  import org.apache.arrow.vector._
- import org.apache.spark.sql.UserDefinedVeType
+
  import org.apache.spark.sql.types._
 
  object JoinUtils {

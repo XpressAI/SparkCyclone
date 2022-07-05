@@ -22,7 +22,6 @@ package com.nec.spark.agile
 import com.nec.spark.agile.core._
 import com.nec.spark.agile.StringHole.StringHoleEvaluation
 import com.nec.spark.agile.StringProducer.FrovedisStringProducer
-import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 
 /** Spark-free function evaluation */
