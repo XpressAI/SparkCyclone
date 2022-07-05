@@ -18,7 +18,8 @@
  *
  */
 package io.sparkcyclone.jmh
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.ThreadsSamples
+
+import StackSamplingProfiler.ThreadsSamples
 import cats.effect.IO
 
 object AnalyzeSamples {

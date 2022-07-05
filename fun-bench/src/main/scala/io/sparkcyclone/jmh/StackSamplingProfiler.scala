@@ -17,12 +17,12 @@
  * limitations under the License.
  *
  */
-package org.openjdk.jmh.profile.nec
+package io.sparkcyclone.jmh
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.DefaultInterval
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.SamplingTask
+import StackSamplingProfiler.DefaultInterval
+import StackSamplingProfiler.SamplingTask
 import org.openjdk.jmh.infra.BenchmarkParams
 import org.openjdk.jmh.infra.IterationParams
 import org.openjdk.jmh.profile.InternalProfiler

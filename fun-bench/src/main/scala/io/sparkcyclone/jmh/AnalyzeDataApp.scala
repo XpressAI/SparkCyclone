@@ -18,14 +18,11 @@
  *
  */
 package io.sparkcyclone.jmh
-import org.openjdk.jmh.profile.nec.StackSamplingProfiler.ThreadsSamples
 
+import StackSamplingProfiler.ThreadsSamples
 import scala.util.Try
-import cats.effect.ExitCode
-
 import java.nio.file.Paths
-import cats.effect.IO
-import cats.effect.IOApp
+import cats.effect.{ExitCode, IO, IOApp}
 import fs2.io.file.Files
 
 object AnalyzeDataApp extends IOApp {

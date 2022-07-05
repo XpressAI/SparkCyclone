@@ -83,7 +83,7 @@ class State_${name} {
   Files.write(
     expectedTarget.toPath,
     s"""
-package nec
+package io.sparkcyclone
 import org.openjdk.jmh.annotations._
 import org.apache.spark.sql._
 
