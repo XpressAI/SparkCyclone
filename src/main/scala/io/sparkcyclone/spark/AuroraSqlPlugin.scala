@@ -20,10 +20,13 @@
 package io.sparkcyclone.spark
 
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, SparkPlugin}
-import org.apache.spark.internal.Logging
 
-class AuroraSqlPlugin extends SparkPlugin with Logging {
-  override def driverPlugin(): DriverPlugin = new SparkCycloneDriverPlugin()
+class AuroraSqlPlugin extends SparkPlugin {
+  override def driverPlugin: DriverPlugin = {
+    new SparkCycloneDriverPlugin
+  }
 
-  override def executorPlugin(): ExecutorPlugin = new SparkCycloneExecutorPlugin()
+  override def executorPlugin: ExecutorPlugin = {
+    new SparkCycloneExecutorPlugin
+  }
 }

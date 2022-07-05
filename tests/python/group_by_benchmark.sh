@@ -11,7 +11,7 @@ export VE_OMP_NUM_THREADS=1
 --num-executors=8 --executor-cores=6 --executor-memory=16G \
 --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
 --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
---conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
+--conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
@@ -20,7 +20,7 @@ run_benchmark.py  --outputfile "yarn_test_ve_1K" --clearcache --ntest 5 \
 group_by "data/XY_doubles_R1000_P100_csv" \
 --list "group_by_avg_x,group_by_avg_x_plus_y"
 
-# GPU 
+# GPU
 /opt/spark/bin/spark-submit --master yarn \
 --name GPU_Benchmark_group_by_1K \
 --deploy-mode cluster \

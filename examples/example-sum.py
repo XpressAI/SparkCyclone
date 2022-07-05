@@ -26,7 +26,7 @@ if __name__ == "__main__":
     spark = SparkSession \
         .builder \
         .appName("spark cyclone example") \
-        .config("spark.plugins", "com.nec.spark.AuroraSqlPlugin") \
+        .config("spark.plugins", "io.sparkcyclone.spark.AuroraSqlPlugin") \
         .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 
