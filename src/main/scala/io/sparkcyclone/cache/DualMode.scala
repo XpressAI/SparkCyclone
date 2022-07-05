@@ -40,7 +40,7 @@ object DualMode {
    * In case it is not a [[CachedColumnVector]], then we just pass back an iterator of actual [[InternalRow]]
    * that is not cache-based.
    *
-   * This is done as a workaround; see more details on the data that is produced in [[com.nec.cache.CycloneCacheBase]]
+   * This is done as a workaround; see more details on the data that is produced in [[io.sparkcyclone.cache.CycloneCacheBase]]
    */
   def unwrapInternalRows(
     iterator: Iterator[InternalRow]

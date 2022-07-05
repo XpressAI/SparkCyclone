@@ -21,9 +21,9 @@ object GitHubInput {
       default = Some("-"),
       options = List(
         "-",
-        "com.nec.spark.planning.VeCachedBatchSerializer",
-        "com.nec.cache.ArrowBasedCacheSerializer",
-        "com.nec.cache.InVectorEngineCacheSerializer"
+        "io.sparkcyclone.spark.planning.VeCachedBatchSerializer",
+        "io.sparkcyclone.cache.ArrowBasedCacheSerializer",
+        "io.sparkcyclone.cache.InVectorEngineCacheSerializer"
       )
     ),
     "ve-log-debug" -> OnOrOff("Debug VE logs", default = false),

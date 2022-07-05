@@ -35,6 +35,6 @@
 
     <logger name="org.apache" level="INFO"/>
 
-    <logger name="com.nec" level="DEBUG"/>
+    <logger name="io.sparkcyclone" level="DEBUG"/>
 </configuration>
 

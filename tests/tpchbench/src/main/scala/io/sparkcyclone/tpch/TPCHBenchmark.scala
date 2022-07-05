@@ -17,15 +17,14 @@
  * limitations under the License.
  *
  */
-package sparkcyclone.tpch
+package io.sparkcyclone.tpch
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.{DataFrame, SparkSession}
-
-import java.time.LocalDate
 import scala.language.existentials
+import java.time.LocalDate
 
 // TPC-H table schemas
 case class Customer(
@@ -503,7 +502,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1995-03-15"
 
     val sql = s"""
-      select 
+      select
         l_orderkey,
         sum(l_extendedprice * (1 - l_discount)) as revenue,
         o_orderdate,
@@ -538,7 +537,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1993-07-01"
 
     val sql = s"""
-      select 
+      select
         o_orderpriority,
         count(*) as order_count
       from
@@ -571,7 +570,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1994-01-01"
 
     val sql = s"""
-      select 
+      select
         n_name,
         sum(l_extendedprice * (1 - l_discount)) as revenue
       from
@@ -609,7 +608,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val quantity = 24
 
     val sql = s"""
-      select 
+      select
         sum(l_extendedprice*l_discount) as revenue
       from
         lineitem
@@ -632,7 +631,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val nation2 = "GERMANY"
 
     val sql = s"""
-      select 
+      select
         supp_nation,
         cust_nation,
         l_year,
@@ -683,7 +682,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val pType = "ECONOMY ANODIZED STEEL"
 
     val sql = s"""
-      select 
+      select
         o_year,
         sum(
           case when nation = '$nation'
@@ -734,7 +733,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val color = "green"
 
     val sql = s"""
-      select 
+      select
         nation,
         o_year,
         sum(amount) as sum_profit
@@ -778,7 +777,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1993-10-01"
 
     val sql = s"""
-      select 
+      select
         c_custkey,
         c_name,
         sum(l_extendedprice * (1 - l_discount)) as revenue,
@@ -861,7 +860,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1994-01-01"
 
     val sql = s"""
-      select 
+      select
         l_shipmode,
         sum(
           case
@@ -903,7 +902,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
 
     val sql =
       s"""
-      select 
+      select
         c_count,
         count(*) as custdist
       from (
@@ -934,7 +933,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val date = "1995-09-01"
 
     val sql = s"""
-      select 
+      select
         100.00 * sum(
           case
             when p_type like 'PROMO%'
@@ -974,7 +973,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
       group by
         l_suppkey"""
     val sql2 = s"""
-      select 
+      select
         s_suppkey,
         s_name,
         s_address,
@@ -1012,7 +1011,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val sizes = Seq(49, 14, 23, 45, 19, 3, 36, 9)
 
     val sql = s"""
-      select 
+      select
         p_brand,
         p_type,
         p_size,
@@ -1136,7 +1135,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val quantity3 = 20
 
     val sql = s"""
-      select 
+      select
         sum(l_extendedprice * (1 - l_discount) ) as revenue
       from
         lineitem,
@@ -1185,7 +1184,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val nation = "CANADA"
 
     val sql = s"""
-      select 
+      select
         s_name,
         s_address
       from
@@ -1233,7 +1232,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val nation = "SAUDI ARABIA"
 
     val sql = s"""
-      select 
+      select
         s_name,
         count(*) as numwait
       from
@@ -1282,7 +1281,7 @@ object TPCHBenchmark extends SparkSessionWrapper with LazyLogging {
     val items = Seq("'13'", "'31'", "'23'", "'29'", "'30'", "'18'", "'17'")
 
     val sql = s"""
-      select 
+      select
         cntrycode,
         count(*) as numcust,
         sum(c_acctbal) as totacctbal

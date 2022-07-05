@@ -17,15 +17,10 @@
  * limitations under the License.
  *
  */
-package sparkcyclone.tpch
+package io.sparkcyclone.tpch
 
-import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SparkSession
 
-object transforms {
-
-  def happyData()(df: DataFrame): DataFrame = {
-    df.withColumn("happy", lit("data is fun"))
-  }
-
+trait SparkSessionWrapper extends Serializable {
+  implicit lazy val sparkSession: SparkSession = SparkSession.builder.getOrCreate
 }

@@ -17,10 +17,14 @@
  * limitations under the License.
  *
  */
-package sparkcyclone.tpch
+package io.sparkcyclone.tpch
 
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions._
 
-trait SparkSessionWrapper extends Serializable {
-  implicit lazy val sparkSession: SparkSession = SparkSession.builder().getOrCreate()
+object Functions {
+  def isEven(col: Column): Column = {
+    col % 2 === lit(0)
+  }
 }
+

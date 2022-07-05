@@ -5,7 +5,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.nec" level="DEBUG" />
+    <logger name="io.sparkcyclone" level="DEBUG" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />

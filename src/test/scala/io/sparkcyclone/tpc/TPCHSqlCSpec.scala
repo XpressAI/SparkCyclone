@@ -67,7 +67,7 @@ abstract class TPCHSqlCSpec
   }
 
   def configuration: SparkSession.Builder => SparkSession.Builder
-  val resultsDir = "src/test/resources/com/nec/spark/results/"
+  val resultsDir = "src/test/resources/io/sparkcyclone/spark/results/"
 
   def createViews(sparkSession: SparkSession): Unit = {
     import sparkSession.implicits._

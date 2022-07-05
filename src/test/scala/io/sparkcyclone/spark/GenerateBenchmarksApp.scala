@@ -38,11 +38,11 @@ class State_${name} {
     System.setProperty("BENCH_NAME", "${name}")
     System.setProperty("BENCH_FULL_NAME", "${benchPath}")
     System.setProperty("logback.configurationFile", "./logback-bench.xml")
-    com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
+    io.sparkcyclone.spark.BenchTestingPossibilities.possibilitiesMap("${name}")
   }
   lazy val sparkSession: SparkSession = testing.prepareSession()
-  lazy val input = testing.prepareInput(sparkSession, com.nec.testing.Testing.DataSize.defaultForBenchmarks)
-  lazy val benchDebugging = com.nec.spark.agile.BenchmarkDebugging(testing)
+  lazy val input = testing.prepareInput(sparkSession, io.sparkcyclone.testing.Testing.DataSize.defaultForBenchmarks)
+  lazy val benchDebugging = io.sparkcyclone.spark.agile.BenchmarkDebugging(testing)
   import benchDebugging._
 
   @Setup
@@ -55,7 +55,7 @@ class State_${name} {
 
   @TearDown
   def tearDown(): Unit = {
-    com.nec.spark.BenchTestingPossibilities.possibilitiesMap("${name}").cleanUp(sparkSession)
+    io.sparkcyclone.spark.BenchTestingPossibilities.possibilitiesMap("${name}").cleanUp(sparkSession)
   }
 }
 

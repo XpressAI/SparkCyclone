@@ -40,7 +40,7 @@ final class TracingCheck extends AnyFreeSpec {
 
   "it works" in {
     val inputString =
-      "2021-10-16T21:05:45.671390000Z $ Query 4|local-1634418262014|2021-10-16T21:04:27.833Z|9b97 $$ com.nec.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
+      "2021-10-16T21:05:45.671390000Z $ Query 4|local-1634418262014|2021-10-16T21:04:27.833Z|9b97 $$ io.sparkcyclone.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
     val Some(tracingRecord) = TracingRecord
       .parse(inputString)
     import tracingRecord._
@@ -51,7 +51,7 @@ final class TracingCheck extends AnyFreeSpec {
       appId == "local-1634418262014",
       executionId == Instant.parse("2021-10-16T21:04:27.833Z"),
       partId.contains("9b97"),
-      position == "com.nec.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
+      position == "io.sparkcyclone.spark.agile.StringProducer.FilteringProducer.complete#143/#452"
     )
   }
 }
