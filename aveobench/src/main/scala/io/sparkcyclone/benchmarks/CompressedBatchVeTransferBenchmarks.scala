@@ -1,6 +1,6 @@
-package io.sparkcyclone.cyclone.benchmarks
+package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.cyclone.colvector._
+import io.sparkcyclone.colvector._
 import io.sparkcyclone.colvector.VeColVectorSource
 import io.sparkcyclone.vectorengine._
 import scala.collection.mutable.{ArrayBuffer => MBuf}

@@ -1,7 +1,7 @@
-package io.sparkcyclone.cyclone.benchmarks
+package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.cyclone.colvector.BytePointerColVectorOps._
-import io.sparkcyclone.cyclone.colvector.CompressedBytePointerColVector
+import io.sparkcyclone.colvector.BytePointerColVectorOps._
+import io.sparkcyclone.colvector.CompressedBytePointerColVector
 import io.sparkcyclone.colvector._
 import io.sparkcyclone.vectorengine._
 import scala.collection.mutable.{ArrayBuffer => MBuf}

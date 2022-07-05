@@ -1,4 +1,4 @@
-package io.sparkcyclone.cyclone.colvector
+package io.sparkcyclone.colvector
 
 import io.sparkcyclone.colvector._
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}

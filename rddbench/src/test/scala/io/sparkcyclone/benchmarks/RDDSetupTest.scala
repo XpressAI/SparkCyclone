@@ -1,7 +1,8 @@
+package io.sparkcyclone.benchmarks
+
 import io.sparkcyclone.native.transpiler.CppTranspiler
 import org.apache.spark._
 import org.scalatest.freespec.AnyFreeSpec
-
 import scala.reflect.runtime.universe.reify
 
 final class RDDSetupTest extends AnyFreeSpec {
@@ -10,7 +11,6 @@ final class RDDSetupTest extends AnyFreeSpec {
   val sc = new SparkContext(conf)
 
   "RDDs should work without cluster" - {
-
     "test a simple RDD map function on local Spark" in {
 
       val numbers = Array(1,2,3,4,5,6)

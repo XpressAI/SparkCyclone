@@ -1,4 +1,4 @@
-package io.sparkcyclone.cyclone.benchmarks
+package io.sparkcyclone.benchmarks
 
 import io.sparkcyclone.colvector._
 import io.sparkcyclone.colvector.SeqOptTConversions._
