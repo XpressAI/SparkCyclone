@@ -27,7 +27,7 @@ import org.scalatest.wordspec.AnyWordSpec
 final class CppResourcesSpec extends AnyWordSpec {
   val LowerBound = CppResource(
     "frovedis/core/lower_bound.hpp",
-    "/com/nec/cyclone/cpp/frovedis/core/lower_bound.hpp"
+    "/io/sparkcyclone/cpp/frovedis/core/lower_bound.hpp"
   )
 
   "CppResources" should {

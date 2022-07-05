@@ -486,7 +486,7 @@ lazy val `tpcbench-run` = project
 // Declare the C++ source and target directories
 lazy val cycloneCppSrcDir = settingKey[File]("Cyclone C++ source directory")
 lazy val cycloneCppTgtDir = settingKey[File]("Cyclone C++ target directory")
-cycloneCppSrcDir := (Compile / resourceDirectory).value / "com" / "nec" / "cyclone" / "cpp"
+cycloneCppSrcDir := (Compile / resourceDirectory).value / "io" / "sparkcyclone" / "cpp"
 cycloneCppTgtDir := (Compile / resourceManaged).value / "cycloneve"
 
 Compile / resourceGenerators += Def.taskDyn {
@@ -505,7 +505,7 @@ lazy val cycloneVeLibrarySources = taskKey[Seq[File]]("Cyclone VE library source
 cycloneVeLibrarySources := {
   sbt.nio.file.FileTreeView.default
     .list(Seq("frovedis/**", "cyclone/**", "tests/**", "Makefile").map { suffix =>
-      Glob((Compile / resourceDirectory).value.toString + s"/com/nec/cyclone/cpp/${suffix}")
+      Glob((Compile / resourceDirectory).value.toString + s"/io/sparkcyclone/cpp/${suffix}")
     })
     .map(_._1.toFile)
 }

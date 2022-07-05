@@ -25,7 +25,7 @@ import java.net.URL
 import java.nio.file.{Files, Path}
 
 object CppResource {
-  val CppPrefix = "com.nec.cyclone.cpp"
+  val CppPrefix = "io.sparkcyclone.cpp"
   val CppSourcePath = s"/${CppPrefix.replace('.', '/')}"
   val CppTargetPath = s"/cycloneve"
 
