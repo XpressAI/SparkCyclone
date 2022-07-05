@@ -1,5 +1,4 @@
 <configuration debug="false">
-
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <!-- encoders are  by default assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
@@ -14,5 +13,4 @@
     <root level="ERROR">
         <appender-ref ref="CONSOLE"/>
     </root>
-
 </configuration>
