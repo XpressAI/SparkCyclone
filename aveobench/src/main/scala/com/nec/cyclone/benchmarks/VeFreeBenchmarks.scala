@@ -1,7 +1,7 @@
-package com.nec.cyclone.benchmarks
+package io.sparkcyclone.cyclone.benchmarks
 
-import com.nec.colvector._
-import com.nec.vectorengine._
+import io.sparkcyclone.colvector._
+import io.sparkcyclone.vectorengine._
 import org.openjdk.jmh.annotations._
 
 object VeFreeBenchmarks {

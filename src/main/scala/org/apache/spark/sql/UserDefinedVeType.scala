@@ -1,6 +1,6 @@
 package org.apache.spark.sql
 
-import com.nec.spark.agile.core.VeType
+import io.sparkcyclone.spark.agile.core.VeType
 import org.apache.spark.sql.types.{DataType, StringType, UserDefinedType}
 import org.apache.spark.unsafe.types.UTF8String
 

@@ -17,11 +17,11 @@
  * limitations under the License.
  *
  */
-package com.nec.tracing
+package io.sparkcyclone.tracing
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.tracing.SpanProcessor.{analyzeLines, RichL}
-import com.nec.tracing.TracingRecord.cleanPosition
+import io.sparkcyclone.tracing.SpanProcessor.{analyzeLines, RichL}
+import io.sparkcyclone.tracing.TracingRecord.cleanPosition
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.time.Duration

@@ -17,9 +17,9 @@
  * limitations under the License.
  *
  */
-package com.nec.tracing
+package io.sparkcyclone.tracing
 
-import com.nec.tracing.TracingRecord.cleanPosition
+import io.sparkcyclone.tracing.TracingRecord.cleanPosition
 
 import java.time.Instant
 final case class TracingRecord(

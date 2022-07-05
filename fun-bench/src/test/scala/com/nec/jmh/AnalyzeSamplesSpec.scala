@@ -17,9 +17,9 @@
  * limitations under the License.
  *
  */
-package com.nec.jmh
+package io.sparkcyclone.jmh
 import cats.effect.unsafe.implicits.global
-import com.nec.jmh.AnalyzeSamplesSpec.TestSample
+import io.sparkcyclone.jmh.AnalyzeSamplesSpec.TestSample
 import org.apache.commons.io.IOUtils
 import org.openjdk.jmh.profile.nec.StackSamplingProfiler.ThreadsSamples
 import org.scalatest.freespec.AnyFreeSpec

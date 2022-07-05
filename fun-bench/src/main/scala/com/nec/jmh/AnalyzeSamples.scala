@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.jmh
+package io.sparkcyclone.jmh
 import org.openjdk.jmh.profile.nec.StackSamplingProfiler.ThreadsSamples
 import cats.effect.IO
 

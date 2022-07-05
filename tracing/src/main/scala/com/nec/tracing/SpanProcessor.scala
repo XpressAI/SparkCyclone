@@ -17,9 +17,9 @@
  * limitations under the License.
  *
  */
-package com.nec.tracing
+package io.sparkcyclone.tracing
 
-import com.nec.tracing.SpanProcessor.SpanFound
+import io.sparkcyclone.tracing.SpanProcessor.SpanFound
 
 import java.time.Duration
 

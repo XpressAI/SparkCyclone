@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package com.nec.tracing
+package io.sparkcyclone.tracing
 
 import cats.effect.{ExitCode, IO, IOApp}
 import com.comcast.ip4s.{Host, Port}

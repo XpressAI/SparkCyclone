@@ -92,7 +92,7 @@ lazy val `fun-bench` = project
             clean
           },
           Def.task {
-            (root / Test / runMain).toTask(s" com.nec.spark.GenerateBenchmarksApp ${tgt}").value
+            (root / Test / runMain).toTask(s" io.sparkcyclone.spark.GenerateBenchmarksApp ${tgt}").value
             Seq(tgt)
           }
         )
@@ -195,7 +195,7 @@ VectorEngine / run / javaOptions ++= {
 }
 
 VectorEngine / sourceDirectory := baseDirectory.value / "src" / "test"
-VectorEngine / testOptions := Seq(Tests.Argument("-n", "com.nec.cyclone.annotations.VectorEngineTest"))
+VectorEngine / testOptions := Seq(Tests.Argument("-n", "io.sparkcyclone.annotations.VectorEngineTest"))
 
 
 /**
@@ -206,7 +206,7 @@ VectorEngine / testOptions := Seq(Tests.Argument("-n", "com.nec.cyclone.annotati
 
 inConfig(TPC)(Defaults.testTasks)
 
-def tpcFilter(name: String): Boolean = name.startsWith("com.nec.tpc")
+def tpcFilter(name: String): Boolean = name.startsWith("io.sparkcyclone.tpc")
 
 TPC / parallelExecution := false
 TPC / fork := true
@@ -263,7 +263,7 @@ Test / testOptions := {
 
   options ++ Seq(
     Tests.Filter(otherFilter),
-    Tests.Argument("-l", "com.nec.cyclone.annotations.VectorEngineTest")
+    Tests.Argument("-l", "io.sparkcyclone.annotations.VectorEngineTest")
   )
 }
 
@@ -277,9 +277,9 @@ Test / testOptions := {
 AcceptanceTest / parallelExecution := false
 lazy val AcceptanceTest = config("acc") extend Test
 inConfig(AcceptanceTest)(Defaults.testTasks)
-def accFilter(name: String): Boolean = name.startsWith("com.nec.acceptance")
+def accFilter(name: String): Boolean = name.startsWith("io.sparkcyclone.acceptance")
 AcceptanceTest / testOptions := Seq(Tests.Filter(accFilter))
-AcceptanceTest / testOptions += Tests.Argument("-Ccom.nec.acceptance.MarkdownReporter")
+AcceptanceTest / testOptions += Tests.Argument("-Cio.sparkcyclone.acceptance.MarkdownReporter")
 AcceptanceTest / testOptions += Tests.Argument("-o")
 
 Global / onChangedBuildSource := ReloadOnSourceChanges

@@ -1,9 +1,9 @@
-package com.nec.cyclone.benchmarks
+package io.sparkcyclone.cyclone.benchmarks
 
-import com.nec.cyclone.colvector.BytePointerColVectorOps._
-import com.nec.cyclone.colvector.CompressedBytePointerColVector
-import com.nec.colvector._
-import com.nec.vectorengine._
+import io.sparkcyclone.cyclone.colvector.BytePointerColVectorOps._
+import io.sparkcyclone.cyclone.colvector.CompressedBytePointerColVector
+import io.sparkcyclone.colvector._
+import io.sparkcyclone.vectorengine._
 import scala.collection.mutable.{ArrayBuffer => MBuf}
 import org.openjdk.jmh.annotations._
 

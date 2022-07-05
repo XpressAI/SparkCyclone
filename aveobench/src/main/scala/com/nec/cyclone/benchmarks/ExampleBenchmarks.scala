@@ -1,4 +1,4 @@
-package com.nec.cyclone.benchmarks
+package io.sparkcyclone.cyclone.benchmarks
 
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole

@@ -17,10 +17,10 @@
  * limitations under the License.
  *
  */
-package com.nec.tracing
+package io.sparkcyclone.tracing
 
 import com.eed3si9n.expecty.Expecty.expect
-import com.nec.tracing.TracingListenerApp.safeAppId
+import io.sparkcyclone.tracing.TracingListenerApp.safeAppId
 import org.scalatest.freespec.AnyFreeSpec
 
 import java.time.Instant

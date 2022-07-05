@@ -1,7 +1,7 @@
-package com.nec.cyclone.colvector
+package io.sparkcyclone.cyclone.colvector
 
-import com.nec.colvector._
-import com.nec.vectorengine.VeProcess
+import io.sparkcyclone.colvector._
+import io.sparkcyclone.vectorengine.VeProcess
 
 final case class CompressedVeColBatch private[colvector] (columns: Seq[UnitColVector],
                                                           struct: Long,

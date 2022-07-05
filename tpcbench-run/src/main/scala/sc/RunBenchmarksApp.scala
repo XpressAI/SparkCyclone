@@ -6,8 +6,8 @@ import cats.effect.{ExitCode, IO, IOApp}
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.spi.{ILoggingEvent, LoggingEventVO}
 import com.comcast.ip4s.Host
-import com.nec.tracing.SpanProcessor
-import com.nec.tracing.TracingListenerApp.socketToLines
+import io.sparkcyclone.tracing.SpanProcessor
+import io.sparkcyclone.tracing.TracingListenerApp.socketToLines
 import fs2.concurrent.{SignallingRef, Topic}
 import fs2.io.net.Network
 import org.http4s.blaze.client.BlazeClientBuilder

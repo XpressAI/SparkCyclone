@@ -1,8 +1,8 @@
-package com.nec.cyclone.benchmarks
+package io.sparkcyclone.cyclone.benchmarks
 
-import com.nec.cyclone.colvector._
-import com.nec.colvector.VeColVectorSource
-import com.nec.vectorengine._
+import io.sparkcyclone.cyclone.colvector._
+import io.sparkcyclone.colvector.VeColVectorSource
+import io.sparkcyclone.vectorengine._
 import scala.collection.mutable.{ArrayBuffer => MBuf}
 import org.openjdk.jmh.annotations._
 

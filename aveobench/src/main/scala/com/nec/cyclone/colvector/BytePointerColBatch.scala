@@ -1,6 +1,6 @@
-package com.nec.cyclone.colvector
+package io.sparkcyclone.cyclone.colvector
 
-import com.nec.colvector._
+import io.sparkcyclone.colvector._
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) {
