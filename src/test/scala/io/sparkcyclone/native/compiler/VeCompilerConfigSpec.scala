@@ -27,11 +27,11 @@ final class VeCompilerConfigSpec extends AnyWordSpec {
   val config = VeCompilerConfig.fromSparkConf(
     new SparkConf().setAll(
       Seq(
-        "spark.com.nec.spark.ncc.debug" -> "true",
-        "spark.com.nec.spark.ncc.o" -> "3",
-        "spark.com.nec.spark.ncc.openmp" -> "false",
-        "spark.com.nec.spark.ncc.extra-argument.0" -> "-X",
-        "spark.com.nec.spark.ncc.extra-argument.1" -> "-Y"
+        "spark.cyclone.ncc.debug" -> "true",
+        "spark.cyclone.ncc.o" -> "3",
+        "spark.cyclone.ncc.openmp" -> "false",
+        "spark.cyclone.ncc.extra-argument.0" -> "-X",
+        "spark.cyclone.ncc.extra-argument.1" -> "-Y"
       )
     )
   )

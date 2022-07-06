@@ -60,14 +60,14 @@ final case class RunOptions(
 
   def pluginBooleans: List[(String, String)] = {
     List(
-      ("spark.com.nec.spark.aggregate-on-ve", aggregateOnVe),
-      ("spark.com.nec.spark.sort-on-ve", enableVeSorting),
-      ("spark.com.nec.spark.pass-through-project", passThroughProject),
-      ("spark.com.nec.spark.project-on-ve", projectOnVe),
-      ("spark.com.nec.spark.filter-on-ve", filterOnVe),
-      ("spark.com.nec.spark.exchange-on-ve", exchangeOnVe),
-      ("spark.com.nec.spark.fail-fast", failFast),
-      ("spark.com.nec.spark.join-on-ve", joinOnVe)
+      ("spark.cyclone.spark.aggregate-on-ve", aggregateOnVe),
+      ("spark.cyclone.spark.sort-on-ve", enableVeSorting),
+      ("spark.cyclone.spark.pass-through-project", passThroughProject),
+      ("spark.cyclone.spark.project-on-ve", projectOnVe),
+      ("spark.cyclone.spark.filter-on-ve", filterOnVe),
+      ("spark.cyclone.spark.exchange-on-ve", exchangeOnVe),
+      ("spark.cyclone.spark.fail-fast", failFast),
+      ("spark.cyclone.spark.join-on-ve", joinOnVe)
     ).map { case (k, v) => (k, v.toString) }
   }
 
@@ -126,7 +126,7 @@ final case class RunOptions(
       "--deploy-mode",
       "cluster",
       "--conf",
-      "spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc"
+      "spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc"
     ) ++ {
       if (useCyclone) {
         val exCls: String =
@@ -146,7 +146,7 @@ final case class RunOptions(
       "--conf",
       s"spark.sql.columnVector.offheap.enabled=${offHeapEnabled.toString}",
       "--conf",
-      s"spark.com.nec.spark.ve.columnBatchSize=${columnBatchSize}",
+      s"spark.cyclone.ve.columnBatchSize=${columnBatchSize}",
       "--conf",
       s"spark.executor.resource.ve.amount=1",
       "--conf",
@@ -155,12 +155,12 @@ final case class RunOptions(
       "spark.executorEnv.VE_OMP_NUM_THREADS=1"
     ) ++ {
       if (codeDebug)
-        List("--conf", "spark.com.nec.spark.ncc.debug=true")
+        List("--conf", "spark.cyclone.ncc.debug=true")
       else Nil
     } ++ pluginBooleans.flatMap { case (k, v) => List("--conf", s"$k=$v") } ++ extras.toList
       .flatMap(_.split(" "))
       .filter(_.nonEmpty) ++ kernelDirectory.toList.flatMap(kd =>
-      List("--conf", s"spark.com.nec.spark.kernel.directory=${kd}")
+      List("--conf", s"spark.cyclone.kernel.directory=${kd}")
     ) ++ {
       if (useCyclone) serializerOn.toList.flatMap { name =>
         List("--conf", s"spark.sql.cache.serializer=${name}")

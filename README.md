@@ -14,11 +14,11 @@ $ $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --num-executors=8 --executor-cores=1 --executor-memory=8G \ # specify 1 executor per VE core
     --conf spark.executor.extraClassPath=/opt/cyclone//spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=com.nec.spark.CycloneSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
     --jars /opt/cyclone//spark-cyclone-sql-plugin.jar \
     --conf spark.executor.resource.ve.amount=1 \                # specify the number of VEs to use.
-    --conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
-    --conf spark.com.nec.spark.kernel.directory=/opt/cyclone//ccache \ # Place to cache compiled kernels.
+    --conf spark.resources.discoveryPlugin=io.sparkcyclone.ve.DiscoverVectorEnginesPlugin
+    --conf spark.cyclone.kernel.directory=/opt/cyclone//ccache \ # Place to cache compiled kernels.
     your_script.py
 
 ```
@@ -29,12 +29,12 @@ A good set of NCC defaults is set up, however if further overriding is needed, i
 config:
 
 ```
---conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc
---conf spark.com.nec.spark.ncc.debug=true
---conf spark.com.nec.spark.ncc.o=3
---conf spark.com.nec.spark.ncc.openmp=false
---conf spark.com.nec.spark.ncc.extra-argument.0=-X
---conf spark.com.nec.spark.ncc.extra-argument.1=-Y
+--conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc
+--conf spark.cyclone.ncc.debug=true
+--conf spark.cyclone.ncc.o=3
+--conf spark.cyclone.ncc.openmp=false
+--conf spark.cyclone.ncc.extra-argument.0=-X
+--conf spark.cyclone.ncc.extra-argument.1=-Y
 ```
 
 For safety, if an argument key is not recognized, it will fail to launch.
@@ -60,7 +60,7 @@ If using cluster-local mode also specify:
 Specify this discovery pluging for detecting resources automatically
 
 ```
---conf spark.resources.discoveryPlugin=com.nec.ve.DiscoverVectorEnginesPlugin
+--conf spark.resources.discoveryPlugin=io.sparkcyclone.ve.DiscoverVectorEnginesPlugin
 ```
 
 Alternatively you can use a script if you want/need more control over which VE is assigned.
@@ -81,7 +81,7 @@ If a suitable kernel exists in the directory, the Spark Cyclone plugin will use 
 scratch.
 
 ```
---conf spark.com.nec.spark.kernel.directory=/path/to/compilation/dir
+--conf spark.cyclone.kernel.directory=/path/to/compilation/dir
 ```
 
 ## Batching
@@ -90,7 +90,7 @@ This is to batch ColumnarBatch together, to allow for larger input sizes into th
 and off-heap memory.
 
 ```
---conf spark.com.nec.spark.batch-batches=3
+--conf spark.cyclone.spark.batch-batches=3
 ```
 
 Default is 0, which is just to pass ColumnarBatch directly in.
@@ -101,7 +101,7 @@ This will try to pre-shuffle the data so that we only need to call the VE in one
 more performant due to avoiding a coalesce/shuffle afterwards.
 
 ```
---conf spark.com.nec.spark.preshuffle-partitions=8
+--conf spark.cyclone.spark.preshuffle-partitions=8
 ```
 
 ## Configuration options
@@ -109,17 +109,17 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 Note, _default specified in the `=`_
 
 ```
---conf spark.com.nec.spark.aggregate-on-ve=true
---conf spark.com.nec.spark.sort-on-ve=false
---conf spark.com.nec.spark.project-on-ve=true
---conf spark.com.nec.spark.filter-on-ve=true
---conf spark.com.nec.spark.exchange-on-ve=true
---conf spark.com.nec.spark.pass-through-project=false
---conf spark.com.nec.spark.fail-fast=false
---conf spark.com.nec.spark.join-on-ve=false
---conf spark.com.nec.spark.amplify-batches=true
---conf spark.com.nec.spark.ve.columnBatchSize=<spark col batch size>
---conf spark.com.nec.spark.ve.targetBatchSizeMb=64
+--conf spark.cyclone.spark.aggregate-on-ve=true
+--conf spark.cyclone.spark.sort-on-ve=false
+--conf spark.cyclone.spark.project-on-ve=true
+--conf spark.cyclone.spark.filter-on-ve=true
+--conf spark.cyclone.spark.exchange-on-ve=true
+--conf spark.cyclone.spark.pass-through-project=false
+--conf spark.cyclone.spark.fail-fast=false
+--conf spark.cyclone.spark.join-on-ve=false
+--conf spark.cyclone.spark.amplify-batches=true
+--conf spark.cyclone.ve.columnBatchSize=<spark col batch size>
+--conf spark.cyclone.ve.targetBatchSizeMb=64
 ```
 
 ## Benchmarking

@@ -7,7 +7,7 @@ for moving data between the host and VE.
 
 ### Writing the Benchmarks
 
-See `com.nec.cyclone.benchmarks.ExampleBenchmarks` for examples in writing
+See `io.sparkcyclone.benchmarks.ExampleBenchmarks` for examples in writing
 parameterized benchmarks.
 
 ### Running the Benchmarks

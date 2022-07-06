@@ -9,11 +9,10 @@ export VE_OMP_NUM_THREADS=1
 --name VE_Benchmark_group_by_1K \
 --py-files dep.zip \
 --num-executors=8 --executor-cores=6 --executor-memory=16G \
---conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+--conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
 --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
 --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
---conf spark.com.nec.native-csv=VE \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
 run_benchmark.py  --outputfile "yarn_test_ve_1K" --clearcache --ntest 5 \

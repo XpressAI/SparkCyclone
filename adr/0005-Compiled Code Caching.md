@@ -157,7 +157,7 @@ When the Spark Cyclone plugin is launched, the `CachingNativeCodeCompiler` will
 scan the assigned VE kernel build directory for `*.so.cidx` files and build its
 initial cache from them.  Thus, it is possible to keep the benefits of cached
 compilation across Spark session restarts by specifying the same
-`spark.com.nec.spark.kernel.directory` configuration.
+`spark.cyclone.kernel.directory` configuration.
 
 #### `VeFunction` and `VeFunctionTemplate`
 

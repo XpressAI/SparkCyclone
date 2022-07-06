@@ -108,7 +108,7 @@ object NativeCodeCompiler extends LazyLogging {
     val veconfig = VeCompilerConfig.fromSparkConf(config)
 
     // Allow for possible other underlying compilers in the future
-    val underlying = config.getOption("spark.com.nec.spark.kernel.directory").map(Paths.get(_))  match {
+    val underlying = config.getOption("spark.cyclone.kernel.directory").map(Paths.get(_))  match {
       case Some(dir) =>
         OnDemandVeCodeCompiler(dir, veconfig)
 

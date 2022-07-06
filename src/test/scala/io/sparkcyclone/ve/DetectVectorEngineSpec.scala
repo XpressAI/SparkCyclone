@@ -105,7 +105,7 @@ final class DetectVectorEngineSpec extends AnyFreeSpec with BeforeAndAfter with 
   "We can execute in cluster-local mode and it doesn't crash" ignore withSparkSession2(
     VeClusterConfig
       .andThen(DynamicVeSqlExpressionEvaluationSpec.VeConfiguration)
-      .andThen(_.config("spark.com.nec.spark.exchange-on-ve", "true"))
+      .andThen(_.config("spark.cyclone.spark.exchange-on-ve", "true"))
   ) { sparkSession =>
     import sparkSession.sqlContext.implicits._
     val nums =

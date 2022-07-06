@@ -35,11 +35,11 @@ object TPCHVESqlSpec {
   def VeConfiguration(failFast: Boolean): SparkSession.Builder => SparkSession.Builder = {
     _.config(key = CODEGEN_FALLBACK.key, value = false)
       .config(key = "spark.sql.codegen.comments", value = true)
-      .config(key = "spark.com.nec.spark.ncc.debug", value = "false")
+      .config(key = "spark.cyclone.ncc.debug", value = "false")
       .config(key = "spark.ui.enabled", value = true)
-      .config(key = "spark.com.nec.spark.fail-fast", value = failFast)
-      .config(key = "spark.com.nec.spark.sort-on-ve", value = true)
-      .config(key = "com.nec.spark.ve.columnBatchSize", value = "500000")
+      .config(key = "spark.cyclone.spark.fail-fast", value = failFast)
+      .config(key = "spark.cyclone.spark.sort-on-ve", value = true)
+      .config(key = "spark.cyclone.ve.columnBatchSize", value = "500000")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
   }
 }

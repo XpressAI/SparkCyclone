@@ -14,21 +14,21 @@ object VeCompilerConfig {
 
   object Prefixes {
     final val ExtraArgument = "extra-argument."
-    final val Nec = "spark.com.nec.spark.ncc."
-    final val NecNonSpark = "ncc."
+    final val Ncc = "spark.cyclone.ncc."
+    final val NccNonSpark = "ncc."
   }
 
   lazy val defaults: VeCompilerConfig = {
     System.getProperties.asScala
-      .collect { case (k, v) if k.startsWith(Prefixes.NecNonSpark) && v != null =>
-        k.drop(Prefixes.NecNonSpark.length) -> v
+      .collect { case (k, v) if k.startsWith(Prefixes.NccNonSpark) && v != null =>
+        k.drop(Prefixes.NccNonSpark.length) -> v
       }
       .foldLeft(VeCompilerConfig()) { case (veconf, (key, value)) => veconf.include(key, value) }
   }
 
   def fromSparkConf(config: SparkConf): VeCompilerConfig = {
     config
-      .getAllWithPrefix(Prefixes.Nec)
+      .getAllWithPrefix(Prefixes.Ncc)
       .foldLeft(defaults) { case (veconf, (key, value)) => veconf.include(key, value) }
   }
 }

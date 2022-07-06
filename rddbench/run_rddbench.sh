@@ -7,7 +7,7 @@ time $SPARK_HOME/bin/spark-submit \
     --num-executors=8 --executor-cores=1 --executor-memory=8G --driver-memory=8G \
     --deploy-mode cluster \
     --name RDDBench \
-    --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
+    --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
     --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.5-SNAPSHOT.jar \
     --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.5-SNAPSHOT.jar \
     --conf spark.rpc.message.maxSize=1024 \
@@ -15,7 +15,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
-    --conf spark.com.nec.spark.kernel.directory=/opt/spark/work/cyclone \
+    --conf spark.cyclone.kernel.directory=/opt/spark/work/cyclone \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.yarn.maxAppAttempts=1 \
     --conf spark.task.maxFailures=1 \

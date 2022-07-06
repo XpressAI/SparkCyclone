@@ -16,11 +16,11 @@ object ArrowEncodingSettings {
           case _: Throwable => "UTC"
         },
       numRows = sparkContext.getConf
-        .getOption("spark.com.nec.spark.ve.columnBatchSize")
+        .getOption("spark.cyclone.ve.columnBatchSize")
         .map(_.toInt)
         .getOrElse(conf.columnBatchSize),
       batchSizeTargetBytes = sparkContext.getConf
-        .getOption("spark.com.nec.spark.ve.targetBatchSizeMb")
+        .getOption("spark.cyclone.ve.targetBatchSizeMb")
         .map(_.toLong)
         .map(_ * Mb)
         .getOrElse(DefaultTargetBatchSize)
