@@ -11,7 +11,7 @@ zip dep.zip *.py
     --num-executors=8 --executor-cores=1 --executor-memory=7G \
     --conf spark.com.nec.spark.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.com.nec.native-csv=false \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \

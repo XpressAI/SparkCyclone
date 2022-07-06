@@ -1,7 +1,7 @@
 package org.apache.spark.metrics.source
 
 import com.codahale.metrics.{Gauge, Histogram, MetricRegistry, UniformReservoir}
-import com.nec.ve.VeProcessMetrics
+import io.sparkcyclone.ve.VeProcessMetrics
 import scala.collection.mutable.{Map => MMap}
 
 final class ProcessExecutorMetrics(registry: MetricRegistry) extends VeProcessMetrics with Source {

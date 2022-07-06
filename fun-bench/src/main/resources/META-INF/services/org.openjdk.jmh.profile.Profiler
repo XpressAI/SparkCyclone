@@ -1,1 +1,1 @@
-org.openjdk.jmh.profile.nec.StackSamplingProfiler
+io.sparkcyclone.jmh.StackSamplingProfiler

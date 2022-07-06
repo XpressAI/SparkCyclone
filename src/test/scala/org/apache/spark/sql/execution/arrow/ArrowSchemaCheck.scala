@@ -18,7 +18,7 @@
  *
  */
 package org.apache.spark.sql.execution.arrow
-import com.nec.spark.SparkAdditions
+import io.sparkcyclone.spark.SparkAdditions
 import org.apache.arrow.vector.types.pojo.ArrowType
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.types.StructField

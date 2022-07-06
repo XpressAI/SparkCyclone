@@ -9,7 +9,7 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.sql.files.minPartitionNum=8 \
     --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
     --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.com.nec.native-csv=false \
     --conf spark.driver.resource.ve.amount=1 \

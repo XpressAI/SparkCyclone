@@ -11,7 +11,7 @@ export VE_OMP_NUM_THREADS=1
 --num-executors=8 --executor-cores=1 --executor-memory=8G \
 --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
 --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
---conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
+--conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 --conf spark.executor.resource.ve.amount=1 \
@@ -26,7 +26,7 @@ run_benchmark.py \
 
 /opt/hadoop/bin/hadoop dfs -rm -r -f temp/
 
-# GPU 
+# GPU
 #/opt/spark/bin/spark-submit --master yarn \
 #--name GPU_Benchmark_column_10M \
 #--deploy-mode cluster \

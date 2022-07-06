@@ -9,7 +9,7 @@ time $SPARK_HOME/bin/spark-submit \
     --name TPC-H_VE_$1 \
     --jars /opt/cyclone/${USER}/spark-cyclone-sql-plugin.jar \
     --conf spark.executor.extraClassPath=/opt/cyclone/${USER}/spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=com.nec.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.py \
