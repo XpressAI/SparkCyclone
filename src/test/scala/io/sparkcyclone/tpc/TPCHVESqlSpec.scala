@@ -37,8 +37,8 @@ object TPCHVESqlSpec {
       .config(key = "spark.sql.codegen.comments", value = true)
       .config(key = "spark.cyclone.ncc.debug", value = "false")
       .config(key = "spark.ui.enabled", value = true)
-      .config(key = "spark.cyclone.spark.fail-fast", value = failFast)
-      .config(key = "spark.cyclone.spark.sort-on-ve", value = true)
+      .config(key = "spark.cyclone.sql.fail-fast", value = failFast)
+      .config(key = "spark.cyclone.sql.sort-on-ve", value = true)
       .config(key = "spark.cyclone.ve.columnBatchSize", value = "500000")
       .config(key = "spark.plugins", value = classOf[AuroraSqlPlugin].getCanonicalName)
   }

@@ -179,7 +179,7 @@ object BenchTestingPossibilities extends LazyLogging {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .config(key = "spark.cyclone.spark.batch-batches", value = "3")
+            .config(key = "spark.cyclone.sql.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)

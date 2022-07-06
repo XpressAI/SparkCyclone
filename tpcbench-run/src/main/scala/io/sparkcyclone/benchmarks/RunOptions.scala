@@ -60,14 +60,14 @@ final case class RunOptions(
 
   def pluginBooleans: List[(String, String)] = {
     List(
-      ("spark.cyclone.spark.aggregate-on-ve", aggregateOnVe),
-      ("spark.cyclone.spark.sort-on-ve", enableVeSorting),
-      ("spark.cyclone.spark.pass-through-project", passThroughProject),
-      ("spark.cyclone.spark.project-on-ve", projectOnVe),
-      ("spark.cyclone.spark.filter-on-ve", filterOnVe),
-      ("spark.cyclone.spark.exchange-on-ve", exchangeOnVe),
-      ("spark.cyclone.spark.fail-fast", failFast),
-      ("spark.cyclone.spark.join-on-ve", joinOnVe)
+      ("spark.cyclone.sql.aggregate-on-ve", aggregateOnVe),
+      ("spark.cyclone.sql.sort-on-ve", enableVeSorting),
+      ("spark.cyclone.sql.pass-through-project", passThroughProject),
+      ("spark.cyclone.sql.project-on-ve", projectOnVe),
+      ("spark.cyclone.sql.filter-on-ve", filterOnVe),
+      ("spark.cyclone.sql.exchange-on-ve", exchangeOnVe),
+      ("spark.cyclone.sql.fail-fast", failFast),
+      ("spark.cyclone.sql.join-on-ve", joinOnVe)
     ).map { case (k, v) => (k, v.toString) }
   }
 

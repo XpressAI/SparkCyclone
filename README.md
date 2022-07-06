@@ -90,7 +90,7 @@ This is to batch ColumnarBatch together, to allow for larger input sizes into th
 and off-heap memory.
 
 ```
---conf spark.cyclone.spark.batch-batches=3
+--conf spark.cyclone.sql.batch-batches=3
 ```
 
 Default is 0, which is just to pass ColumnarBatch directly in.
@@ -101,7 +101,7 @@ This will try to pre-shuffle the data so that we only need to call the VE in one
 more performant due to avoiding a coalesce/shuffle afterwards.
 
 ```
---conf spark.cyclone.spark.preshuffle-partitions=8
+--conf spark.cyclone.sql.preshuffle-partitions=8
 ```
 
 ## Configuration options
@@ -109,15 +109,15 @@ more performant due to avoiding a coalesce/shuffle afterwards.
 Note, _default specified in the `=`_
 
 ```
---conf spark.cyclone.spark.aggregate-on-ve=true
---conf spark.cyclone.spark.sort-on-ve=false
---conf spark.cyclone.spark.project-on-ve=true
---conf spark.cyclone.spark.filter-on-ve=true
---conf spark.cyclone.spark.exchange-on-ve=true
---conf spark.cyclone.spark.pass-through-project=false
---conf spark.cyclone.spark.fail-fast=false
---conf spark.cyclone.spark.join-on-ve=false
---conf spark.cyclone.spark.amplify-batches=true
+--conf spark.cyclone.sql.aggregate-on-ve=true
+--conf spark.cyclone.sql.sort-on-ve=false
+--conf spark.cyclone.sql.project-on-ve=true
+--conf spark.cyclone.sql.filter-on-ve=true
+--conf spark.cyclone.sql.exchange-on-ve=true
+--conf spark.cyclone.sql.pass-through-project=false
+--conf spark.cyclone.sql.fail-fast=false
+--conf spark.cyclone.sql.join-on-ve=false
+--conf spark.cyclone.sql.amplify-batches=true
 --conf spark.cyclone.ve.columnBatchSize=<spark col batch size>
 --conf spark.cyclone.ve.targetBatchSizeMb=64
 ```
