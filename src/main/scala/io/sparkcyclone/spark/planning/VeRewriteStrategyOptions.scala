@@ -20,45 +20,45 @@ object VeRewriteStrategyOptions {
   def fromConfig(sparkConf: SparkConf): VeRewriteStrategyOptions = {
     VeRewriteStrategyOptions(
       aggregateOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.aggregate-on-ve")
+        .getOption(key = "spark.cyclone.sql.aggregate-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.aggregateOnVe),
       enableVeSorting = sparkConf
-        .getOption(key = "spark.com.nec.spark.sort-on-ve")
+        .getOption(key = "spark.cyclone.sql.sort-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.enableVeSorting),
       projectOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.project-on-ve")
+        .getOption(key = "spark.cyclone.sql.project-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.projectOnVe),
       filterOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.filter-on-ve")
+        .getOption(key = "spark.cyclone.sql.filter-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.filterOnVe),
       exchangeOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.exchange-on-ve")
+        .getOption(key = "spark.cyclone.sql.exchange-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.exchangeOnVe),
       passThroughProject = sparkConf
-        .getOption(key = "spark.com.nec.spark.pass-through-project")
+        .getOption(key = "spark.cyclone.sql.pass-through-project")
         .map(_.toBoolean)
         .getOrElse(default.passThroughProject),
       failFast = {
         sparkConf
-          .getOption(key = "spark.com.nec.spark.fail-fast")
+          .getOption(key = "spark.cyclone.sql.fail-fast")
           .map(_.toBoolean)
           .getOrElse(default.failFast)
       },
       joinOnVe = sparkConf
-        .getOption(key = "spark.com.nec.spark.join-on-ve")
+        .getOption(key = "spark.cyclone.sql.join-on-ve")
         .map(_.toBoolean)
         .getOrElse(default.joinOnVe),
       amplifyBatches = sparkConf
-        .getOption(key = "spark.com.nec.spark.amplify-batches")
+        .getOption(key = "spark.cyclone.sql.amplify-batches")
         .map(_.toBoolean)
         .getOrElse(default.amplifyBatches),
       rewriteEnabled = sparkConf
-        .getOption(key = "spark.com.nec.spark.rewrite-enabled")
+        .getOption(key = "spark.cyclone.sql.rewrite-enabled")
         .map(_.toBoolean)
         .getOrElse(default.rewriteEnabled)
     )

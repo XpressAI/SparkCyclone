@@ -39,7 +39,7 @@ object BenchmarkDebugging {
 final case class BenchmarkDebugging(testing: Testing) {
   private lazy val dir: Path = {
     val tgtDir =
-      Paths.get(s"nec.DynamicBenchmark.${testing.name}-SingleShotTime")
+      Paths.get(s"io.sparkcyclone.benchmarks.DynamicBenchmark.${testing.name}-SingleShotTime")
     if (!Files.exists(tgtDir)) Files.createDirectories(tgtDir)
     tgtDir
   }

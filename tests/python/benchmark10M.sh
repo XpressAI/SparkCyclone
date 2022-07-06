@@ -16,7 +16,7 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 --conf spark.executor.resource.ve.amount=1 \
 --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.py \
---conf spark.com.nec.spark.kernel.directory=/opt/spark/work/cyclone \
+--conf spark.cyclone.kernel.directory=/opt/spark/work/cyclone \
 run_benchmark.py \
  --outputfile "yarn_test_ve_10M" \
  --clearcache \

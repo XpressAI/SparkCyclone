@@ -123,8 +123,8 @@ object BenchTestingPossibilities extends LazyLogging {
 
     override def prepareSession(): SparkSession = {
       val sparkConf = new SparkConf(loadDefaults = true)
-        .set("nec.testing.target", testingTarget.label)
-        .set("nec.testing.testing", this.toString)
+        .set("spark.cyclone.testing.target", testingTarget.label)
+        .set("spark.cyclone.testing.testing", this.toString)
         .set("spark.sql.codegen.comments", "true")
       val MasterName = "local[8]"
       testingTarget match {
@@ -179,7 +179,7 @@ object BenchTestingPossibilities extends LazyLogging {
             .builder()
             .master(MasterName)
             .appName(name.value)
-            .config(key = "spark.com.nec.spark.batch-batches", value = "3")
+            .config(key = "spark.cyclone.sql.batch-batches", value = "3")
             .config(CODEGEN_FALLBACK.key, value = false)
             .config(CODEGEN_COMMENTS.key, value = true)
             .config(key = "spark.ui.enabled", value = false)

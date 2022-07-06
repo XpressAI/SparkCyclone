@@ -79,7 +79,7 @@ object Testing {
   object DataSize {
     def defaultForBenchmarks: DataSize = {
       if (
-        Option(System.getProperty("nec.testing.force-small"))
+        Option(System.getProperty("spark.cyclone.testing.force-small"))
           .exists(v => Set("1", "true").contains(v.toLowerCase()))
       ) SanityCheckSize
       else BenchmarkSize

@@ -132,7 +132,7 @@ object RunBenchmarksApp extends IOApp {
                   if (doTrace)
                     List(
                       "--conf",
-                      s"spark.com.nec.spark.ncc.profile-target=127.0.0.1:${ipAddr.port.value}"
+                      s"spark.cyclone.ncc.profile-target=127.0.0.1:${ipAddr.port.value}"
                     )
                   else Nil
                 } ++
@@ -177,8 +177,8 @@ object RunBenchmarksApp extends IOApp {
                 .parJoinUnbounded
                 .map((i: ILoggingEvent) => i.asInstanceOf[LoggingEventVO])
                 .filter(i =>
-                  i.getLoggerName != null && (i.getLoggerName.contains(".nec.") || i.getLoggerName
-                    .contains("sparkcyclone") || MetricCapture.matches(i.getMessage))
+                  i.getLoggerName != null &&
+                    (i.getLoggerName.contains("sparkcyclone") || MetricCapture.matches(i.getMessage))
                 )
                 .interruptWhen(haltWhenTrue = s)
                 .evalTap(event =>

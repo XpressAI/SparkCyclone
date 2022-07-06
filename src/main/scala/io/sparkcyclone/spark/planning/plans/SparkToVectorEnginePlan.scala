@@ -107,7 +107,7 @@ case class SparkToVectorEnginePlan(childPlan: SparkPlan, parentVeFunction: VeFun
     } else {
       val schema = child.output
       val targetBatchSize = sparkContext.getConf
-        .getOption("spark.com.nec.spark.ve.columnBatchSize")
+        .getOption("spark.cyclone.ve.columnBatchSize")
         .map(_.toInt)
         .getOrElse(conf.columnBatchSize)
 

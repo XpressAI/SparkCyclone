@@ -30,7 +30,7 @@ object GenerateBenchmarksApp extends App {
       .filterNot(_._2.testingTarget.isCMake)
       .keysIterator
       .map { name =>
-        val benchPath = s"nec.DynamicBenchmark.${name}-SingleShotTime"
+        val benchPath = s"io.sparkcyclone.benchmarks.DynamicBenchmark.${name}-SingleShotTime"
         s"""
 @State(Scope.Benchmark)
 class State_${name} {

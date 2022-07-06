@@ -244,7 +244,7 @@ object VeProcess extends LazyLogging {
     val resources = context.resources
     logger.info(s"Executor has the following resources available => ${resources}")
 
-    val veCores = Try { context.conf().get("spark.com.nec.resource.ve.cores").toInt }.getOrElse(MaxVeCores)
+    val veCores = Try { context.conf().get("spark.cyclone.resource.ve.cores").toInt }.getOrElse(MaxVeCores)
     logger.info(s"Specified max cores per VE process => ${veCores}")
 
     val selectedNodeId = if (!resources.containsKey("ve")) {
