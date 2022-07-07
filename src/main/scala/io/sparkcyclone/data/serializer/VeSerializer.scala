@@ -1,4 +1,4 @@
-package io.sparkcyclone.ve.serializer
+package io.sparkcyclone.data.serializer
 
 import org.apache.spark.SparkConf
 import org.apache.spark.serializer.{Serializer, SerializerInstance}

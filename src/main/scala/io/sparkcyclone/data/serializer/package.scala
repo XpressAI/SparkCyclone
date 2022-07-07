@@ -1,7 +1,7 @@
-package io.sparkcyclone.ve
+package io.sparkcyclone.data
 
-import io.sparkcyclone.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 
 package object serializer {
   val CbTag: Int = 91

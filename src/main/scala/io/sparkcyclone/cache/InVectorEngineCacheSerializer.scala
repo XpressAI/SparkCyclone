@@ -5,7 +5,7 @@ import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.colvector.VeColBatch
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext

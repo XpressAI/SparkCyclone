@@ -1,7 +1,7 @@
 package io.sparkcyclone.colvector
 
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 
 final case class UnitColBatch(columns: Seq[UnitColVector]) {

@@ -5,7 +5,7 @@ import io.sparkcyclone.native.transpiler.{CompiledVeFunction, CompilerToolBox, C
 import io.sparkcyclone.spark.agile.SparkExpressionToCExpression
 import io.sparkcyclone.spark.agile.core.VeType
 import io.sparkcyclone.util.DateTimeOps._
-import io.sparkcyclone.ve.serializer.VeSerializer
+import io.sparkcyclone.data.serializer.VeSerializer
 import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, RangePartitioner, SparkContext, TaskContext}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}
 import org.apache.spark.sql.types.{DoubleType, FloatType, IntegerType, LongType}

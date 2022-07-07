@@ -3,7 +3,7 @@ package io.sparkcyclone.colvector
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString, VeType}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColVector private[colvector] (

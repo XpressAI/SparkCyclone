@@ -27,7 +27,7 @@ import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.colvector.VeColVectorSource
 import io.sparkcyclone.colvector.VeColVectorSource
 import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 
 /**

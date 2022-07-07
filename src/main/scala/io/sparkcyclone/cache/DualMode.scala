@@ -6,7 +6,7 @@ import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.colvector.VeColVectorSource
 import io.sparkcyclone.colvector.VeColVectorSource
 import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema

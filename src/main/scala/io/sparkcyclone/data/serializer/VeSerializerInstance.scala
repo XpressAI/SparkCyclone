@@ -1,10 +1,10 @@
-package io.sparkcyclone.ve.serializer
+package io.sparkcyclone.data.serializer
 
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
-import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
 import scala.reflect.ClassTag
 import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer
+import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
 
 class VeSerializerInstance extends SerializerInstance {
   override def serialize[T: ClassTag](t: T): ByteBuffer = {

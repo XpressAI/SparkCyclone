@@ -4,7 +4,7 @@ import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.util.{FixedBitSet, CallContext}
 import io.sparkcyclone.util.PointerOps._
 import io.sparkcyclone.util.ReflectionOps._
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 import java.nio.charset.StandardCharsets
 import org.apache.arrow.memory.BufferAllocator

@@ -6,7 +6,7 @@ import io.sparkcyclone.colvector.ArrowVectorConversions._
 import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.spark.agile.core.VeType
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}

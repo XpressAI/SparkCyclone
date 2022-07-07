@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
 import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import scala.collection.JavaConverters._
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.memory.RootAllocator

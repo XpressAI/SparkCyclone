@@ -3,7 +3,7 @@ package io.sparkcyclone.colvector
 import io.sparkcyclone.spark.agile.core.{VeString, VeType}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import java.io.{DataInputStream, DataOutputStream, InputStream}
 import java.nio.channels.Channels
 import org.bytedeco.javacpp.BytePointer

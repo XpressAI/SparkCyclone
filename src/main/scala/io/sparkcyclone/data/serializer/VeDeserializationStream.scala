@@ -1,8 +1,8 @@
-package io.sparkcyclone.ve.serializer
+package io.sparkcyclone.data.serializer
 
 import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
 import io.sparkcyclone.util.CallContextOps._
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VectorEngine, VeProcess}
 import scala.reflect.ClassTag
 import java.io.{DataInputStream, EOFException, InputStream}

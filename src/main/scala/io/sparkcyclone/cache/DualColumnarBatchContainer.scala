@@ -3,7 +3,7 @@ package io.sparkcyclone.cache
 import io.sparkcyclone.colvector.ArrowVectorConversions._
 import io.sparkcyclone.colvector._
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}

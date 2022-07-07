@@ -21,6 +21,7 @@ package io.sparkcyclone.spark
 
 import io.sparkcyclone.cache.VeColBatchesCache
 import io.sparkcyclone.colvector._
+import io.sparkcyclone.metrics.ProcessExecutorMetrics
 import io.sparkcyclone.vectorengine._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -28,7 +29,6 @@ import java.util.{Map => JMap}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.metrics.source.ProcessExecutorMetrics
 
 object SparkCycloneExecutorPlugin {
   var pluginContext: PluginContext = _

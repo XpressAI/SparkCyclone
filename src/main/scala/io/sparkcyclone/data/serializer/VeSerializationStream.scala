@@ -1,13 +1,13 @@
-package io.sparkcyclone.ve.serializer
+package io.sparkcyclone.data.serializer
 
+import DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.ve.serializer.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
+import scala.reflect.ClassTag
+import java.io.{DataOutputStream, OutputStream}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.serializer.SerializationStream
-import java.io.{DataOutputStream, OutputStream}
-import scala.reflect.ClassTag
 
 class VeSerializationStream(out: OutputStream)(implicit veProcess: VeProcess,
                                                metrics: VeProcessMetrics)

@@ -1,10 +1,10 @@
-package io.sparkcyclone.ve.serializer
+package io.sparkcyclone.data.serializer
 
 import io.sparkcyclone.colvector.SeqOptTConversions._
 import io.sparkcyclone.colvector.{InputSamples, VeColBatch}
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.util.CallContextOps._
-import io.sparkcyclone.ve.serializer.DualBatchOrBytes.ColBatchWrapper
+import io.sparkcyclone.data.serializer.DualBatchOrBytes.ColBatchWrapper
 import io.sparkcyclone.vectorengine.WithVeProcess
 import scala.util.Random
 import java.io._

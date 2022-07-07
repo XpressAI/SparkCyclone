@@ -1,4 +1,4 @@
-package io.sparkcyclone.ve
+package io.sparkcyclone.metrics
 
 trait VeProcessMetrics {
   def measureRunningTime[T](toMeasure: => T)(registerTime: Long => Unit): T

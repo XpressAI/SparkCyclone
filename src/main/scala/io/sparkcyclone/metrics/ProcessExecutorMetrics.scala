@@ -1,10 +1,8 @@
-package org.apache.spark.metrics.source
+package io.sparkcyclone.metrics
 
-import com.codahale.metrics.{Gauge, Histogram, MetricRegistry, UniformReservoir}
-import io.sparkcyclone.ve.VeProcessMetrics
-import scala.collection.mutable.{Map => MMap}
+import com.codahale.metrics._
 
-final class ProcessExecutorMetrics(registry: MetricRegistry) extends VeProcessMetrics with Source {
+final class ProcessExecutorMetrics(registry: MetricRegistry) extends VeProcessMetrics {
   private var arrowConversionTime: Long = 0L
   private val arrowConversionHist = new Histogram(new UniformReservoir())
   private val serializationHist = new Histogram(new UniformReservoir())
@@ -32,18 +30,14 @@ final class ProcessExecutorMetrics(registry: MetricRegistry) extends VeProcessMe
     deserializationHist.update(timeTaken)
   }
 
-  override def sourceName: String = "VEProcessExecutor"
-
-  override val metricRegistry: MetricRegistry = registry
-
-  metricRegistry.register(
+  registry.register(
     MetricRegistry.name("ve", "arrowConversionTime"),
     new Gauge[Long] {
       override def getValue: Long = arrowConversionTime
     }
   )
 
-  metricRegistry.register(MetricRegistry.name("ve", "arrowConversionTimeHist"), arrowConversionHist)
-  metricRegistry.register(MetricRegistry.name("ve", "serializationTime"), serializationHist)
-  metricRegistry.register(MetricRegistry.name("ve", "deserializationTime"), deserializationHist)
+  registry.register(MetricRegistry.name("ve", "arrowConversionTimeHist"), arrowConversionHist)
+  registry.register(MetricRegistry.name("ve", "serializationTime"), serializationHist)
+  registry.register(MetricRegistry.name("ve", "deserializationTime"), deserializationHist)
 }

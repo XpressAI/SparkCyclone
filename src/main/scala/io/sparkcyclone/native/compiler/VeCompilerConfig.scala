@@ -14,7 +14,7 @@ object VeCompilerConfig {
 
   object Prefixes {
     final val ExtraArgument = "extra-argument."
-    final val Ncc = "spark.cyclone.ncc."
+    final val NccSpark = "spark.cyclone.ncc."
     final val NccNonSpark = "ncc."
   }
 
@@ -28,7 +28,7 @@ object VeCompilerConfig {
 
   def fromSparkConf(config: SparkConf): VeCompilerConfig = {
     config
-      .getAllWithPrefix(Prefixes.Ncc)
+      .getAllWithPrefix(Prefixes.NccSpark)
       .foldLeft(defaults) { case (veconf, (key, value)) => veconf.include(key, value) }
   }
 }

@@ -3,7 +3,7 @@ package io.sparkcyclone.colvector
 import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.spark.agile.core.{VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.util.CallContext
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
