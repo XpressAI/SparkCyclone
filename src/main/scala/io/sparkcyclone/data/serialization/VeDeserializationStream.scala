@@ -1,4 +1,4 @@
-package io.sparkcyclone.data.serializer
+package io.sparkcyclone.data.serialization
 
 import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
 import io.sparkcyclone.util.CallContextOps._

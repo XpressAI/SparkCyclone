@@ -1,4 +1,4 @@
-package io.sparkcyclone.cache
+package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import io.sparkcyclone.spark.agile.SparkExpressionToCExpression
@@ -186,7 +186,7 @@ case class RowCollectingTransferDescriptor(schema: Seq[Attribute], capacity: Int
   def isFull: Boolean = !nonFull
   override def nonEmpty: Boolean = level > 0
 
-  private[cache] val transferCols = schema.map(att => SparkExpressionToCExpression.sparkTypeToVeType(att.dataType)).zipWithIndex.map {
+  private[transfer] val transferCols = schema.map(att => SparkExpressionToCExpression.sparkTypeToVeType(att.dataType)).zipWithIndex.map {
     case (t: VeScalarType, idx) => VeScalarTransferCol(t, capacity, idx)
     case (VeString, idx) => VeStringTransferCol(idx)
   }

@@ -1,4 +1,4 @@
-package io.sparkcyclone.cache
+package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.colvector._
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}
@@ -14,7 +14,7 @@ case class UcvTransferDescriptor(columns: Seq[UnitColVector],
     columns.nonEmpty
   }
 
-  private[cache] lazy val resultOffsets: Seq[Long] = {
+  private[transfer] lazy val resultOffsets: Seq[Long] = {
     TransferDescriptor.resultOffsets(columns)
   }
 

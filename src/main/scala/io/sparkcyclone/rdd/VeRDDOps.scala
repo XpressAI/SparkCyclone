@@ -5,8 +5,8 @@ import io.sparkcyclone.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import io.sparkcyclone.colvector.{VeColBatch, VeColVector}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.VeProcess
-import io.sparkcyclone.data.serializer.DualBatchOrBytes.ColBatchWrapper
-import io.sparkcyclone.data.serializer.{DualBatchOrBytes, VeSerializer}
+import io.sparkcyclone.data.serialization.DualBatchOrBytes.ColBatchWrapper
+import io.sparkcyclone.data.serialization.{DualBatchOrBytes, VeSerializer}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.{CoGroupedRDD, RDD, ShuffledRDD}
 import org.apache.spark.serializer.Serializer

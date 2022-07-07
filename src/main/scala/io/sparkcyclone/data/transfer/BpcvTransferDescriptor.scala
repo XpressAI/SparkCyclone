@@ -1,4 +1,4 @@
-package io.sparkcyclone.cache
+package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.colvector.{BytePointerColVector, VeColBatch, VeColVector, VeColVectorSource}
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}
@@ -16,33 +16,33 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     !isEmpty
   }
 
-  private[cache] lazy val nbatches: Long = {
+  private[transfer] lazy val nbatches: Long = {
     batches.size.toLong
   }
 
-  private[cache] lazy val ncolumns: Long = {
+  private[transfer] lazy val ncolumns: Long = {
     batches.headOption.map(_.size.toLong).getOrElse(0L)
   }
 
-  private[cache] lazy val batchwiseColumns: Seq[Seq[BytePointerColVector]] = {
+  private[transfer] lazy val batchwiseColumns: Seq[Seq[BytePointerColVector]] = {
     batches.transpose
   }
 
-  private[cache] lazy val columns: Seq[BytePointerColVector] = {
+  private[transfer] lazy val columns: Seq[BytePointerColVector] = {
     // Transpose the columns such that the first column of each batch comes first,
     // followed by the second column of each batch, etc.
     batchwiseColumns.flatten
   }
 
-  private[cache] lazy val headerOffsets: Seq[Long] = {
+  private[transfer] lazy val headerOffsets: Seq[Long] = {
     TransferDescriptor.headerOffsets(columns)
   }
 
-  private[cache] lazy val dataOffsets: Seq[Long] = {
+  private[transfer] lazy val dataOffsets: Seq[Long] = {
     TransferDescriptor.dataOffsets(columns)
   }
 
-  private[cache] lazy val resultOffsets: Seq[Long] = {
+  private[transfer] lazy val resultOffsets: Seq[Long] = {
     // Use columns from just one batch to avoid over-counting columns
     TransferDescriptor.resultOffsets(batches.headOption.getOrElse(Seq.empty[BytePointerColVector]))
   }

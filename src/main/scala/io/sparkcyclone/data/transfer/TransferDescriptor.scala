@@ -1,4 +1,4 @@
-package io.sparkcyclone.cache
+package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.colvector.{ColVectorLike, UnitColVector, VeColBatch, VeColVectorSource}
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}

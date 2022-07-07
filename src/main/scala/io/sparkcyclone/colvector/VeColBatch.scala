@@ -1,6 +1,6 @@
 package io.sparkcyclone.colvector
 
-import io.sparkcyclone.cache.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
+import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
 import io.sparkcyclone.colvector.ArrayTConversions._
 import io.sparkcyclone.colvector.ArrowVectorConversions._
 import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._

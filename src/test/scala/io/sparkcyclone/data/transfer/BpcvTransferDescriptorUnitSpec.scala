@@ -1,4 +1,4 @@
-package io.sparkcyclone.cache
+package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.colvector.ArrayTConversions._
 import io.sparkcyclone.colvector.BytePointerColVector

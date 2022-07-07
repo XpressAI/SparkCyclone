@@ -1,6 +1,6 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.cache.BpcvTransferDescriptor
+import io.sparkcyclone.data.transfer.BpcvTransferDescriptor
 import io.sparkcyclone.colvector.ArrayTConversions._
 import io.sparkcyclone.colvector.SeqOptTConversions._
 import io.sparkcyclone.colvector._

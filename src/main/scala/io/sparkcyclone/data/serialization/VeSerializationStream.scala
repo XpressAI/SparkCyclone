@@ -1,4 +1,4 @@
-package io.sparkcyclone.data.serializer
+package io.sparkcyclone.data.serialization
 
 import DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 import io.sparkcyclone.colvector.VeColBatch

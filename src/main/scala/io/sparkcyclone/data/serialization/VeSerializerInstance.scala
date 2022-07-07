@@ -1,4 +1,4 @@
-package io.sparkcyclone.data.serializer
+package io.sparkcyclone.data.serialization
 
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
 import scala.reflect.ClassTag

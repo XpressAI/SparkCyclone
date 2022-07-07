@@ -1,6 +1,6 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.cache.BpcvTransferDescriptor
+import io.sparkcyclone.colvector.{BytePointerColVector, InputSamples}
 import io.sparkcyclone.colvector.ArrayTConversions._
 import io.sparkcyclone.colvector.SeqOptTConversions._
 import io.sparkcyclone.annotations.VectorEngineTest

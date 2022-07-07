@@ -1,8 +1,8 @@
 package io.sparkcyclone.vectorengine
 
 import com.codahale.metrics._
-import io.sparkcyclone.cache.TransferDescriptor
 import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.transfer.TransferDescriptor
 import io.sparkcyclone.spark.agile.core.CVector
 import io.sparkcyclone.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
