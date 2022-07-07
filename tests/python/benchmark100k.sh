@@ -17,7 +17,7 @@ export VE_OMP_NUM_THREADS=1
 --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
 --conf spark.driver.resource.ve.amount=1 \
 --conf spark.executor.resource.ve.amount=1 \
---conf spark.resources.discoveryPlugin=io.sparkcyclone.ve.DiscoverVectorEnginesPlugin \
+--conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin \
 run_benchmark.py  --outputfile "yarn_test_ve_100K" --clearcache --ntest 5 \
 column "data/XY_doubles_R100000_P100_csv" \
 --list "avg_x_double,avg_x_plus_y_double,sum_x_double,sum_x_plus_y_double,x_plus_y_double"

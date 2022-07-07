@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.ve
+package io.sparkcyclone.plugin
 
 import java.nio.file.Files
 import java.nio.file.Paths

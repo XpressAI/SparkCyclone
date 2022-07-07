@@ -5,7 +5,7 @@ import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess, vect
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeRDDOps.RichKeyedRDDL
+import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute

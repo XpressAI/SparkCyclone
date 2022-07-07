@@ -21,7 +21,7 @@ final class RDDSetupTest extends AnyFreeSpec {
     }
 
     "test our very own vemap function on local Spark" in {
-      /*import io.sparkcyclone.ve.VeRDD._
+      /*import io.sparkcyclone.rdd.VeRDD._
 
       val numbers = (1L to 6L)
       val rdd = sc.veParallelize(numbers)

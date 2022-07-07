@@ -4,7 +4,7 @@ import io.sparkcyclone.colvector.{VeBatchOfBatches, VeColBatch}
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.util.CallContextOps._
-import io.sparkcyclone.ve.VeRDDOps
+import io.sparkcyclone.rdd.VeRDDOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
