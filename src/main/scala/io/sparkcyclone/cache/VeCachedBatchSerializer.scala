@@ -1,6 +1,4 @@
-package io.sparkcyclone.spark.planning
-
-import io.sparkcyclone.cache._
+package io.sparkcyclone.spark.cache
 
 class VeCachedBatchSerializer extends ArrowBasedCacheSerializer
 // class VeCachedBatchSerializer extends InVectorEngineCacheSerializer

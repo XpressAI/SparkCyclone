@@ -36,7 +36,6 @@ import io.sparkcyclone.spark.agile.sort.{SortFunction, VeSortExpression}
 import io.sparkcyclone.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import io.sparkcyclone.spark.planning.TransformUtil.RichTreeNode
 import io.sparkcyclone.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
-import io.sparkcyclone.spark.planning.aggregation.VeHashExchangePlan
 import io.sparkcyclone.spark.planning.hints._
 import io.sparkcyclone.spark.planning.plans._
 import com.typesafe.scalalogging.LazyLogging

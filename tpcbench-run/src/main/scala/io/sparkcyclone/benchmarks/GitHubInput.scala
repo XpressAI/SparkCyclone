@@ -21,7 +21,7 @@ object GitHubInput {
       default = Some("-"),
       options = List(
         "-",
-        "io.sparkcyclone.spark.planning.VeCachedBatchSerializer",
+        "io.sparkcyclone.cache.VeCachedBatchSerializer",
         "io.sparkcyclone.cache.ArrowBasedCacheSerializer",
         "io.sparkcyclone.cache.InVectorEngineCacheSerializer"
       )
