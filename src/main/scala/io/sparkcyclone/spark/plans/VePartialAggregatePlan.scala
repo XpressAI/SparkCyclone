@@ -1,8 +1,8 @@
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
-import io.sparkcyclone.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
+import io.sparkcyclone.spark.planning.VeFunction
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
@@ -10,7 +10,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-case class VePartialAggregate(
+case class VePartialAggregatePlan(
   expectedOutputs: Seq[NamedExpression],
   partialFunction: VeFunction,
   child: SparkPlan

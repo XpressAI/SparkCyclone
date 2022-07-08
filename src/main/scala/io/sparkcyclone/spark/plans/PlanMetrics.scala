@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.data.vector.VeColBatch
 import org.apache.spark.SparkContext

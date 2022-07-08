@@ -17,11 +17,11 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
-import io.sparkcyclone.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
+import io.sparkcyclone.spark.planning.VeFunction
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
@@ -108,7 +108,7 @@ final case class VeProjectEvaluationPlan(
 
 object VeProjectEvaluationPlan {
 
-  private[planning] final case class ProjectionContext(
+  private[plans] final case class ProjectionContext(
     outputExpressions: Seq[NamedExpression],
     inputs: List[NamedExpression]
   ) {

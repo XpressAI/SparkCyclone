@@ -1,8 +1,7 @@
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.cache.{CycloneCacheBase, VeColColumnarVector}
 import io.sparkcyclone.data.vector.{ByteArrayColVector, VeColBatch, VeColVector}
-import io.sparkcyclone.spark.planning.{DataCleanup, PlanMetrics, SupportsVeColBatch}
 import io.sparkcyclone.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD

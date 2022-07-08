@@ -37,7 +37,7 @@ import io.sparkcyclone.spark.agile.{CFunctionGeneration, SparkExpressionToCExpre
 import io.sparkcyclone.spark.planning.TransformUtil.RichTreeNode
 import io.sparkcyclone.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import io.sparkcyclone.spark.planning.hints._
-import io.sparkcyclone.spark.planning.plans._
+import io.sparkcyclone.spark.plans._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
@@ -352,7 +352,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         else Left(s"Expected to have distinct outputs from a PF, got: ${partialAggregateFn.outputs}")
 
     } yield {
-      val partialAggregatePlan = VePartialAggregate(
+      val partialAggregatePlan = VePartialAggregatePlan(
         partialFunction = partialAggregateFn.toVeFunction,
         child = SparkToVectorEnginePlan(planLater(child), partialAggregateFn.toVeFunction),
         expectedOutputs = partialAggregateFn.outputs
@@ -373,7 +373,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         child = partialAggregatePlan
       )
 
-      val finalAggregatePlan = VeFinalAggregate(
+      val finalAggregatePlan = VeFinalAggregatePlan(
         expectedOutputs = aggregateExpressions,
         finalFunction = finalAggregateFn.toVeFunction,
         child = flattenPartitionPlan

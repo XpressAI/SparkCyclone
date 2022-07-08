@@ -17,12 +17,12 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
-import io.sparkcyclone.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
+import io.sparkcyclone.spark.planning.VeFunction
 import io.sparkcyclone.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD

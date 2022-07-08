@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.cache.{ArrowEncodingSettings, CycloneCacheBase}
 import io.sparkcyclone.data.conversion.ArrowVectorConversions.ValueVectorToBPCV

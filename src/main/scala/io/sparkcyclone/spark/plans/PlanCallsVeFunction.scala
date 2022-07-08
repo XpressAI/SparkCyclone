@@ -1,5 +1,6 @@
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.spark.plans
 
+import io.sparkcyclone.spark.planning.VeFunction
 import io.sparkcyclone.vectorengine.{LibraryReference, VeProcess}
 import org.apache.spark.sql.execution.SparkPlan
 

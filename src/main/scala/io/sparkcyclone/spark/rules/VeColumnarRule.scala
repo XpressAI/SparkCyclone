@@ -1,7 +1,6 @@
 package io.sparkcyclone.sql.rules
 
-import io.sparkcyclone.spark.planning.SupportsVeColBatch
-import io.sparkcyclone.spark.planning.plans.{SparkToVectorEnginePlan, VectorEngineToSparkPlan}
+import io.sparkcyclone.spark.plans.{SparkToVectorEnginePlan, SupportsVeColBatch, VectorEngineToSparkPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 

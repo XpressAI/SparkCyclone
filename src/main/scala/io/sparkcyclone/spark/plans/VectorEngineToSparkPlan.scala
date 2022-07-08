@@ -1,7 +1,6 @@
-package io.sparkcyclone.spark.planning.plans
+package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
-import io.sparkcyclone.spark.planning.{PlanMetrics, SupportsVeColBatch}
 import io.sparkcyclone.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
