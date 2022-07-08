@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.spark.transformation
 
 import io.sparkcyclone.cache.CycloneCacheBase
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
@@ -34,9 +34,8 @@ import io.sparkcyclone.spark.agile.merge.MergeFunction
 import io.sparkcyclone.spark.agile.projection.ProjectionFunction
 import io.sparkcyclone.spark.agile.sort.{SortFunction, VeSortExpression}
 import io.sparkcyclone.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
-import io.sparkcyclone.spark.planning.TransformUtil.RichTreeNode
-import io.sparkcyclone.spark.planning.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
-import io.sparkcyclone.spark.planning.hints._
+import io.sparkcyclone.spark.transformation.TransformUtil.RichTreeNode
+import io.sparkcyclone.spark.transformation.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import io.sparkcyclone.spark.plans._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}

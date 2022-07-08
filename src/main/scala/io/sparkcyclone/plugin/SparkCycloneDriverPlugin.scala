@@ -20,7 +20,7 @@
 package io.sparkcyclone.plugin
 
 import io.sparkcyclone.native.{CachingNativeCodeCompiler, NativeCodeCompiler}
-import io.sparkcyclone.spark.{RequestCompiledLibraryForCode, RequestCompiledLibraryResponse}
+import io.sparkcyclone.spark.transformation.{RequestCompiledLibraryForCode, RequestCompiledLibraryResponse}
 import scala.collection.JavaConverters._
 import java.nio.file.{Files, Paths}
 import java.util.{Map => JMap}

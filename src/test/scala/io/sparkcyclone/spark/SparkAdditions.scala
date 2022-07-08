@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark
 
-import io.sparkcyclone.spark.planning.VERewriteStrategy
+import io.sparkcyclone.spark.transformation.VERewriteStrategy
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}

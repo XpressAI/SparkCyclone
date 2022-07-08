@@ -1,6 +1,6 @@
 package io.sparkcyclone.sql.rules
 
-import io.sparkcyclone.spark.planning.hints._
+import io.sparkcyclone.spark.transformation._
 import org.apache.spark.sql.catalyst.expressions.Literal
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnresolvedHint}
 import org.apache.spark.sql.catalyst.rules.Rule

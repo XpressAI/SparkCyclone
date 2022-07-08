@@ -6,7 +6,7 @@ import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions.{SparkSql
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
-import io.sparkcyclone.spark.planning._
+import io.sparkcyclone.spark.transformation._
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine.LibCyclone
 import com.typesafe.scalalogging.LazyLogging

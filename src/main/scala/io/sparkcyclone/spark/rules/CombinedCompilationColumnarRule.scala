@@ -5,9 +5,9 @@ import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
 import io.sparkcyclone.spark.agile.core.CodeLines
 import io.sparkcyclone.spark.agile.CodeStructure
 import io.sparkcyclone.spark.plans.PlanCallsVeFunction.UncompiledPlan
-import io.sparkcyclone.spark.planning._
-import io.sparkcyclone.spark.planning.LibLocation.DistributedLibLocation
-import io.sparkcyclone.spark.planning.VeFunctionStatus._
+import io.sparkcyclone.spark.transformation._
+import io.sparkcyclone.spark.transformation.LibLocation.DistributedLibLocation
+import io.sparkcyclone.spark.transformation.VeFunctionStatus._
 import java.nio.file.Path
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.rules.Rule

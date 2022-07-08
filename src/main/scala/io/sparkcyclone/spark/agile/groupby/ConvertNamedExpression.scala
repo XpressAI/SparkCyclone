@@ -28,8 +28,8 @@ import io.sparkcyclone.spark.agile.groupby.GroupByOutline.{
   StagedProjection,
   StringReference
 }
-import io.sparkcyclone.spark.planning.VERewriteStrategy
-import io.sparkcyclone.spark.planning.VERewriteStrategy.{AggPrefix, StagedProjectionPrefix}
+import io.sparkcyclone.spark.transformation.VERewriteStrategy
+import io.sparkcyclone.spark.transformation.VERewriteStrategy.{AggPrefix, StagedProjectionPrefix}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   DeclarativeAggregate

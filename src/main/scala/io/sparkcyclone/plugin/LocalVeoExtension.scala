@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.plugin
 
-import io.sparkcyclone.spark.planning.{VERewriteStrategy, VeRewriteStrategyOptions}
+import io.sparkcyclone.spark.transformation.{VERewriteStrategy, VeRewriteStrategyOptions}
 import io.sparkcyclone.sql.rules._
 import org.apache.spark.sql.SparkSessionExtensions
 

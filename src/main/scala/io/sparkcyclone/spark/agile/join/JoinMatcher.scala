@@ -4,7 +4,7 @@ import io.sparkcyclone.spark.agile.CFunctionGeneration
 import io.sparkcyclone.spark.agile.SparkExpressionToCExpression.sparkTypeToVeType
 import io.sparkcyclone.spark.agile.core.CVector
 import io.sparkcyclone.spark.agile.join.GenericJoiner.FilteredOutput
-import io.sparkcyclone.spark.planning.VERewriteStrategy.InputPrefix
+import io.sparkcyclone.spark.transformation.VERewriteStrategy.InputPrefix
 import org.apache.spark.sql.catalyst.expressions.{
   And,
   AttributeReference,

@@ -2,7 +2,7 @@ package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
-import io.sparkcyclone.spark.planning.VeFunction
+import io.sparkcyclone.spark.transformation.VeFunction
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging

@@ -17,8 +17,10 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark
+package io.sparkcyclone.spark.transformation
 
 import okio.ByteString
 
-final case class RequestCompiledLibraryResponse(byteString: ByteString) extends Serializable {}
+final case class RequestCompiledLibraryForCode(libraryPath: String) extends Serializable
+
+final case class RequestCompiledLibraryResponse(byteString: ByteString) extends Serializable

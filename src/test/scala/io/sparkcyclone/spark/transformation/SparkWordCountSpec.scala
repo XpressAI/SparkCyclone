@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.spark.transformation
 
 import io.sparkcyclone.spark.SampleTestData
 import io.sparkcyclone.spark.SparkAdditions

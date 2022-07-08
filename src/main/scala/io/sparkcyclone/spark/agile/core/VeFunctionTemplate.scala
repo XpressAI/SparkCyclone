@@ -1,8 +1,8 @@
 package io.sparkcyclone.spark.agile.core
 
 import io.sparkcyclone.native.NativeFunction
-import io.sparkcyclone.spark.planning.VeFunction
-import io.sparkcyclone.spark.planning.VeFunctionStatus
+import io.sparkcyclone.spark.transformation.VeFunction
+import io.sparkcyclone.spark.transformation.VeFunctionStatus
 
 trait VeFunctionTemplate extends NativeFunction {
   /*
