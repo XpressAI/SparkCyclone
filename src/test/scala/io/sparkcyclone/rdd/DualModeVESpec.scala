@@ -2,8 +2,9 @@ package io.sparkcyclone.rdd
 
 import io.sparkcyclone.cache.DualMode.unwrapPossiblyDualToVeColBatches
 import io.sparkcyclone.cache.{ArrowEncodingSettings, CycloneCacheBase}
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
-import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.{SparkAdditions, SparkCycloneExecutorPlugin}

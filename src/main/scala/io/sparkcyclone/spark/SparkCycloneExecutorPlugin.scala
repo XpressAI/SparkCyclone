@@ -20,7 +20,8 @@
 package io.sparkcyclone.spark
 
 import io.sparkcyclone.cache.VeColBatchesCache
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.vector._
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.metrics.ProcessExecutorMetrics
 import io.sparkcyclone.vectorengine._
 import scala.collection.JavaConverters._

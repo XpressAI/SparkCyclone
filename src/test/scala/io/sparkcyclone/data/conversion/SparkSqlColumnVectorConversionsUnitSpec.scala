@@ -1,8 +1,9 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector.ArrowVectorConversions._
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.spark.agile.core.VeScalarType
 import scala.reflect.ClassTag
 import scala.util.Random

@@ -19,6 +19,8 @@
  */
 package io.sparkcyclone.eval
 
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.agile.CFunctionGeneration._
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.spark.agile.filter.FilterFunction
@@ -28,7 +30,6 @@ import io.sparkcyclone.spark.agile.sort.{SortFunction, VeSortExpression}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}
-import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
 import io.sparkcyclone.eval.StaticTypingTestAdditions._
 import org.apache.arrow.memory.RootAllocator
 import com.typesafe.scalalogging.LazyLogging

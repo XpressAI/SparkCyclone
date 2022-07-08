@@ -1,7 +1,8 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.spark.agile.core.{VeNullableInt, VeString}
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine.WithVeProcess

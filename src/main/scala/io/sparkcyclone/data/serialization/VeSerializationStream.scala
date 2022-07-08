@@ -1,7 +1,7 @@
 package io.sparkcyclone.data.serialization
 
 import DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 import scala.reflect.ClassTag

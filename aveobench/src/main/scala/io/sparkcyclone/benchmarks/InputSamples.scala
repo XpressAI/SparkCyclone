@@ -1,7 +1,7 @@
 package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.colvector._
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.vector._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
 

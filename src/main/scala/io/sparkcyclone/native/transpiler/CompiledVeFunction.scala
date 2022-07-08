@@ -1,6 +1,6 @@
 package io.sparkcyclone.native.transpiler
 
-import io.sparkcyclone.colvector.{VeColBatch, VeColVector, VeBatchOfBatches}
+import io.sparkcyclone.data.vector.{VeColBatch, VeColVector, VeBatchOfBatches}
 import io.sparkcyclone.spark.SparkCycloneDriverPlugin
 import io.sparkcyclone.spark.agile.core.{CFunction2, CVector}
 import io.sparkcyclone.util.CallContext

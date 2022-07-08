@@ -1,6 +1,6 @@
 package io.sparkcyclone.rdd
 
-import io.sparkcyclone.colvector.{VeBatchOfBatches, VeColVector, VeColBatch}
+import io.sparkcyclone.data.vector.{VeBatchOfBatches, VeColVector, VeColBatch}
 import io.sparkcyclone.native.transpiler.{CompiledVeFunction, FunctionTyping}
 import io.sparkcyclone.spark.agile.merge.MergeFunction
 import scala.reflect.runtime.universe.TypeTag

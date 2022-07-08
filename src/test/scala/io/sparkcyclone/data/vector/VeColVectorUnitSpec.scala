@@ -1,7 +1,8 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.WithVeProcess
 import scala.reflect.ClassTag

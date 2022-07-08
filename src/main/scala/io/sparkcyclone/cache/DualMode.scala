@@ -3,9 +3,9 @@ package io.sparkcyclone.cache
 import io.sparkcyclone.cache.VeColColumnarVector.CachedColumnVector
 import io.sparkcyclone.util.ReflectionOps._
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.colvector.VeColVectorSource
-import io.sparkcyclone.colvector.VeColVectorSource
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 import org.apache.arrow.memory.BufferAllocator

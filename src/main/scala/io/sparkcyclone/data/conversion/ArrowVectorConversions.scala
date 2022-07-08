@@ -1,5 +1,7 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.vector.{BytePointerColVector, VeColVector}
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.util.{FixedBitSet, CallContext}
 import io.sparkcyclone.util.PointerOps._
@@ -48,11 +50,11 @@ object ArrowVectorConversions {
   }
 
   implicit class BPCVToFieldVector(input: BytePointerColVector) {
-    private[colvector] lazy val numItems = input.numItems
-    private[colvector] lazy val buffers = input.buffers
-    private[colvector] lazy val bufferAdresses = buffers.map(_.address())
+    private[conversion] lazy val numItems = input.numItems
+    private[conversion] lazy val buffers = input.buffers
+    private[conversion] lazy val bufferAdresses = buffers.map(_.address())
 
-    private[colvector] def toScalarArrow(typ: VeScalarType)(implicit allocator: BufferAllocator): FieldVector = {
+    private[conversion] def toScalarArrow(typ: VeScalarType)(implicit allocator: BufferAllocator): FieldVector = {
       val vec = VeScalarToArrowAllocators(typ).allocate(input.name)
 
       if (input.numItems > 0) {
@@ -72,7 +74,7 @@ object ArrowVectorConversions {
       vec
     }
 
-    private[colvector] def toShortArrow(implicit allocator: BufferAllocator): SmallIntVector = {
+    private[conversion] def toShortArrow(implicit allocator: BufferAllocator): SmallIntVector = {
       val vec = new SmallIntVector(input.name, allocator)
 
       if (numItems > 0) {
@@ -95,7 +97,7 @@ object ArrowVectorConversions {
       vec
     }
 
-    private[colvector] def toVarCharArrow(implicit allocator: BufferAllocator): VarCharVector = {
+    private[conversion] def toVarCharArrow(implicit allocator: BufferAllocator): VarCharVector = {
       val vec = new VarCharVector(input.name, allocator)
 
       if (numItems > 0) {
@@ -213,7 +215,7 @@ object ArrowVectorConversions {
   }
 
   implicit class VarCharVectorToBPCV(vector: VarCharVector) {
-    private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
+    private[conversion] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       /*
         Compute the buffer length
 

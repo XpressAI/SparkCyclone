@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
 import io.sparkcyclone.cache.VeColColumnarVector.CachedColumnVector
-import io.sparkcyclone.colvector.{ByteArrayColVector, VeColVector}
+import io.sparkcyclone.data.vector.{ByteArrayColVector, VeColVector}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized._
 import org.apache.spark.unsafe.types.UTF8String

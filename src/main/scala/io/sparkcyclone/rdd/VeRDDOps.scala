@@ -2,7 +2,7 @@ package io.sparkcyclone.rdd
 
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.source
 import io.sparkcyclone.spark.planning.VERewriteStrategy.HashExchangeBuckets
-import io.sparkcyclone.colvector.{VeColBatch, VeColVector}
+import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.VeProcess
 import io.sparkcyclone.data.serialization.DualBatchOrBytes.ColBatchWrapper

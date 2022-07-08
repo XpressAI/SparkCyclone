@@ -2,7 +2,7 @@ package io.sparkcyclone.vectorengine
 
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
 import io.sparkcyclone.metrics.VeProcessMetrics
-import io.sparkcyclone.colvector.{VeColVectorSource => VeSource}
+import io.sparkcyclone.data.{VeColVectorSource => VeSource}
 import java.nio.file.{Path, Paths}
 import com.codahale.metrics._
 import org.apache.spark.SparkConf

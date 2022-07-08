@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.planning
 
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.vector.VeColBatch
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch

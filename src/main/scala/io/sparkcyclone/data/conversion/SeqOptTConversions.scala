@@ -1,6 +1,8 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
-import io.sparkcyclone.colvector.ArrayTConversions._
+import io.sparkcyclone.data.conversion.ArrayTConversions._
+import io.sparkcyclone.data.vector.BytePointerColVector
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
@@ -10,7 +12,7 @@ import org.apache.spark.unsafe.types.UTF8String
 import org.bytedeco.javacpp._
 
 object SeqOptTConversions {
-  private[colvector] def constructValidityBuffer[T](input: Seq[Option[T]]): BytePointer = {
+  private[conversion] def constructValidityBuffer[T](input: Seq[Option[T]]): BytePointer = {
     val bitset = new FixedBitSet(input.size)
     input.zipWithIndex.foreach { case (v, i) =>
       bitset.set(i, v.nonEmpty)
@@ -19,7 +21,7 @@ object SeqOptTConversions {
   }
 
   implicit class SeqOptTToBPCV[T <: AnyVal : ClassTag](input: Seq[Option[T]]) {
-    private[colvector] def dataBuffer: BytePointer = {
+    private[conversion] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       val buffer = if (klass == classOf[Int]) {
@@ -79,7 +81,7 @@ object SeqOptTConversions {
   }
 
   implicit class SeqOptStringToBPCV(input: Seq[Option[String]]) {
-    private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
+    private[conversion] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Convert to UTF-32LE Array[Byte]'s
       val bytesAA = input.map { x =>
         x.map(_.getBytes("UTF-32LE")).getOrElse(Array[Byte]())
@@ -107,11 +109,11 @@ object SeqOptTConversions {
   }
 
   implicit class BPCVToSeqOptT(input: BytePointerColVector) {
-    private[colvector] lazy val numItems = input.numItems
-    private[colvector] lazy val veType = input.veType
-    private[colvector] lazy val buffers = input.buffers
+    private[conversion] lazy val numItems = input.numItems
+    private[conversion] lazy val veType = input.veType
+    private[conversion] lazy val buffers = input.buffers
 
-    private[colvector] def toStringArray: Seq[Option[String]] = {
+    private[conversion] def toStringArray: Seq[Option[String]] = {
       val dataBuffer = buffers(0)
       val startsBuffer = new IntPointer(buffers(1))
       val lensBuffer = new IntPointer(buffers(2))

@@ -1,10 +1,11 @@
 package io.sparkcyclone.rdd
 
 import com.eed3si9n.expecty.Expecty.expect
-import io.sparkcyclone.colvector.BytePointerColVector
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.data.vector.BytePointerColVector
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.agile.core.VeNullableDouble
 import io.sparkcyclone.spark.{SparkAdditions, SparkCycloneExecutorPlugin}

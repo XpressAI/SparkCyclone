@@ -19,14 +19,14 @@
  */
 package io.sparkcyclone.eval
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.spark.agile.join.JoinUtils._
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.colvector.VeColVectorSource
-import io.sparkcyclone.colvector.VeColVectorSource
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess
 

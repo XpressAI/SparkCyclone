@@ -1,6 +1,6 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import scala.reflect.ClassTag
 import scala.util.Random
 

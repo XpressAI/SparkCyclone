@@ -1,6 +1,8 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
 import io.sparkcyclone.spark.agile.core._
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
 import scala.reflect.ClassTag
@@ -8,7 +10,7 @@ import org.bytedeco.javacpp._
 
 object ArrayTConversions {
   implicit class ArrayTToBPCV[T : ClassTag](input: Array[T]) {
-    private[colvector] def dataBuffer: BytePointer = {
+    private[conversion] def dataBuffer: BytePointer = {
       val klass = implicitly[ClassTag[T]].runtimeClass
 
       val buffer = if (klass == classOf[Int]) {
@@ -41,7 +43,7 @@ object ArrayTConversions {
       buffer.asBytePointer
     }
 
-    private[colvector] def validityBuffer: BytePointer = {
+    private[conversion] def validityBuffer: BytePointer = {
       val bitset = new FixedBitSet(input.size)
       input.zipWithIndex.foreach { case (x, i) =>
         bitset.set(i, x != null)
@@ -64,7 +66,7 @@ object ArrayTConversions {
     }
   }
 
-  private[colvector] implicit class ExtendedArrayArrayByte(bytesAA: Array[Array[Byte]]) {
+  private[conversion] implicit class ExtendedArrayArrayByte(bytesAA: Array[Array[Byte]]) {
     def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Allocate the buffers
       val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)
@@ -94,7 +96,7 @@ object ArrayTConversions {
   }
 
   implicit class ArrayStringToBPCV(input: Array[String]) {
-    private[colvector] def validityBuffer: BytePointer = {
+    private[conversion] def validityBuffer: BytePointer = {
       val bitset = new FixedBitSet(input.size)
       input.zipWithIndex.foreach { case (x, i) =>
         bitset.set(i, x != null)
@@ -103,7 +105,7 @@ object ArrayTConversions {
       bitset.toBytePointer
     }
 
-    private[colvector] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
+    private[conversion] def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Convert to UTF-32LE Array[Byte]'s
       val bytesAA = input.map { x =>
         if (x == null) {
@@ -135,11 +137,11 @@ object ArrayTConversions {
   }
 
   implicit class BPCVToArrayT(input: BytePointerColVector) {
-    private[colvector] lazy val numItems = input.numItems
-    private[colvector] lazy val veType = input.veType
-    private[colvector] lazy val buffers = input.buffers
+    private[conversion] lazy val numItems = input.numItems
+    private[conversion] lazy val veType = input.veType
+    private[conversion] lazy val buffers = input.buffers
 
-    private[colvector] def toStringArray: Array[String] = {
+    private[conversion] def toStringArray: Array[String] = {
       val dataBuffer = buffers(0)
       val startsBuffer = new IntPointer(buffers(1))
       val lensBuffer = new IntPointer(buffers(2))

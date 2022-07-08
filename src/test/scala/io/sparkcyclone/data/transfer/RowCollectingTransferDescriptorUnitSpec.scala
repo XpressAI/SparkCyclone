@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.colvector.VeColVectorSource
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._

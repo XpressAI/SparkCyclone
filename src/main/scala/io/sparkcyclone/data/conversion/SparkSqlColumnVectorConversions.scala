@@ -1,5 +1,7 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
@@ -23,14 +25,14 @@ object SparkSqlColumnVectorConversions {
   )
 
   implicit class SparkSqlColumnVectorToBPCV(vector: ColumnVector) {
-    private[colvector] def veScalarType: VeScalarType = {
+    private[conversion] def veScalarType: VeScalarType = {
       SparkToVeScalarTypeMap.get(vector.dataType) match {
         case Some(x)  => x
         case _        => throw new NotImplementedError(s"No corresponding VeType for SparkSQL DataType: ${vector.dataType}")
       }
     }
 
-    private[colvector] def validityBuffer(size: Int): BytePointer = {
+    private[conversion] def validityBuffer(size: Int): BytePointer = {
       val bitset = new FixedBitSet(size)
       for (i <- 0 until size) {
         bitset.set(i, !vector.isNullAt(i))
@@ -39,7 +41,7 @@ object SparkSqlColumnVectorConversions {
       bitset.toBytePointer
     }
 
-    private[colvector] def scalarDataBuffer(size: Int): BytePointer = {
+    private[conversion] def scalarDataBuffer(size: Int): BytePointer = {
       //ColumnVectorUtils.populate()
       val buffer = vector.dataType match {
         case IntegerType =>
@@ -111,7 +113,7 @@ object SparkSqlColumnVectorConversions {
       buffer.asBytePointer
     }
 
-    private[colvector] def scalarToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
+    private[conversion] def scalarToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
       BytePointerColVector(
         source,
         name,
@@ -124,7 +126,7 @@ object SparkSqlColumnVectorConversions {
       )
     }
 
-    private[colvector] def varCharToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
+    private[conversion] def varCharToBPCV(name: String, size: Int)(implicit source: VeColVectorSource): BytePointerColVector = {
       import ArrayTConversions._
 
       // Construct UTF-32lE Array[Array[Byte]]

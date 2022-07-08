@@ -1,6 +1,6 @@
 package io.sparkcyclone.colvector
 
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.vector._
 import org.bytedeco.javacpp.BytePointer
 
 object BytePointerColVectorOps {

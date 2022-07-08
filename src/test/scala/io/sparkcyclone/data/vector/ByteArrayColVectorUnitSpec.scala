@@ -1,6 +1,7 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID

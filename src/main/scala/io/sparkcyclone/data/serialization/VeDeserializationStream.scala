@@ -1,6 +1,7 @@
 package io.sparkcyclone.data.serialization
 
-import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VectorEngine, VeProcess}

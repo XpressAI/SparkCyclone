@@ -1,4 +1,4 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import org.apache.spark.sql.vectorized.ColumnarBatch
 

@@ -1,9 +1,9 @@
 package io.sparkcyclone.spark.planning.plans
 
 import io.sparkcyclone.cache.{ArrowEncodingSettings, CycloneCacheBase}
-import io.sparkcyclone.colvector.ArrowVectorConversions.ValueVectorToBPCV
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.conversion.ArrowVectorConversions.ValueVectorToBPCV
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.spark.planning._

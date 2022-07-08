@@ -1,7 +1,7 @@
 package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector.InputSamples
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.util.FixedBitSet

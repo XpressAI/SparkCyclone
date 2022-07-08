@@ -1,6 +1,6 @@
 package io.sparkcyclone.colvector
 
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import org.bytedeco.javacpp.BytePointer

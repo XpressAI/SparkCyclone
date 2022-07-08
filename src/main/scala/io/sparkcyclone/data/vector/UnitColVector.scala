@@ -1,5 +1,6 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.agile.core.{VeString, VeType}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
@@ -8,7 +9,7 @@ import java.io.{DataInputStream, DataOutputStream, InputStream}
 import java.nio.channels.Channels
 import org.bytedeco.javacpp.BytePointer
 
-final case class UnitColVector private[colvector] (
+final case class UnitColVector private[vector] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,
@@ -81,11 +82,11 @@ final case class UnitColVector private[colvector] (
 }
 
 object UnitColVector {
-  private[colvector] final lazy val VeTypeToTag: Map[VeType, Int] = {
+  private[vector] final lazy val VeTypeToTag: Map[VeType, Int] = {
     VeType.All.zipWithIndex.toMap
   }
 
-  private[colvector] final lazy val VeTagToType: Map[Int, VeType] = {
+  private[vector] final lazy val VeTagToType: Map[Int, VeType] = {
     VeTypeToTag.map(_.swap)
   }
 

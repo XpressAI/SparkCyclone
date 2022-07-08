@@ -1,6 +1,6 @@
 package io.sparkcyclone.rdd
 
-import io.sparkcyclone.colvector.{VeColVector, VeColBatch}
+import io.sparkcyclone.data.vector.{VeColVector, VeColBatch}
 import io.sparkcyclone.native.transpiler.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
 import io.sparkcyclone.spark.agile.SparkExpressionToCExpression
 import io.sparkcyclone.spark.agile.core.VeType
@@ -286,7 +286,7 @@ class BasicVeRDD[T](
   //}
 
   def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
-    import io.sparkcyclone.colvector.ArrayTConversions._
+    import io.sparkcyclone.data.conversion.ArrayTConversions._
     import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
     import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
    import io.sparkcyclone.util.CallContextOps._

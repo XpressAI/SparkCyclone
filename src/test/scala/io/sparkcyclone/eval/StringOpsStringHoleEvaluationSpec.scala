@@ -2,6 +2,7 @@ package io.sparkcyclone.eval
 
 import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.agile.core._
 import io.sparkcyclone.spark.agile.CFunctionGeneration.CFunction
 import io.sparkcyclone.spark.agile.StringHole
@@ -9,7 +10,7 @@ import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import io.sparkcyclone.spark.agile.groupby.GroupByOutline
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.colvector.{VeColBatch, VeColVectorSource}
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.eval.StaticTypingTestAdditions.{VeAllocator, VeRetriever}
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.vectorengine.{VectorEngine, VeProcess, WithVeProcess}

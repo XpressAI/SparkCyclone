@@ -1,6 +1,7 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.cache.VeColColumnarVector
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.agile.core.{VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import io.sparkcyclone.metrics.VeProcessMetrics
@@ -8,7 +9,7 @@ import io.sparkcyclone.util.CallContext
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
-final case class ByteArrayColVector private[colvector] (
+final case class ByteArrayColVector private[vector] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,

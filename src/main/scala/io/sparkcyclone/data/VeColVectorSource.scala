@@ -1,4 +1,4 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data
 
 final case class VeColVectorSource(identifier: String)
 

@@ -1,6 +1,7 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.conversion
 
-import io.sparkcyclone.colvector.ArrowVectorConversions._
+import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.spark.agile.core.VeScalarType
 import scala.util.Random
 import java.util.UUID

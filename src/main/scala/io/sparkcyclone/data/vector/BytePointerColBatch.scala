@@ -1,6 +1,6 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeProjection
@@ -8,11 +8,11 @@ import org.apache.spark.unsafe.types.UTF8String
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) {
-  private[colvector] lazy val projection = {
+  private[vector] lazy val projection = {
     UnsafeProjection.create(sparkSchema.toArray)
   }
 
-  private[colvector] lazy val dcolumns = {
+  private[vector] lazy val dcolumns = {
     columns.map(_.toSeqOptAny)
   }
 

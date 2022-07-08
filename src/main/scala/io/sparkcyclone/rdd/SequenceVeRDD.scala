@@ -1,7 +1,7 @@
 package io.sparkcyclone.rdd
 
-import io.sparkcyclone.colvector.ArrayTConversions.ArrayTToBPCV
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.conversion.ArrayTConversions.ArrayTToBPCV
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.native.transpiler.CompiledVeFunction
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
 import io.sparkcyclone.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer

@@ -1,9 +1,10 @@
 package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.colvector.{BytePointerColVector, InputSamples}
-import io.sparkcyclone.colvector.ArrayTConversions._
-import io.sparkcyclone.colvector.SeqOptTConversions._
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.ArrayTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.vectorengine.{LibCyclone, WithVeProcess}

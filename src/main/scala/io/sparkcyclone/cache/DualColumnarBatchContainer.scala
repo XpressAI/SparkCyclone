@@ -1,7 +1,8 @@
 package io.sparkcyclone.cache
 
-import io.sparkcyclone.colvector.ArrowVectorConversions._
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.vector._
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.VeProcess

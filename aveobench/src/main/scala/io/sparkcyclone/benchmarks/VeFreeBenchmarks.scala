@@ -1,6 +1,6 @@
 package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.vectorengine._
 import org.openjdk.jmh.annotations._
 

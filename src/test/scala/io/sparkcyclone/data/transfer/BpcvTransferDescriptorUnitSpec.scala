@@ -1,7 +1,7 @@
 package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.colvector.ArrayTConversions._
-import io.sparkcyclone.colvector.BytePointerColVector
+import io.sparkcyclone.data.conversion.ArrayTConversions._
+import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.util.FixedBitSet

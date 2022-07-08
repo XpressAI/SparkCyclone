@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.planning
 
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.vector.VeColBatch
 import org.apache.spark.rdd.RDD
 
 trait SupportsKeyedVeColBatch { this: SupportsVeColBatch =>

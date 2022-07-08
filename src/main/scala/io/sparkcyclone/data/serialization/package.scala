@@ -1,6 +1,6 @@
 package io.sparkcyclone.data
 
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.serialization.DualBatchOrBytes.{BytesOnly, ColBatchWrapper}
 
 package object serialization {

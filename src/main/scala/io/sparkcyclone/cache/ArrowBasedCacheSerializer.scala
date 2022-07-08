@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
-import io.sparkcyclone.colvector.ArrowVectorConversions._
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator

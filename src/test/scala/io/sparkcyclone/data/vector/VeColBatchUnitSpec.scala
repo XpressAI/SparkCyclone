@@ -1,7 +1,8 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.colvector.ArrayTConversions._
-import io.sparkcyclone.colvector.SeqOptTConversions._
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.ArrayTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.vectorengine.WithVeProcess
 import io.sparkcyclone.util.CallContextOps._
