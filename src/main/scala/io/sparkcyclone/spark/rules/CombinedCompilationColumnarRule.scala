@@ -1,9 +1,10 @@
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.sql.rules
 
 import io.sparkcyclone.native.{CompiledCodeInfo, NativeFunction}
 import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
 import io.sparkcyclone.spark.agile.core.CodeLines
 import io.sparkcyclone.spark.agile.CodeStructure
+import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.spark.planning.LibLocation.DistributedLibLocation
 import io.sparkcyclone.spark.planning.PlanCallsVeFunction.UncompiledPlan
 import io.sparkcyclone.spark.planning.VeFunctionStatus._
@@ -13,13 +14,13 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
 object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
-  private[planning] def measureTime[T](thunk: => T): (T, Long) = {
+  private[rules] def measureTime[T](thunk: => T): (T, Long) = {
     val start = System.nanoTime
     val result = thunk
     (result, System.nanoTime - start)
   }
 
-  private[planning] def compileRawCodes(uncompiled: Seq[VeFunction]): Option[Path] = {
+  private[rules] def compileRawCodes(uncompiled: Seq[VeFunction]): Option[Path] = {
     val chunks = uncompiled.collect { case VeFunction(c: RawCode, name, _) => (name, c) }
       .toSet[(String, VeFunctionStatus.RawCode)].toSeq
       .sortBy(_._1)
@@ -41,7 +42,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
     }
   }
 
-  private[planning] def compileSourceCodes(uncompiled: Seq[VeFunction]): Map[Int, CompiledCodeInfo] = {
+  private[rules] def compileSourceCodes(uncompiled: Seq[VeFunction]): Map[Int, CompiledCodeInfo] = {
     val functions = uncompiled.collect { case VeFunction(c: SourceCode, _, _) => c.function }
       .toSet[NativeFunction].toSeq
       .sortBy(_.identifier)
@@ -58,7 +59,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
     }
   }
 
-  private[planning] def transformRawCodePlans(pathO: Option[Path]): PartialFunction[SparkPlan, SparkPlan] = { planT =>
+  private[rules] def transformRawCodePlans(pathO: Option[Path]): PartialFunction[SparkPlan, SparkPlan] = { planT =>
     (planT, pathO) match {
       case (UncompiledPlan(plan), Some(path)) =>
         plan.updateVeFunction {
@@ -71,7 +72,7 @@ object CombinedCompilationColumnarRule extends ColumnarRule with LazyLogging {
     }
   }
 
-  private[planning] def transformSourceCodePlans(cache: Map[Int, CompiledCodeInfo]): PartialFunction[SparkPlan, SparkPlan] = {
+  private[rules] def transformSourceCodePlans(cache: Map[Int, CompiledCodeInfo]): PartialFunction[SparkPlan, SparkPlan] = {
     case UncompiledPlan(plan) =>
       plan.updateVeFunction {
         case vefunc @ VeFunction(c: SourceCode, _, _) =>

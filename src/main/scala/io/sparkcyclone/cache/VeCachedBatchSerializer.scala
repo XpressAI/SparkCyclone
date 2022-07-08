@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.cache
+package io.sparkcyclone.cache
 
 class VeCachedBatchSerializer extends ArrowBasedCacheSerializer
 // class VeCachedBatchSerializer extends InVectorEngineCacheSerializer

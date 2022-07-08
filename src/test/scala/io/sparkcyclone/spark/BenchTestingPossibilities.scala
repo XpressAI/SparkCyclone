@@ -143,7 +143,6 @@ object BenchTestingPossibilities extends LazyLogging {
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.VectorEngine =>
-          LocalVeoExtension._enabled = true
           var builder = SparkSession
             .builder()
             .master(MasterName)

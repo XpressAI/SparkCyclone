@@ -1,10 +1,11 @@
-package io.sparkcyclone.spark.planning
+package io.sparkcyclone.sql.rules
 
+import io.sparkcyclone.spark.planning.SupportsVeColBatch
 import io.sparkcyclone.spark.planning.plans.{SparkToVectorEnginePlan, VectorEngineToSparkPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
-final class VeColumnarRule extends ColumnarRule {
+object VeColumnarRule extends ColumnarRule {
   override def preColumnarTransitions: Rule[SparkPlan] = { case plan =>
     plan.transform {
       // TODO: Decide what to do with required sortOrders
