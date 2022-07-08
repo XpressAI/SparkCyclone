@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString, VeType}
+import io.sparkcyclone.spark.codegen.core.{VeScalarType, VeString, VeType}
 
 trait ColVectorLike {
   def numItems: Int

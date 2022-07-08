@@ -1,8 +1,8 @@
 package io.sparkcyclone.spark.transformation
 
 import io.sparkcyclone.native.NativeFunction
-import io.sparkcyclone.spark.agile.core.CodeLines
-import io.sparkcyclone.spark.agile.core.{CVector, VeType}
+import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.spark.codegen.core.{CVector, VeType}
 import io.sparkcyclone.spark.plans.PlanCallsVeFunction
 import io.sparkcyclone.spark.transformation.LibLocation.LibLocation
 import java.nio.file.Path

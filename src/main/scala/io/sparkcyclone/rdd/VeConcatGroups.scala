@@ -1,7 +1,7 @@
 package io.sparkcyclone.rdd
 
 import io.sparkcyclone.native.transpiler.CompiledVeFunction
-import io.sparkcyclone.spark.agile.merge.MergeFunction
+import io.sparkcyclone.spark.codegen.merge.MergeFunction
 import io.sparkcyclone.data.vector.VeBatchOfBatches
 import io.sparkcyclone.data.vector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}

@@ -22,10 +22,10 @@ package io.sparkcyclone.eval
 import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
-import io.sparkcyclone.spark.agile.CFunctionGeneration._
-import io.sparkcyclone.spark.agile.core._
-import io.sparkcyclone.spark.agile.SparkExpressionToCExpression.EvalFallback
-import io.sparkcyclone.spark.agile.sort.VeSortExpression
+import io.sparkcyclone.spark.codegen.CFunctionGeneration._
+import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback
+import io.sparkcyclone.spark.codegen.sort.VeSortExpression
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast}
 import io.sparkcyclone.rdd._
 import io.sparkcyclone.vectorengine.WithVeProcess

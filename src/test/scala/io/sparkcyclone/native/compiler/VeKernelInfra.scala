@@ -1,8 +1,8 @@
 package io.sparkcyclone.native.compiler
 
 import io.sparkcyclone.native.NativeFunction
-import io.sparkcyclone.spark.agile.core.{CFunction2, CodeLines}
-import io.sparkcyclone.spark.agile.CFunctionGeneration.CFunction
+import io.sparkcyclone.spark.codegen.core.{CFunction2, CodeLines}
+import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import java.nio.file.{Path, Paths}
 import java.time.Instant
 import org.scalatest.Suite

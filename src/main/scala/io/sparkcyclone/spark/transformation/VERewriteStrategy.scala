@@ -21,19 +21,19 @@ package io.sparkcyclone.spark.transformation
 
 import io.sparkcyclone.cache.CycloneCacheBase
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
-import io.sparkcyclone.spark.agile.CFunctionGeneration._
-import io.sparkcyclone.spark.agile.SparkExpressionToCExpression._
-import io.sparkcyclone.spark.agile.core._
-import io.sparkcyclone.spark.agile.exchange.GroupingFunction
-import io.sparkcyclone.spark.agile.filter.FilterFunction
-import io.sparkcyclone.spark.agile.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
-import io.sparkcyclone.spark.agile.groupby.GroupByOutline.GroupingKey
-import io.sparkcyclone.spark.agile.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
-import io.sparkcyclone.spark.agile.join.{GenericJoiner, JoinMatcher}
-import io.sparkcyclone.spark.agile.merge.MergeFunction
-import io.sparkcyclone.spark.agile.projection.ProjectionFunction
-import io.sparkcyclone.spark.agile.sort.{SortFunction, VeSortExpression}
-import io.sparkcyclone.spark.agile.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
+import io.sparkcyclone.spark.codegen.CFunctionGeneration._
+import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression._
+import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.exchange.GroupingFunction
+import io.sparkcyclone.spark.codegen.filter.FilterFunction
+import io.sparkcyclone.spark.codegen.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
+import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.GroupingKey
+import io.sparkcyclone.spark.codegen.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
+import io.sparkcyclone.spark.codegen.join.{GenericJoiner, JoinMatcher}
+import io.sparkcyclone.spark.codegen.merge.MergeFunction
+import io.sparkcyclone.spark.codegen.projection.ProjectionFunction
+import io.sparkcyclone.spark.codegen.sort.{SortFunction, VeSortExpression}
+import io.sparkcyclone.spark.codegen.{CFunctionGeneration, SparkExpressionToCExpression, StringHole}
 import io.sparkcyclone.spark.transformation.TransformUtil.RichTreeNode
 import io.sparkcyclone.spark.transformation.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import io.sparkcyclone.spark.plans._

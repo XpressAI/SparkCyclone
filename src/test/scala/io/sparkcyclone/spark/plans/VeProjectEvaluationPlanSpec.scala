@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.plans
 
-import io.sparkcyclone.spark.agile.core.VeNullableInt
+import io.sparkcyclone.spark.codegen.core.VeNullableInt
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.data.VeColVectorSource

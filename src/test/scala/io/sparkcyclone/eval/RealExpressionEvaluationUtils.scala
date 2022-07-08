@@ -21,12 +21,12 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.agile.CFunctionGeneration._
-import io.sparkcyclone.spark.agile.core._
-import io.sparkcyclone.spark.agile.filter.FilterFunction
-import io.sparkcyclone.spark.agile.join.JoinUtils._
-import io.sparkcyclone.spark.agile.projection.ProjectionFunction
-import io.sparkcyclone.spark.agile.sort.{SortFunction, VeSortExpression}
+import io.sparkcyclone.spark.codegen.CFunctionGeneration._
+import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.filter.FilterFunction
+import io.sparkcyclone.spark.codegen.join.JoinUtils._
+import io.sparkcyclone.spark.codegen.projection.ProjectionFunction
+import io.sparkcyclone.spark.codegen.sort.{SortFunction, VeSortExpression}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}

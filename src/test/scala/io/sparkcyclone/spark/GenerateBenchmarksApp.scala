@@ -42,7 +42,7 @@ class State_${name} {
   }
   lazy val sparkSession: SparkSession = testing.prepareSession()
   lazy val input = testing.prepareInput(sparkSession, io.sparkcyclone.testing.Testing.DataSize.defaultForBenchmarks)
-  lazy val benchDebugging = io.sparkcyclone.spark.agile.BenchmarkDebugging(testing)
+  lazy val benchDebugging = io.sparkcyclone.spark.codegen.BenchmarkDebugging(testing)
   import benchDebugging._
 
   @Setup

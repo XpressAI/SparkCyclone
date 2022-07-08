@@ -2,7 +2,7 @@ package io.sparkcyclone.data.transfer
 
 import io.sparkcyclone.data.vector.{ColVectorLike, UnitColVector, VeColBatch}
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}
+import io.sparkcyclone.spark.codegen.core.{VeScalarType, VeString}
 import io.sparkcyclone.util.PointerOps.ExtendedPointer
 import org.bytedeco.javacpp.{BytePointer, LongPointer}
 

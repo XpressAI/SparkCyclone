@@ -2,7 +2,7 @@ package io.sparkcyclone.data.conversion
 
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
-import io.sparkcyclone.spark.agile.core.VeScalarType
+import io.sparkcyclone.spark.codegen.core.VeScalarType
 import io.sparkcyclone.util.FixedBitSet
 import scala.reflect.ClassTag
 import java.util.UUID

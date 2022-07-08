@@ -4,9 +4,9 @@ import io.sparkcyclone.data.conversion.ArrayTConversions.ArrayTToBPCV
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.native.transpiler.CompiledVeFunction
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veMetrics
-import io.sparkcyclone.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
-import io.sparkcyclone.spark.agile.core.CFunction2.DefaultHeaders
-import io.sparkcyclone.spark.agile.core.{CFunction2, CVector, VeNullableLong}
+import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument.PointerPointer
+import io.sparkcyclone.spark.codegen.core.CFunction2.DefaultHeaders
+import io.sparkcyclone.spark.codegen.core.{CFunction2, CVector, VeNullableLong}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel

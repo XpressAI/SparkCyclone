@@ -18,8 +18,7 @@
  *
  */
 package io.sparkcyclone.testing
-import io.sparkcyclone.spark.agile
-import io.sparkcyclone.spark.agile.CleanName
+import io.sparkcyclone.spark.codegen.CleanName
 import io.sparkcyclone.testing.Testing.DataSize
 import io.sparkcyclone.testing.Testing.TestingTarget
 import org.apache.spark.sql.Dataset
@@ -27,7 +26,7 @@ import org.apache.spark.sql.SparkSession
 
 abstract class Testing { this: Product =>
   type Result
-  final def name: CleanName = agile.CleanName.fromString(
+  final def name: CleanName = CleanName.fromString(
     this.getClass.getSimpleName + "__" + this.toString + s"_${testingTarget.label}"
   )
   def prepareSession(): SparkSession

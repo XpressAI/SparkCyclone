@@ -3,7 +3,7 @@ package io.sparkcyclone.data.conversion
 import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.agile.core._
+import io.sparkcyclone.spark.codegen.core._
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
 import scala.collection.mutable.{Seq => MSeq}
