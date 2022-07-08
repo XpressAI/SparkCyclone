@@ -1,10 +1,10 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.data.vector._
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) {
-  private[colvector] def compressedData: BytePointer = {
+  private[vector] def compressedData: BytePointer = {
     // Compute the sizes of all buffers of all columns
     val totalsize = columns.flatMap(_.buffers.map(_.limit()))
       .foldLeft(0L)(_ + _)

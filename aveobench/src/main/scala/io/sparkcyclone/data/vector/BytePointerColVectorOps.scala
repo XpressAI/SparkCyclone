@@ -1,4 +1,4 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.data.vector._
 import org.bytedeco.javacpp.BytePointer

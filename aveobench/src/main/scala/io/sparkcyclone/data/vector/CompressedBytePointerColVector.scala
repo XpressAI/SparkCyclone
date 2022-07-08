@@ -1,11 +1,12 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import org.bytedeco.javacpp.BytePointer
 
-final case class CompressedBytePointerColVector private[colvector] (
+final case class CompressedBytePointerColVector private[vector] (
   source: VeColVectorSource,
   name: String,
   val veType: VeType,
@@ -13,7 +14,7 @@ final case class CompressedBytePointerColVector private[colvector] (
   buffer: BytePointer,
   val dataSize: Option[Int]
 ) extends ColVectorLike {
-  private[colvector] def newStruct(location: Long): BytePointer = {
+  private[vector] def newStruct(location: Long): BytePointer = {
     val lens = bufferSizes
 
     veType match {

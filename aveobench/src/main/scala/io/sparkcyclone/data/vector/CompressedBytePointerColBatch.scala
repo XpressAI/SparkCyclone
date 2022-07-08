@@ -1,13 +1,13 @@
-package io.sparkcyclone.colvector
+package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.spark.agile.core.{VeScalarType, VeString}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import org.bytedeco.javacpp.BytePointer
 
-final case class CompressedBytePointerColBatch private[colvector] (columns: Seq[UnitColVector],
+final case class CompressedBytePointerColBatch private[vector] (columns: Seq[UnitColVector],
                                                                    buffer: BytePointer) {
-  private[colvector] def newCompressedStruct(location: Long): BytePointer = {
+  private[vector] def newCompressedStruct(location: Long): BytePointer = {
     // Get container sizes
     val csizes = columns.map(_.veType.containerSize)
 
