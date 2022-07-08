@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.planning.plans
 
 import io.sparkcyclone.data.vector.{VeBatchOfBatches, VeColBatch}
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.rdd.VeRDDOps

@@ -3,7 +3,7 @@ package io.sparkcyclone.cache
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.data.vector.VeColBatch
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
@@ -85,7 +85,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
     TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())

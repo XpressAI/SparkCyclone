@@ -17,9 +17,10 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark
+package io.sparkcyclone.plugin
 
 import io.sparkcyclone.native.{CachingNativeCodeCompiler, NativeCodeCompiler}
+import io.sparkcyclone.spark.{LocalVeoExtension, RequestCompiledLibraryForCode, RequestCompiledLibraryResponse}
 import scala.collection.JavaConverters._
 import java.nio.file.{Files, Paths}
 import java.util.{Map => JMap}
@@ -30,7 +31,7 @@ import okio.ByteString
 
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
-  private[spark] var launched: Boolean = false
+  var launched: Boolean = false
 
   @transient var currentCompiler: NativeCodeCompiler = _
 }

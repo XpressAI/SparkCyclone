@@ -17,7 +17,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
   val concatInputs: RDD[(K, VeColBatch)] = computeMergeVe()
 
   override def compute(split: Partition, context: TaskContext): Iterator[(K, Iterable[T])] = {
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
    import io.sparkcyclone.util.CallContextOps._
 
     val batches = concatInputs.iterator(split, context)
@@ -57,7 +57,7 @@ class VeConcatGroups[K: universe.TypeTag, T: universe.TypeTag](
   override def toRDD: RDD[(K, Iterable[T])] = {
     concatInputs.mapPartitions { batches =>
       batches.map { case (key, veColBatch) =>
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
         import io.sparkcyclone.util.CallContextOps._
 
         val array = veColBatch.toCPUSeq[T]

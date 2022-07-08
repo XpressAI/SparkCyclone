@@ -31,7 +31,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
   val joinedInputs: RDD[VeColBatch] = computeJoinVe()
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
    import io.sparkcyclone.util.CallContextOps._
 
     val batches = joinedInputs.iterator(split, context)
@@ -81,7 +81,7 @@ class VeJoinRDD[IN: TypeTag, OUT: TypeTag, T](
 
   override def toRDD: RDD[T] = {
     joinedInputs.mapPartitions { batches =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
      import io.sparkcyclone.util.CallContextOps._
 
       batches.flatMap { veColBatch =>

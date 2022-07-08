@@ -3,7 +3,7 @@ package io.sparkcyclone.rdd
 import io.sparkcyclone.data.conversion.ArrayTConversions.ArrayTToBPCV
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.native.transpiler.CompiledVeFunction
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veMetrics
 import io.sparkcyclone.spark.agile.core.CFunction2.CFunctionArgument.PointerPointer
 import io.sparkcyclone.spark.agile.core.CFunction2.DefaultHeaders
 import io.sparkcyclone.spark.agile.core.{CFunction2, CVector, VeNullableLong}
@@ -55,7 +55,7 @@ object SequenceVeRDD {
     ), outputs, null)
 
     new SequenceVeRDD(rdd, rdd.mapPartitions { iter =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
      import io.sparkcyclone.util.CallContextOps._
 
       val part = Array[Long](iter.next)

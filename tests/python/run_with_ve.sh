@@ -9,7 +9,7 @@
 # --py-files dep.zip \
 # --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
 # --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
-# --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+# --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
 # --conf spark.sql.columnVector.offheap.enabled=true \
 # run_benchmark.py  --outputfile "test_ve_nyc_taxi" --clearcache --ntest 5 nycdata --list "q1,q2,q3,q4,q5"
 
@@ -22,7 +22,7 @@
 #     --num-executors=1 --executor-cores=1 --executor-memory=40G \
 #     --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
 #     --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
-#     --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+#     --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
 #     --conf spark.sql.columnVector.offheap.enabled=true \
 #     --conf spark.executor.resource.ve.amount=1 \
 #     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
@@ -49,7 +49,7 @@ export VE_OMP_NUM_THREADS=1
 --num-executors=8 --executor-cores=1 --executor-memory=16G \
 --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
 --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
---conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+--conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
 --conf spark.sql.columnVector.offheap.enabled=true \
 --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
 --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \

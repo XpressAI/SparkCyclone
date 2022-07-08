@@ -21,8 +21,8 @@ package io.sparkcyclone.rdd
 
 import com.eed3si9n.expecty.Expecty._
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.spark.{AuroraSqlPlugin, SparkAdditions}
-import io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin
+import io.sparkcyclone.spark.SparkAdditions
+import io.sparkcyclone.plugin.{AuroraSqlPlugin, DiscoverVectorEnginesPlugin}
 import io.sparkcyclone.rdd.DetectVectorEngineSpec.{ExpectedClassPathItems, ExtraClassPath, VeClusterConfig}
 import org.apache.log4j.Level
 import org.apache.spark.sql.SparkSession

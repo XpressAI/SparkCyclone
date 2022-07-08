@@ -1,6 +1,6 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.data.{VeColVectorSource => VeSource}
 import java.nio.file.{Path, Paths}

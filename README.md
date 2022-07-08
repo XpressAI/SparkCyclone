@@ -14,7 +14,7 @@ $ $SPARK_HOME/bin/spark-submit \
     --deploy-mode cluster \
     --num-executors=8 --executor-cores=1 --executor-memory=8G \ # specify 1 executor per VE core
     --conf spark.executor.extraClassPath=/opt/cyclone//spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
     --jars /opt/cyclone//spark-cyclone-sql-plugin.jar \
     --conf spark.executor.resource.ve.amount=1 \                # specify the number of VEs to use.
     --conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin

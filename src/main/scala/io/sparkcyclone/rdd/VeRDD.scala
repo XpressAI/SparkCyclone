@@ -107,7 +107,7 @@ trait VeRDD[T] extends RDD[T] {
 
   def toRDD : RDD[T] = {
     inputs.mapPartitions { batches =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
      import io.sparkcyclone.util.CallContextOps._
 
       batches.flatMap { veColBatch =>
@@ -135,7 +135,7 @@ trait VeRDD[T] extends RDD[T] {
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
    import io.sparkcyclone.util.CallContextOps._
 
     val batches = inputs.iterator(split, context)
@@ -186,7 +186,7 @@ abstract class ChainedVeRDD[T](
     }
 
     val ret = reduceResults.mapPartitions { batches =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
      import io.sparkcyclone.util.CallContextOps._
 
       batches.map { veColBatch =>
@@ -217,7 +217,7 @@ abstract class ChainedVeRDD[T](
     implicit val kClassTag: ClassTag[K] = ClassTag(typeK.mirror.runtimeClass(typeK.tpe))
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
       import io.sparkcyclone.util.CallContextOps._
 
       require(
@@ -240,7 +240,7 @@ abstract class ChainedVeRDD[T](
     implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
       import io.sparkcyclone.util.CallContextOps._
 
       require(
@@ -287,8 +287,8 @@ class BasicVeRDD[T](
 
   def convertToVeVector(valsIter: Iterator[_], index: Int, seriesIndex: Int, tpe: Type): VeColVector = {
     import io.sparkcyclone.data.conversion.ArrayTConversions._
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veMetrics
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
    import io.sparkcyclone.util.CallContextOps._
 
     val klass = typeTag.mirror.runtimeClass(tpe)
@@ -322,7 +322,7 @@ class BasicVeRDD[T](
     }
 
     val ret = reduceResults.mapPartitions { batches =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess}
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess}
      import io.sparkcyclone.util.CallContextOps._
 
       batches.map { veColBatch =>
@@ -343,7 +343,7 @@ class BasicVeRDD[T](
     implicit val kClassTag: ClassTag[K] = ClassTag(typeK.mirror.runtimeClass(typeK.tpe))
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
       import io.sparkcyclone.util.CallContextOps._
 
       require(
@@ -366,7 +366,7 @@ class BasicVeRDD[T](
     implicit val g: ClassTag[K] = newFunc.types.output.tag.asInstanceOf[ClassTag[K]]
 
     val mapped = new VeGroupByRDD[K, T](this, newFunc).toRDD.map { case (idx: K, veColBatch: VeColBatch) =>
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
       import io.sparkcyclone.util.CallContextOps._
 
       require(

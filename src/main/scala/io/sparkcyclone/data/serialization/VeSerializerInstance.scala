@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.serialization
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import scala.reflect.ClassTag
 import java.io.{InputStream, OutputStream}
 import java.nio.ByteBuffer

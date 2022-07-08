@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.agile.groupby
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.agile.groupby.GroupByOutline._

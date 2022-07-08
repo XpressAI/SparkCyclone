@@ -38,7 +38,7 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       .map(cb => {
         logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
         import io.sparkcyclone.util.CallContextOps._
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
         collectBatchMetrics(INPUT, cb)
 
         withInvocationMetrics(BATCH){

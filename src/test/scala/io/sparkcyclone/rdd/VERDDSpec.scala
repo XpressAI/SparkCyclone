@@ -8,11 +8,12 @@ import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.agile.core.VeNullableDouble
-import io.sparkcyclone.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
-import io.sparkcyclone.vectorengine.SampleVeFunctions._
-import io.sparkcyclone.util.CallContextOps._
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDD
+import io.sparkcyclone.spark.SparkAdditions
+import io.sparkcyclone.util.CallContextOps._
+import io.sparkcyclone.vectorengine.SampleVeFunctions._
 import java.nio.file.Paths
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession

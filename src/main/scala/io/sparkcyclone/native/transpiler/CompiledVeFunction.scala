@@ -1,14 +1,14 @@
 package io.sparkcyclone.native.transpiler
 
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector, VeBatchOfBatches}
-import io.sparkcyclone.spark.SparkCycloneDriverPlugin
+import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
 import io.sparkcyclone.spark.agile.core.{CFunction2, CVector}
 import io.sparkcyclone.util.CallContext
 import scala.reflect.ClassTag
 import java.nio.file.Paths
 
 case class CompiledVeFunction(func: CFunction2, outputs: Seq[CVector], @transient types: FunctionTyping[_, _]) {
-  import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{vectorEngine, veProcess, source}
+  import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{vectorEngine, veProcess, source}
 
   lazy val libraryPath: String = {
     if (SparkCycloneDriverPlugin.currentCompiler != null) {

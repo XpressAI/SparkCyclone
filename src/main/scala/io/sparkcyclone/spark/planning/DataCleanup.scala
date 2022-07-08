@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.planning
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.vectorengine.VeProcess
 import io.sparkcyclone.util.CallContext

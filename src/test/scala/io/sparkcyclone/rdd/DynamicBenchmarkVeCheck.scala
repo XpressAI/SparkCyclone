@@ -20,8 +20,9 @@
 package io.sparkcyclone.rdd
 
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.BenchTestingPossibilities.BenchTestAdditions
-import io.sparkcyclone.spark.{BenchTestingPossibilities, SparkCycloneExecutorPlugin}
+import io.sparkcyclone.spark.BenchTestingPossibilities
 import io.sparkcyclone.vectorengine.VeProcess
 import org.apache.log4j.{Level, Logger}
 import org.scalatest.BeforeAndAfterAll

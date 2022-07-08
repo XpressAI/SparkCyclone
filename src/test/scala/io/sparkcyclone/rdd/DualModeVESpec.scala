@@ -7,7 +7,8 @@ import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
-import io.sparkcyclone.spark.{SparkAdditions, SparkCycloneExecutorPlugin}
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
+import io.sparkcyclone.spark.SparkAdditions
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine._
 import org.apache.arrow.memory.RootAllocator
@@ -92,7 +93,7 @@ final class DualModeVESpec
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         implicit val encoding: ArrowEncodingSettings =
           ArrowEncodingSettings("UTC", 3, 10)
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veMetrics
         unwrapPossiblyDualToVeColBatches(
           possiblyDualModeInternalRows = iteratorRows,
           arrowSchema =

@@ -2,12 +2,8 @@ package io.sparkcyclone.spark.planning
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 
-import io.sparkcyclone.spark.{
-  RequestCompiledLibraryForCode,
-  RequestCompiledLibraryResponse,
-  SparkCycloneExecutorPlugin
-}
-
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
+import io.sparkcyclone.spark.{RequestCompiledLibraryForCode, RequestCompiledLibraryResponse}
 import org.apache.spark.api.plugin.PluginContext
 
 object LibLocation {

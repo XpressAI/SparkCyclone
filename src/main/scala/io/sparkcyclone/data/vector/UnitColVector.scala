@@ -29,7 +29,7 @@ final case class UnitColVector private[vector] (
   def withData(stream: InputStream)(implicit source: VeColVectorSource,
                                     process: VeProcess,
                                     context: CallContext): () => VeAsyncResult[VeColVector] = {
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veMetrics
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veMetrics
 
     val channel = Channels.newChannel(stream)
     val buffers = bufferSizes.map { size =>

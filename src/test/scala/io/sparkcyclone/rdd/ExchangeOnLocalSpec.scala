@@ -6,7 +6,7 @@ import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.SparkAdditions
 import io.sparkcyclone.vectorengine._
 import io.sparkcyclone.vectorengine.SampleVeFunctions.PartitioningFunction
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.rdd.VERDDSpec.exchangeBatches
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.freespec.AnyFreeSpec

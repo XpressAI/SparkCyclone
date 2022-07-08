@@ -42,7 +42,7 @@ object ArrowBasedCacheSerializer {
     SparkInternalRowsToArrowColumnarBatches
       .apply(rowIterator = internalRows, arrowSchema = arrowSchema)
       .map { columnarBatch =>
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.source
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.source
 
         CachedVeBatch(DualColumnarBatchContainer(vecs = (0 until columnarBatch.numCols()).map {
           colNo =>
@@ -71,7 +71,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
       import io.sparkcyclone.util.CallContextOps._
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
       ArrowBasedCacheSerializer
         .sparkInternalRowsToArrowSerializedColBatch(
           internalRows = internalRows,
@@ -90,7 +90,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
       .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
     TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())

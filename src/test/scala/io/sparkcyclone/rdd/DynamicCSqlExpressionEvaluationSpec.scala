@@ -21,7 +21,7 @@ package io.sparkcyclone.rdd
 
 import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.spark.SparkAdditions
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.CloseAutomatically
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.CloseAutomatically
 import io.sparkcyclone.testing.SampleSource
 import io.sparkcyclone.testing.SampleSource._
 import io.sparkcyclone.testing.Testing.DataSize.SanityCheckSize

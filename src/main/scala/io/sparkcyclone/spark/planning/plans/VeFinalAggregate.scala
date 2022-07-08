@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.planning.plans
 
 import io.sparkcyclone.data.vector.VeColBatch
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.spark.planning.{PlanCallsVeFunction, PlanMetrics, SupportsVeColBatch, VeFunction}
 import io.sparkcyclone.util.CallContext
@@ -27,7 +27,7 @@ case class VeFinalAggregate(
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
-  import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veProcess
+  import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veProcess
   override def executeVeColumnar(): RDD[VeColBatch] = {
     initializeMetrics()
 

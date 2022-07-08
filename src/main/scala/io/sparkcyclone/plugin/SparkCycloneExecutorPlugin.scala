@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark
+package io.sparkcyclone.plugin
 
 import io.sparkcyclone.cache.VeColBatchesCache
 import io.sparkcyclone.data.vector._

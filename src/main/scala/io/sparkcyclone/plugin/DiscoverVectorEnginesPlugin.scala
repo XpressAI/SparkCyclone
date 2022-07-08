@@ -19,15 +19,13 @@
  */
 package io.sparkcyclone.plugin
 
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import org.apache.spark.api.resource.ResourceDiscoveryPlugin
 import org.apache.spark.internal.Logging
 import org.apache.spark.resource.ResourceRequest
 import org.apache.spark.SparkConf
 import java.util.Optional
 import org.apache.spark.resource.ResourceInformation
-import org.apache.hadoop.yarn.api.records
 
 object DiscoverVectorEnginesPlugin {
   val regex = "^ve[0-7]$".r
@@ -45,19 +43,20 @@ object DiscoverVectorEnginesPlugin {
 }
 
 class DiscoverVectorEnginesPlugin extends ResourceDiscoveryPlugin with Logging {
-
-  override def discoverResource(
-    request: ResourceRequest,
-    conf: SparkConf
-  ): Optional[ResourceInformation] = {
+  override def discoverResource(request: ResourceRequest,
+                                conf: SparkConf): Optional[ResourceInformation] = {
     if (request.id.resourceName == "ve") {
       logInfo(s"Requested ${request.amount} Vector Engines...")
       val foundVEs = DiscoverVectorEnginesPlugin.detectVE()
+
       if (request.amount > foundVEs.size) {
         logError(s"Only found ${foundVEs.size} Vector Engines - requested ${request.amount}")
       }
-      Optional.of(new ResourceInformation("ve", foundVEs.toArray.sorted.take(request.amount.toInt)))
-    } else Optional.empty()
-  }
 
+      Optional.of(new ResourceInformation("ve", foundVEs.toArray.sorted.take(request.amount.toInt)))
+
+    } else {
+      Optional.empty()
+    }
+  }
 }

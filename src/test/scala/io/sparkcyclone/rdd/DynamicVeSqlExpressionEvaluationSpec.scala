@@ -20,7 +20,7 @@
 package io.sparkcyclone.rdd
 
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.tpc.TPCHVESqlSpec
 import io.sparkcyclone.vectorengine.VeProcess
 import org.apache.spark.sql.SparkSession

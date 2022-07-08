@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-package io.sparkcyclone.spark
+package io.sparkcyclone.plugin
 
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, SparkPlugin}
 

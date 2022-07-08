@@ -1,6 +1,6 @@
 package io.sparkcyclone.rdd
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.source
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.source
 import io.sparkcyclone.spark.planning.VERewriteStrategy.HashExchangeBuckets
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.util.CallContext
@@ -21,7 +21,7 @@ object VeRDDOps extends LazyLogging {
   ): RDD[VeColBatch] =
     rdd
       .map { case (idx, veColBatch) =>
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
         logger.debug(s"Preparing to serialize batch ${veColBatch}")
         val r = (idx, veColBatch.toBytes)
         if (cleanUpInput) veColBatch.columns.foreach(_.free())
@@ -31,7 +31,7 @@ object VeRDDOps extends LazyLogging {
       .repartitionByKey(serializer = None /* default **/ )
       .map { case (_, ba) =>
         logger.debug(s"Preparing to deserialize batch of size ${ba.length}...")
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
         val res = VeColBatch.fromBytes(ba)
         logger.debug(s"Completed deserializing batch ${ba.length} ==> ${res}")
         res
@@ -42,7 +42,7 @@ object VeRDDOps extends LazyLogging {
   ): RDD[VeColBatch] =
     rdd
       .map { case (idx, veColBatch) =>
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
         require(
           veColBatch.nonEmpty,
           s"Expected ${veColBatch} to be non-empty (redundant transfers)"
@@ -66,7 +66,7 @@ object VeRDDOps extends LazyLogging {
         left.map { case (num, vcv) =>
           require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
           import io.sparkcyclone.util.CallContextOps._
-          import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+          import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
           if (cleanUpInput)
             TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
           (num, ColBatchWrapper(vcv))
@@ -74,7 +74,7 @@ object VeRDDOps extends LazyLogging {
         right.map { case (num, vcv) =>
           require(vcv.nonEmpty, s"Expected ${vcv} to be non-empty (redundant transfers)")
           import io.sparkcyclone.util.CallContextOps._
-          import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+          import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
           if (cleanUpInput)
             TaskContext.get().addTaskCompletionListener[Unit](_ => vcv.free())
           (num, ColBatchWrapper(vcv))
@@ -87,7 +87,7 @@ object VeRDDOps extends LazyLogging {
       (vs.asInstanceOf[Iterable[DualBatchOrBytes]], w1s.asInstanceOf[Iterable[DualBatchOrBytes]])
     }.map{ case (_, (leftIter, rightIter)) =>
       import io.sparkcyclone.util.CallContextOps._
-      import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 
       val leftBatches = leftIter.map(left => left.fold(
         bytesOnly =>
@@ -149,7 +149,7 @@ object VeRDDOps extends LazyLogging {
       partitions: Int = 8
     )(implicit context: CallContext): RDD[VeColBatch] =
       rdd.mapPartitionsWithIndex { (k, b) =>
-        import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 
         val (nonEmpty, empty) = b.partition(_.nonEmpty)
         empty.foreach(_.free())

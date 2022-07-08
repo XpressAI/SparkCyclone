@@ -5,7 +5,7 @@ import io.sparkcyclone.data.conversion.ArrowVectorConversions.ValueVectorToBPCV
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions.{SparkSqlColumnVectorToArrow, SparkSqlColumnVectorToBPCV}
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine.LibCyclone

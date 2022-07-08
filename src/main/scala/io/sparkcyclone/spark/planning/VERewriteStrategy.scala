@@ -20,7 +20,7 @@
 package io.sparkcyclone.spark.planning
 
 import io.sparkcyclone.cache.CycloneCacheBase
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.agile.CFunctionGeneration._
 import io.sparkcyclone.spark.agile.SparkExpressionToCExpression._
 import io.sparkcyclone.spark.agile.core._
