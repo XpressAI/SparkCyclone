@@ -1,6 +1,6 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.colvector.{VeColVectorSource => VeSource}
+import io.sparkcyclone.data.{VeColVectorSource => VeSource}
 import io.sparkcyclone.util.PointerOps._
 import scala.collection.concurrent.{TrieMap => TMap}
 import scala.collection.mutable.{Map => MMap}

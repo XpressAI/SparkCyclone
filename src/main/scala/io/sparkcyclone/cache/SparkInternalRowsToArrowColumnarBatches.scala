@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
+import io.sparkcyclone.metrics.VeProcessMetrics
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot

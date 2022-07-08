@@ -1,10 +1,8 @@
 package io.sparkcyclone.spark.agile.core
 
-import org.apache.spark.sql.UserDefinedVeType
 import org.apache.spark.sql.types._
 import scala.reflect.ClassTag
 
-@SQLUserDefinedType(udt = classOf[UserDefinedVeType])
 sealed trait VeType {
   def makeCVector(name: String): CVector
   def containerSize: Int

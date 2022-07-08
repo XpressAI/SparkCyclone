@@ -1,10 +1,10 @@
 package io.sparkcyclone.spark.planning
 
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.vectorengine.VeProcess
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.colvector.VeColVectorSource
+import io.sparkcyclone.data.VeColVectorSource
 import com.typesafe.scalalogging.LazyLogging
 
 trait DataCleanup {

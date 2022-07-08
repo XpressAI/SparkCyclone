@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.planning
 
 import org.apache.arrow.vector._
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.vectorized.ColumnarBatch

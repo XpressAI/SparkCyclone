@@ -1,11 +1,12 @@
 package io.sparkcyclone.spark.planning
 
 import io.sparkcyclone.spark.agile.core.VeNullableInt
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
+import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.planning.VeProjectEvaluationPlanSpec.{SampleInputList, SampleOutputExpressions, TheSource}
 import io.sparkcyclone.spark.planning.plans.VeProjectEvaluationPlan
 import io.sparkcyclone.spark.planning.plans.VeProjectEvaluationPlan.ProjectionContext
-import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.colvector.{VeColBatch, VeColVector, VeColVectorSource}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, ExprId, NamedExpression}
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.Ignore

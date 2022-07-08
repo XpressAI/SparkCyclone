@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.planning
 
 import io.sparkcyclone.native.{CompiledCodeInfo, NativeFunction}
-import io.sparkcyclone.spark.SparkCycloneDriverPlugin
+import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
 import io.sparkcyclone.spark.agile.core.CodeLines
 import io.sparkcyclone.spark.agile.CodeStructure
 import io.sparkcyclone.spark.planning.LibLocation.DistributedLibLocation

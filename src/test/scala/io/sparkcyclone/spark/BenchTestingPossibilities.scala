@@ -19,6 +19,8 @@
  */
 package io.sparkcyclone.spark
 
+
+import io.sparkcyclone.plugin.AuroraSqlPlugin
 import io.sparkcyclone.spark.BenchTestingPossibilities.BenchTestAdditions
 import io.sparkcyclone.spark.planning.VERewriteStrategy
 import io.sparkcyclone.testing.SampleSource.{SampleColA, SampleColB, SharedName}

@@ -19,8 +19,8 @@
  */
 package io.sparkcyclone.spark.agile
 
-import io.sparkcyclone.spark.SparkCycloneDriverPlugin
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.SparkAdditions
 import org.scalatest.BeforeAndAfter
 import org.scalatest.freespec.AnyFreeSpec

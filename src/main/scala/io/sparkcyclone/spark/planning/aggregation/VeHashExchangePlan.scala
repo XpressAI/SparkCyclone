@@ -1,11 +1,11 @@
 package io.sparkcyclone.spark.planning.aggregation
 
-import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.spark.planning._
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeRDDOps.RichKeyedRDDL
+import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDDL
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -36,7 +36,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
           collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
             collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
-              import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
+              import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{veProcess, veMetrics}
               try {
                 logger.debug(s"Mapping ${veColBatch} for exchange")
                 val multiBatches = withInvocationMetrics(VE){
@@ -84,7 +84,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
           logger.info(s"Will map multiple col batches for hash exchange.")
           incrementInvocations(PLAN)
           collectBatchMetrics(OUTPUT, veColBatches.flatMap { veColBatch =>
-            import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.veProcess
+            import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.veProcess
             collectBatchMetrics(INPUT, veColBatch)
             withInvocationMetrics(BATCH){
               try {

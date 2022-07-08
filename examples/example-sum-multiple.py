@@ -22,7 +22,7 @@ def basic_df_example(spark):
 if __name__ == "__main__":
     spark = SparkSession \
         .builder \
-        .config("spark.plugins", "io.sparkcyclone.spark.AuroraSqlPlugin") \
+        .config("spark.plugins", "io.sparkcyclone.plugin.AuroraSqlPlugin") \
         .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 

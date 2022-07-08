@@ -1,8 +1,9 @@
 package io.sparkcyclone.cache
 
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector.{InputSamples, VeColBatch}
 import io.sparkcyclone.annotations.VectorEngineTest
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine.WithVeProcess
 import scala.util.Random

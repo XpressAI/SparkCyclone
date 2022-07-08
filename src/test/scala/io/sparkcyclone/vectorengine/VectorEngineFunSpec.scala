@@ -1,9 +1,10 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.cache.BpcvTransferDescriptor
-import io.sparkcyclone.colvector.ArrayTConversions._
-import io.sparkcyclone.colvector.SeqOptTConversions._
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.InputSamples
+import io.sparkcyclone.data.conversion.ArrayTConversions._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.transfer.BpcvTransferDescriptor
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.transpiler.CppTranspiler
 import io.sparkcyclone.spark.agile.core._

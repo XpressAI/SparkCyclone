@@ -8,7 +8,7 @@ $SPARK_HOME/bin/spark-submit \
     --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/cyclone/spark-cyclone-sql-plugin-assembly-0.1.0-SNAPSHOT.jar \
     --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin-assembly-0.1.0-SNAPSHOT.jar \
-    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \
