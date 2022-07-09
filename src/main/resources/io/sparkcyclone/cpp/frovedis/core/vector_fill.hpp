@@ -55,7 +55,7 @@ void simple_ffill_inplace(T* vptr_in, size_t size, T target) {
   while(i < size) {
     auto val = vptr[i];
     if (val == target) {
-      for(; i < size; ++i) { // vectorized-loop, possibly with very poor vector-length  
+      for(; i < size; ++i) { // vectorized-loop, possibly with very poor vector-length
         if (vptr[i] != target) break;
         vptr[i] = non_target;
       }
