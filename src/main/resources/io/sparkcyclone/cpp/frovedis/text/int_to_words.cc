@@ -32,38 +32,6 @@ std::vector<unsigned int> get_digits_10<unsigned int>() {
      1000000000};
   return digits;
 }
-#ifdef _WIN32
-template <>
-std::vector<long> get_digits_10<long>() {
-  std::vector<long> digits =
-    {1,
-     10,
-     100,
-     1000,
-     10000,
-     100000,
-     1000000,
-     10000000,
-     100000000,
-     1000000000};
-  return digits;
-}
-template <>
-std::vector<unsigned long> get_digits_10<unsigned long>() {
-  std::vector<unsigned long> digits =
-    {1,
-     10,
-     100,
-     1000,
-     10000,
-     100000,
-     1000000,
-     10000000,
-     100000000,
-     1000000000};
-  return digits;
-}
-#else
 template <>
 std::vector<long> get_digits_10<long>() {
   std::vector<long> digits =
@@ -113,7 +81,6 @@ std::vector<unsigned long> get_digits_10<unsigned long>() {
      10000000000000000000U}; // 20
   return digits;
 }
-#endif
 template <>
 std::vector<long long> get_digits_10<long long>() {
   std::vector<long long> digits =

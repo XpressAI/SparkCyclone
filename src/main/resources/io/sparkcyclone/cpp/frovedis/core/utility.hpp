@@ -1,15 +1,17 @@
 #ifndef UTILITY_HPP
 #define UTILITY_HPP
 
+#include "rlog.hpp"
 #include <cmath>
+#include <vector>
 #include <limits>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <sstream>
 #include <iomanip>
-#include<stdexcept>
 
 #define SIZEOF_INT8 1
 #define SIZEOF_INT16 2
@@ -21,6 +23,8 @@
 #define SIZEOF_UINT64 8
 #define SIZEOF_FLOAT32 4
 #define SIZEOF_FLOAT64 8
+#define ONE_MB 1024 * 1024
+#define IGNORABLE_DIFF 1e-10
 
 namespace frovedis {
 
@@ -38,9 +42,37 @@ bool is_bigendian();
 template <class T>
 T add(T a, T b){return a + b;}
 
+class time_spent {
+public:
+  time_spent() : t0(get_dtime()), t1(0), lap_sum(0), loglevel(INFO) {}
+  time_spent(log_level l) : t0(get_dtime()), t1(0), lap_sum(0), loglevel(l) {}
+  void show(const std::string& mes) {
+    t1 = get_dtime();
+    RLOG(loglevel) << mes << t1 - t0 << " sec" << std::endl;
+    /* Since printing itself takes some time on VE, changed to exclude it. */
+    // t0 = t1;
+    t0 = get_dtime();
+  }
+  void reset(){t0 = get_dtime(); lap_sum = 0;}
+  void lap_start(){t0 = get_dtime();}
+  void lap_stop(){lap_sum += get_dtime() - t0;}
+  double get_lap(){return lap_sum;}
+  void show_lap(const std::string& mes){
+    RLOG(loglevel) << mes << lap_sum << " sec" << std::endl;
+  }
+private:
+  double t0, t1;
+  double lap_sum;
+  log_level loglevel;
+};
+
 void make_directory(const std::string&);
 bool directory_exists(const std::string&);
 int count_non_hidden_files(const std::string&);
+int count_files_with_regex(const std::string& dir, const std::string& exp);
+void remove_directory(const std::string&);
+void copy_file(const std::string& from, const std::string& to);
+void copy_directory(const std::string& from, const std::string& to);
 
 template <class T>
 std::string get_type_name() {
@@ -81,6 +113,63 @@ bool confirm_given_type_against_expected(const std::string& e_tname,
   else return true;
 }
 
+template <class T>
+void savebinary_local(const T* v, size_t size, const std::string& path) {
+  int fd = ::open(path.c_str(), O_CREAT|O_WRONLY|O_TRUNC, 0666);
+  if(fd == -1) {
+    throw std::runtime_error("open failed: " + std::string(strerror(errno)));
+  }
+  size_t to_write = size * sizeof(T);
+  const char* buf = reinterpret_cast<const char*>(v);
+  while(to_write > 0) {
+    auto written = ::write(fd, buf, to_write);
+    if(written == -1) {
+      ::close(fd);
+      throw std::runtime_error("write failed: " + std::string(strerror(errno)));
+    } else {
+      to_write -= written;
+      buf += written;
+    }
+  }
+  ::close(fd);
+}
+
+template <class T>
+void savebinary_local(const std::vector<T>& v, const std::string& path) {
+  savebinary_local(v.data(), v.size(), path);
+}
+
+template <class T>
+std::vector<T> loadbinary_local(const std::string& path) {
+  int fd = ::open(path.c_str(), O_RDONLY);
+  if(fd == -1) {
+    throw std::runtime_error("open failed: " + std::string(strerror(errno)));
+  }
+  struct stat sb;
+  if(stat(path.c_str(), &sb) != 0) {
+    ::close(fd);
+    throw std::runtime_error("stat failed: " + std::string(strerror(errno)));
+  }
+  auto to_read = sb.st_size;
+  auto size = to_read / sizeof(T);
+  if(size * sizeof(T) != to_read)
+    throw std::runtime_error("file size is not multiple of data size");
+  std::vector<T> ret(size);
+  char* buf = reinterpret_cast<char*>(ret.data());
+  while(to_read > 0) {
+    auto read_size = ::read(fd, buf, to_read);
+    if(read_size == -1) {
+      ::close(fd);
+      throw std::runtime_error("read failed: " + std::string(strerror(errno)));
+    } else {
+      to_read -= read_size;
+      buf += read_size;
+    }
+  }
+  ::close(fd);
+  return ret;
+}
+
 // temporary; to improve vectorization
 #ifdef __ve__
 inline double myexp(double _Left) {
@@ -98,7 +187,7 @@ inline float myexp(float _Left) {
 }
 #endif
 
-template <class T> 
+template <class T>
 std::string STR(T number, int width = 0) {
   std::stringstream ss;
   ss << std::setw(width) << std::setfill('0') << number;

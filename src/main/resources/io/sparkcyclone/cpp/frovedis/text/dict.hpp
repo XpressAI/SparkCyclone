@@ -67,7 +67,6 @@ struct compressed_words {
   compressed_words extract(const std::vector<size_t>& idx) const;
   void print() const {print_compressed_words(cwords, lens, lens_num, order);}
   size_t num_words() const {return order.size();}
-
 };
 
 compressed_words merge_compressed_words(const compressed_words& a,
@@ -89,7 +88,6 @@ struct dict {
   struct words decompress() const;
 
   size_t num_words() const;
-
 };
 
 dict make_dict(const words& ws);
@@ -102,4 +100,6 @@ dict make_dict_from_compressed(const compressed_words& comp);
 dict merge_dict(const dict& a, const dict& b);
 
 }
+
 #endif
+

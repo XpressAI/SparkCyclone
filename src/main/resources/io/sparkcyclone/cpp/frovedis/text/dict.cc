@@ -4,8 +4,7 @@
 #include "../core/prefix_sum.hpp"
 #include "../dataframe/hashtable.hpp"
 #include <stdexcept>
-#include <iostream>
-#include <vector>
+
 #include "words.hpp"
 
 using namespace std;
@@ -35,7 +34,7 @@ void compress_words(const int* vp,
   std::vector<size_t> compressed_lens_tmp(num_words);
   auto compressed_lens_tmpp = compressed_lens_tmp.data();
   for(size_t i = 0; i < num_words; i++) {
-    // if(lensp[i] == 0) lensp[i] should be 1,
+    // if(lensp[i] == 0) lensp[i] should be 1, 
     // because always at least one data should be stored
     compressed_lens_tmpp[i] = (lensp[i] == 0) ? 1 : (lensp[i] - 1) / 8 + 1;
   }
@@ -656,7 +655,7 @@ std::vector<size_t> dict::lookup(const compressed_words& cw) const {
   auto retp = ret.data();
 
   ssize_t left[DICT_VLEN]; // need to be signed?
-#pragma _NEC vreg(left)
+#pragma _NEC vreg(left) 
   ssize_t right[DICT_VLEN];
 #pragma _NEC vreg(right)
   ssize_t mid[DICT_VLEN];
@@ -708,7 +707,7 @@ std::vector<size_t> dict::lookup(const compressed_words& cw) const {
     for(size_t i = 0; i < lenpos; i++) offset += lens_num[i];
     size_t block_size = to_lookup_size / DICT_VLEN;
     size_t remain = to_lookup_size % DICT_VLEN;
-    // VLEN loop
+    // VLEN loop 
     for(size_t i = 0; i < block_size; i++) {
       for(size_t j = 0; j < DICT_VLEN; j++) {
         left[j] = 0;
@@ -953,6 +952,6 @@ words dict::decompress() const {
   auto orderp = order.data();
   for(size_t i = 0; i < num_words_; i++) orderp[i] = i;
   return decompress_compressed_words(cwords, lens, lens_num, order);
-}
+}  
 
 }

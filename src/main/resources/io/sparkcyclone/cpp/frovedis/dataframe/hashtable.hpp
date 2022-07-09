@@ -3,11 +3,11 @@
 
 #include <vector>
 #include <utility>
+
 #include "../core/find_condition.hpp"
 #include "../core/set_operations.hpp"
 #include "../core/radix_sort.hpp"
 #include "../core/lower_bound.hpp"
-//#include "../core/vector_operations.hpp"
 
 #if defined(_SX) || defined(__ve__) // might be used in x86
 #define FIND_MISS_VLEN 1024
@@ -60,7 +60,7 @@ public:
   unique_hashtable(){} // required to return from map
   unique_hashtable(const std::vector<K>& k, const std::vector<V>& v);
   // for creating set (used hash join), accept duplicated keys
-  unique_hashtable(const std::vector<K>& k); 
+  unique_hashtable(const std::vector<K>& k);
   unique_hashtable(const std::vector<K>& k, const std::vector<V>& v,
                    int& is_unique_ok); // check uniqueness
   std::vector<K> all_keys(); // used for hash_join
@@ -154,7 +154,7 @@ inline std::vector<long long> prime_numbers() {
 // modified version of find_condition
 template <class K, class V>
 std::vector<size_t> find_miss_write_table(const K* kp, const V* vp, size_t size,
-                                          const K* table_keyp, V* table_valp, 
+                                          const K* table_keyp, V* table_valp,
                                           const size_t* hashp) {
   if(size == 0) {
     return std::vector<size_t>();
@@ -250,7 +250,7 @@ std::vector<size_t> find_miss_write_table(const K* kp, const V* vp, size_t size,
         }
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     if(rest != 0) {
@@ -301,7 +301,7 @@ std::vector<size_t> find_miss_write_table(const K* kp, const V* vp, size_t size,
 template <class K, class V>
 std::vector<size_t> find_miss_unique_check(const K* kp, const V* vp,
                                            size_t size,
-                                           const K* table_keyp, V* table_valp, 
+                                           const K* table_keyp, V* table_valp,
                                            const size_t* hashp,
                                            const size_t* unique_checkerp,
                                            int& is_unique_ok) {
@@ -404,7 +404,7 @@ std::vector<size_t> find_miss_unique_check(const K* kp, const V* vp,
         } else is_unique_ok = false;
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     if(rest != 0) {
@@ -495,7 +495,7 @@ std::vector<size_t> find_miss(const K* kp, size_t size,
     for(size_t i = 0; i < size; i++) {
       if(kp[i] != table_keyp[hashp[i]]) {
         rettmpp[current++] = i;
-      } 
+      }
     }
     std::vector<size_t> ret(current);
     auto retp = ret.data();
@@ -540,7 +540,7 @@ std::vector<size_t> find_miss(const K* kp, size_t size,
         }
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     if(rest != 0) {
@@ -589,7 +589,7 @@ std::vector<size_t> find_miss(const K* kp, size_t size,
 template <class K, class V>
 std::vector<size_t> find_miss_read_table(const K* kp, V* vp, size_t size,
                                          const K* table_keyp,
-                                         const V* table_valp, 
+                                         const V* table_valp,
                                          const size_t* hashp) {
   if(size == 0) {
     return std::vector<size_t>();
@@ -685,7 +685,7 @@ std::vector<size_t> find_miss_read_table(const K* kp, V* vp, size_t size,
         }
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     if(rest != 0) {
@@ -875,7 +875,7 @@ find_miss_read_table_checkfill(const K* kp, V* vp, size_t size,
         }
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     size_t rest_idx2 = rest_idx_start;
@@ -957,7 +957,7 @@ find_miss_read_table_checkfill(const K* kp, V* vp, size_t size,
 
 template <class K>
 std::vector<size_t>
-find_miss_checkfill(const K* kp, size_t size, const K* table_keyp, 
+find_miss_checkfill(const K* kp, size_t size, const K* table_keyp,
                     const int* is_filledp, const size_t* hashp,
                     std::vector<size_t>& clear_miss) {
   if(size == 0) {
@@ -1086,7 +1086,7 @@ find_miss_checkfill(const K* kp, size_t size, const K* table_keyp,
         }
       }
     }
-    
+
     size_t rest_idx_start = each * FIND_MISS_VLEN;
     size_t rest_idx = rest_idx_start;
     size_t rest_idx2 = rest_idx_start;
@@ -1217,6 +1217,8 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
                                       table_valp, hashp);
   auto missed_size = missed.size();
   if(missed_size > 0) {
+    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
+                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     conflict_val.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
@@ -1230,7 +1232,7 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
       conflict_valp[i] = valp[missedp[i]];
     }
     radix_sort(conflict_key, conflict_val);
-  } 
+  }
 }
 
 // If duplicated keys are passed, is_uniqe_ok is set to false
@@ -1298,6 +1300,8 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
                                        is_unique_ok);
   auto missed_size = missed.size();
   if(missed_size > 0) {
+    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
+                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     conflict_val.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
@@ -1311,10 +1315,10 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k,
       conflict_valp[i] = valp[missedp[i]];
     }
     radix_sort(conflict_key, conflict_val);
-    // we need to check uniqueness again, because missed values might have 
+    // we need to check uniqueness again, because missed values might have
     // duplicated values, which is not captured in find_miss_unique_check!
     if(!set_is_unique(conflict_key)) is_unique_ok = false;
-  } 
+  }
 }
 
 // for set, accept duplicated keys
@@ -1364,6 +1368,8 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k) {
   auto missed = find_miss(keyp, size, table_keyp, hashp);
   auto missed_size = missed.size();
   if(missed_size > 0) {
+    RLOG(DEBUG) << "missed = " << missed_size << "/" << size
+                << ", table_size = " << table_size << std::endl;
     conflict_key.resize(missed_size);
     auto conflict_keyp = conflict_key.data();
     auto missedp = missed.data();
@@ -1374,10 +1380,10 @@ unique_hashtable<K,V>::unique_hashtable(const std::vector<K>& k) {
       conflict_keyp[i] = keyp[missedp[i]];
     }
     radix_sort(conflict_key);
-  } 
+  }
 }
 
-template <class K, class V> 
+template <class K, class V>
 std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k) {
   size_t size = k.size();
   size_t table_size = key.size();
@@ -1405,7 +1411,7 @@ std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k) {
     for(size_t i = 0; i < size; i++) {
       hashp[i] = keyp_hash[i] % table_size;
     }
-  } 
+  }
   auto missed = find_miss_read_table(keyp, valp, size, table_keyp,
                                      table_valp, hashp);
 
@@ -1433,7 +1439,7 @@ std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k) {
   return v;
 }
 
-template <class K, class V> 
+template <class K, class V>
 std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k,
                                              std::vector<size_t>& retmiss) {
   size_t size = k.size();
@@ -1494,7 +1500,7 @@ std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k,
         valp[missedp[i]] = conflict_valp[missed_val_idxp[i]];
       } else {
         // slow, but shouldn't be that often...
-        retmisstmpp[crntpos++] = missedp[i]; 
+        retmisstmpp[crntpos++] = missedp[i];
       }
     }
     std::vector<size_t> retmisstmp2(crntpos);
@@ -1504,11 +1510,11 @@ std::vector<V> unique_hashtable<K,V>::lookup(const std::vector<K>& k,
   } else {
     retmiss.swap(clear_miss);
   }
-  
+
   return v;
 }
 
-template <class K, class V> 
+template <class K, class V>
 std::vector<int>
 unique_hashtable<K,V>::check_existence(const std::vector<K>& k) {
   size_t size = k.size();
@@ -1575,7 +1581,7 @@ unique_hashtable<K,V>::check_existence(const std::vector<K>& k) {
   return ret;
 }
 
-template <class K, class V> 
+template <class K, class V>
 std::vector<K>
 unique_hashtable<K,V>::all_keys() {
   auto hit = vector_find_one(is_filled);

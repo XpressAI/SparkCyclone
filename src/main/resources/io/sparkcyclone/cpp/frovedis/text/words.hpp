@@ -3,8 +3,6 @@
 
 #include <vector>
 #include <string>
-//include "../core/mpi_rpc.hpp"
-//include "../core/serializehelper.hpp"
 
 #if defined(__ve__) || defined(_SX)
 #define WORDS_VLEN 256
@@ -50,7 +48,7 @@ void print_words(const std::vector<int>& v,
 void trim_head(const int* vp,
                size_t* starts, size_t* lens, size_t num_words,
                const std::string& to_trim);
-               
+
 void trim_head(const std::vector<int>& v,
                std::vector<size_t>& starts,
                std::vector<size_t>& lens,
@@ -59,7 +57,7 @@ void trim_head(const std::vector<int>& v,
 void trim_tail(const int* vp,
                size_t* starts, size_t* lens, size_t num_words,
                const std::string& to_trim);
-               
+
 void trim_tail(const std::vector<int>& v,
                std::vector<size_t>& starts,
                std::vector<size_t>& lens,
@@ -68,7 +66,7 @@ void trim_tail(const std::vector<int>& v,
 void trim(const int* vp,
           size_t* starts, size_t* lens, size_t num_words,
           const std::string& to_trim);
-               
+
 void trim(const std::vector<int>& v,
           std::vector<size_t>& starts,
           std::vector<size_t>& lens,
@@ -76,47 +74,47 @@ void trim(const std::vector<int>& v,
 
 void trim_noalpha_head(const int* vp,
                        size_t* starts, size_t* lens, size_t num_words);
-               
+
 void trim_noalpha_head(const std::vector<int>& v,
                        std::vector<size_t>& starts,
                        std::vector<size_t>& lens);
 
 void trim_noalpha_tail(const int* vp,
                        size_t* starts, size_t* lens, size_t num_words);
-               
+
 void trim_noalpha_tail(const std::vector<int>& v,
                        std::vector<size_t>& starts,
                        std::vector<size_t>& lens);
 
 void trim_noalpha(const int* vp,
                   size_t* starts, size_t* lens, size_t num_words);
-               
+
 void trim_noalpha(const std::vector<int>& v,
                   std::vector<size_t>& starts,
                   std::vector<size_t>& lens);
 
 void remove_null(size_t* starts, size_t* lens, size_t& num_words);
-               
+
 void remove_null(std::vector<size_t>& starts,
                  std::vector<size_t>& lens);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             int pos, int num);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             int pos, int num);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             const int* pos, int num);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             const std::vector<int>& pos, int num);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             int pos, const int* num);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             int pos, const std::vector<int>& num);
@@ -127,21 +125,21 @@ void substr(std::vector<size_t>& starts,
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             const int* pos, const int* num);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             const std::vector<int>& pos, const std::vector<int>& num);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             int pos);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             int pos);
 
 void substr(size_t* starts, size_t* lens, size_t num_words,
             const int* pos);
-               
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             const std::vector<int>& pos);
@@ -171,6 +169,22 @@ void replace(const std::vector<int>& chars,
              std::vector<size_t>& ret_lens,
              const std::string& from,
              const std::string& to);
+void translate(const std::vector<int>& chars,
+               const std::vector<size_t>& starts,
+               const std::vector<size_t>& lens,
+               std::vector<int>& ret_chars,
+               std::vector<size_t>& ret_starts,
+               std::vector<size_t>& ret_lens,
+               const std::string& from,
+               const std::string& to);
+std::vector<int> hamming_distance(
+               const std::vector<int>& chars1,
+               const std::vector<size_t>& starts1,
+               const std::vector<size_t>& lens1,
+               const std::vector<int>& chars2,
+               const std::vector<size_t>& starts2,
+               const std::vector<size_t>& lens2,
+               bool& all_valid);
 void prepend(const std::vector<int>& chars,
              const std::vector<size_t>& starts,
              const std::vector<size_t>& lens,
@@ -190,6 +204,13 @@ void reverse(const std::vector<int>& chars,
              const std::vector<size_t>& lens,
              std::vector<int>& ret_chars,
              std::vector<size_t>& ret_starts); // lens are the same
+std::vector<int> ascii(const std::vector<int>& chars,
+                       const std::vector<size_t>& starts,
+                       const std::vector<size_t>& lens);
+void initcap(const std::vector<int>& chars,
+             const std::vector<size_t>& starts,
+             const std::vector<size_t>& lens,
+             std::vector<int>& ret_chars); // lens, starts are the same
 void tolower(const std::vector<int>& chars,
              std::vector<int>& ret_chars);
 void toupper(const std::vector<int>& chars,
@@ -255,6 +276,20 @@ struct words {
     starts.swap(ret_starts);
     lens.swap(ret_lens);
   }
+  void translate(const std::string& from, const std::string& to) { // destructive
+    std::vector<int> ret_chars;
+    std::vector<size_t> ret_starts, ret_lens;
+    frovedis::translate(chars, starts, lens, ret_chars, ret_starts, ret_lens,
+                        from, to);
+    chars.swap(ret_chars);
+    starts.swap(ret_starts);
+    lens.swap(ret_lens);
+  }
+  std::vector<int> hamming_distance(const words& w2, bool& all_valid) {
+    return frovedis::hamming_distance(chars, starts, lens,
+                                      w2.chars, w2.starts, w2.lens,
+                                      all_valid);
+  }
   void prepend(const std::string& to_prepend) { // destructive
     std::vector<int> ret_chars;
     std::vector<size_t> ret_starts, ret_lens;
@@ -279,6 +314,14 @@ struct words {
     frovedis::reverse(chars, starts, lens, ret_chars, ret_starts);
     chars.swap(ret_chars);
     starts.swap(ret_starts);
+  }
+  std::vector<int> ascii() { // returns ascii of initial character
+    return frovedis::ascii(chars, starts, lens);
+  }
+  void initcap() { // destructive
+    std::vector<int> ret_chars;
+    frovedis::initcap(chars, starts, lens, ret_chars);
+    chars.swap(ret_chars);
   }
   void tolower() { // destructive
     std::vector<int> ret_chars;
@@ -308,8 +351,6 @@ struct words {
     starts.swap(ret_starts);
     lens.swap(ret_lens);
   }
-
-  //SERIALIZE(chars, starts, lens)
 };
 
 words split_to_words(const std::vector<int>& v, const std::string& delims);
@@ -353,10 +394,15 @@ void search(const words& w, const std::string& to_search,
 void search(const words& w, const std::vector<int>& to_search,
             std::vector<size_t>& idx, std::vector<size_t>& pos);
 words replace(const words& w, const std::string& from, const std::string& to);
+words translate(const words& w, const std::string& from, const std::string& to);
+std::vector<int> hamming_distance(const words& w1, const words& w2,
+                                  bool& all_valid);
 words prepend(const words& w, const std::string& to_prepend);
 words append(const words& w, const std::string& to_append);
 words horizontal_concat_words(std::vector<words>& vec_words);
 words reverse(const words& w);
+std::vector<int> ascii(const words& w);
+words initcap(const words& w);
 words tolower(const words& w);
 words toupper(const words& w);
 words utf8_to_utf32(const words& w);
