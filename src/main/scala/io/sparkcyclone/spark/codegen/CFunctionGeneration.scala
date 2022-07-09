@@ -20,7 +20,6 @@
 package io.sparkcyclone.spark.codegen
 
 import io.sparkcyclone.spark.codegen.core._
-import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.codegen.StringProducer.FrovedisStringProducer
 import org.apache.spark.sql.types._
 
@@ -47,9 +46,8 @@ object CFunctionGeneration {
     }
   }
 
-  final case class CExpressionWithCount(cCode: String, isNotNullCode: Option[String])
-
   final case class TypedCExpression2(veType: VeScalarType, cExpression: CExpression)
+
   final case class NamedTypedCExpression(
     name: String,
     veType: VeScalarType,
@@ -57,13 +55,8 @@ object CFunctionGeneration {
   ) {
     def cVector: CVector = veType.makeCVector(name)
   }
-  final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
-  final case class VeGroupBy[Input, Group, Output](
-    inputs: List[Input],
-    groups: List[Group],
-    outputs: List[Output]
-  )
+  final case class NamedStringExpression(name: String, stringProducer: StringProducer)
 
   sealed trait GroupByExpression {
     def fold[T](whenProj: CExpression => T, whenAgg: Aggregation => T): T
@@ -80,12 +73,6 @@ object CFunctionGeneration {
       )
     }
   }
-
-  final case class NamedGroupByExpression(
-    name: String,
-    veType: VeScalarType,
-    groupByExpression: GroupByExpression
-  )
 
   trait Aggregation extends Serializable {
     def merge(prefix: String, inputPrefix: String): CodeLines
@@ -168,6 +155,7 @@ object CFunctionGeneration {
       override def merge(prefix: String, inputPrefix: String): CodeLines =
         CodeLines.from(s"${prefix}_aggregate_sum += ${inputPrefix}_x->data[i];")
     }
+
     def avg(cExpression: CExpression): Aggregation = new Aggregation {
       override def initial(prefix: String): CodeLines =
         CodeLines.from(
@@ -220,12 +208,6 @@ object CFunctionGeneration {
         )
     }
   }
-
-  final case class VeFilter[Data, Condition](
-    stringVectorComputations: List[StringHoleEvaluation],
-    data: List[Data],
-    condition: Condition
-  )
 
   val KeyHeaders = CodeLines.from(
     """#include "cyclone/cyclone.hpp"""",

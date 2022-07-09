@@ -10,7 +10,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 
-case class VeFlattenPartition(flattenFunction: VeFunction, child: SparkPlan)
+case class VeFlattenPartitionPlan(flattenFunction: VeFunction, child: SparkPlan)
   extends UnaryExecNode
   with SupportsVeColBatch
   with LazyLogging

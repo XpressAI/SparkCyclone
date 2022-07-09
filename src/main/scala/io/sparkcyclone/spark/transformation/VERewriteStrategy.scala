@@ -25,7 +25,7 @@ import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression._
 import io.sparkcyclone.spark.codegen.core._
 import io.sparkcyclone.spark.codegen.exchange.GroupingFunction
-import io.sparkcyclone.spark.codegen.filter.FilterFunction
+import io.sparkcyclone.spark.codegen.filter.{FilterFunction, VeFilter}
 import io.sparkcyclone.spark.codegen.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.GroupingKey
 import io.sparkcyclone.spark.codegen.groupby.{ConvertNamedExpression, GroupByOutline, GroupByPartialGenerator, GroupByPartialToFinalGenerator}
@@ -367,7 +367,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           }
       )
 
-      val flattenPartitionPlan = VeFlattenPartition(
+      val flattenPartitionPlan = VeFlattenPartitionPlan(
         flattenFunction = mergeFn.toVeFunction,
         child = partialAggregatePlan
       )

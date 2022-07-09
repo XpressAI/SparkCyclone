@@ -1,8 +1,15 @@
 package io.sparkcyclone.spark.codegen.filter
 
-import io.sparkcyclone.spark.codegen.CFunctionGeneration.{CExpression, VeFilter}
+import io.sparkcyclone.spark.codegen.CFunctionGeneration.CExpression
+import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
 import io.sparkcyclone.spark.codegen.core._
+
+final case class VeFilter[Data, Condition](
+  stringVectorComputations: Seq[StringHoleEvaluation],
+  data: Seq[Data],
+  condition: Condition
+)
 
 object FilterFunction {
   final val BitMaskId = "mask"
@@ -14,7 +21,7 @@ final case class FilterFunction(name: String,
                                 onVe: Boolean = true) extends VeFunctionTemplate {
   require(filter.data.nonEmpty, "Expected Filter to have at least one data column")
 
-  private[filter] lazy val inputs: List[CVector] = {
+  private[filter] lazy val inputs: Seq[CVector] = {
     filter.data.map { vec => vec.withNewName(s"${vec.name}_m") }
   }
 
@@ -24,7 +31,7 @@ final case class FilterFunction(name: String,
     }
   }
 
-  private[filter] lazy val arguments: List[CFunction2.CFunctionArgument] = {
+  private[filter] lazy val arguments: Seq[CFunction2.CFunctionArgument] = {
     if (onVe) {
       inputs.map(PointerPointer(_)) ++ outputs.map(PointerPointer(_))
     } else {
