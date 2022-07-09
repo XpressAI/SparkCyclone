@@ -3,7 +3,7 @@ package io.sparkcyclone.data.conversion
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
-import io.sparkcyclone.spark.agile.core.VeScalarType
+import io.sparkcyclone.native.code.VeScalarType
 import io.sparkcyclone.util.FixedBitSet
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec

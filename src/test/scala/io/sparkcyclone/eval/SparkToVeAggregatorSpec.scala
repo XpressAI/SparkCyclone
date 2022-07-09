@@ -19,10 +19,10 @@
  */
 package io.sparkcyclone.eval
 
-import io.sparkcyclone.spark.agile.core.CodeLines
-import io.sparkcyclone.spark.agile.CFunctionGeneration.{Aggregation, CExpression}
-import io.sparkcyclone.spark.agile.DeclarativeAggregationConverter
-import io.sparkcyclone.spark.agile.SparkExpressionToCExpression.EvalFallback
+import io.sparkcyclone.native.code.CodeLines
+import io.sparkcyclone.spark.codegen.CFunctionGeneration.{Aggregation, CExpression}
+import io.sparkcyclone.spark.codegen.DeclarativeAggregationConverter
+import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback
 import org.apache.spark.sql.catalyst.expressions.aggregate.{
   AggregateExpression,
   Average,

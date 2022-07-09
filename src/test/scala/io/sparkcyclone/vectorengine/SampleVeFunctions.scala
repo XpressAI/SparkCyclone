@@ -1,9 +1,9 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.spark.agile.core._
-import io.sparkcyclone.spark.agile.core.CFunction2._
-import io.sparkcyclone.spark.agile.core.VeScalarType
-import io.sparkcyclone.spark.agile.groupby.GroupByOutline
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.native.code.CFunction2._
+import io.sparkcyclone.native.code.VeScalarType
+import io.sparkcyclone.spark.codegen.groupby.GroupByOutline
 
 object SampleVeFunctions {
   final val DoublingFunction: CFunction2 = {

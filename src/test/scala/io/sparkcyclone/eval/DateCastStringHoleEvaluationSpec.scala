@@ -2,11 +2,11 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.native.cmake.CMakeBuilder
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.spark.agile.core._
-import io.sparkcyclone.spark.agile.CFunctionGeneration.CFunction
-import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation
-import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation
-import io.sparkcyclone.spark.agile.groupby.GroupByOutline
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
+import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
+import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation
+import io.sparkcyclone.spark.codegen.groupby.GroupByOutline
 import io.sparkcyclone.eval.DateCastStringHoleEvaluationSpec.executeHoleEvaluation
 import org.scalatest.Ignore
 import org.scalatest.flatspec.AnyFlatSpec

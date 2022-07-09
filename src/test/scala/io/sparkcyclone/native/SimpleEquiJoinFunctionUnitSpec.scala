@@ -1,8 +1,8 @@
 package io.sparkcyclone.native
 
 import io.sparkcyclone.native.transpiler.CppTranspilerSpec
-import io.sparkcyclone.spark.agile.core.VeNullableInt
-import io.sparkcyclone.spark.agile.join.SimpleEquiJoinFunction
+import io.sparkcyclone.native.code.VeNullableInt
+import io.sparkcyclone.spark.codegen.join.SimpleEquiJoinFunction
 
 final class SimpleEquiJoinFunctionUnitSpec extends CppTranspilerSpec {
   "SimpleEuqiJoinFunction" should {

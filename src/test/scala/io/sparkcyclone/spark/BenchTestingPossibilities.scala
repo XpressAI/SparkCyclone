@@ -22,7 +22,7 @@ package io.sparkcyclone.spark
 
 import io.sparkcyclone.plugin.AuroraSqlPlugin
 import io.sparkcyclone.spark.BenchTestingPossibilities.BenchTestAdditions
-import io.sparkcyclone.spark.planning.VERewriteStrategy
+import io.sparkcyclone.spark.transformation.VERewriteStrategy
 import io.sparkcyclone.testing.SampleSource.{SampleColA, SampleColB, SharedName}
 import io.sparkcyclone.testing.Testing.{DataSize, TestingTarget}
 import io.sparkcyclone.testing.{SampleSource, Testing}
@@ -143,7 +143,6 @@ object BenchTestingPossibilities extends LazyLogging {
             .config(sparkConf)
             .getOrCreate()
         case TestingTarget.VectorEngine =>
-          LocalVeoExtension._enabled = true
           var builder = SparkSession
             .builder()
             .master(MasterName)

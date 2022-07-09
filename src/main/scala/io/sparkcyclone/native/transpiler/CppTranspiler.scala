@@ -1,9 +1,9 @@
 package io.sparkcyclone.native.transpiler
 
 import io.sparkcyclone.native.transpiler.SyntaxTreeOps._
-import io.sparkcyclone.spark.agile.core.CFunction2.CFunctionArgument.{PointerPointer, PointerPointerPointer, Raw}
-import io.sparkcyclone.spark.agile.core.CFunction2.DefaultHeaders
-import io.sparkcyclone.spark.agile.core.{CFunction2, CVector, CodeLines}
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument.{PointerPointer, PointerPointerPointer, Raw}
+import io.sparkcyclone.native.code.CFunction2.DefaultHeaders
+import io.sparkcyclone.native.code.{CFunction2, CVector, CodeLines}
 import io.sparkcyclone.util.DateTimeOps._
 import java.time.Instant
 import scala.reflect.runtime.universe

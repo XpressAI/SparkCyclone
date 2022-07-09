@@ -4,7 +4,7 @@ import io.sparkcyclone.cache.{DualMode, VeColColumnarVector}
 import io.sparkcyclone.cache.DualMode.RichIterator
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.agile.core.VeNullableInt
+import io.sparkcyclone.native.code.VeNullableInt
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.types.IntegerType

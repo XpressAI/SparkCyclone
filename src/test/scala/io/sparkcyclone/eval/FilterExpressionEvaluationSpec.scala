@@ -22,7 +22,7 @@ package io.sparkcyclone.eval
 import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
-import io.sparkcyclone.spark.agile.CFunctionGeneration._
+import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.rdd._
 import io.sparkcyclone.vectorengine.WithVeProcess
 import org.scalatest.Ignore

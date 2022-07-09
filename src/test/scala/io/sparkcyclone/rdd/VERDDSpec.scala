@@ -7,7 +7,7 @@ import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.native.compiler.VeKernelInfra
-import io.sparkcyclone.spark.agile.core.VeNullableDouble
+import io.sparkcyclone.native.code.VeNullableDouble
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.rdd.VeRDDOps.RichKeyedRDD

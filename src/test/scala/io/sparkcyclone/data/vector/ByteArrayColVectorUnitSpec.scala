@@ -7,8 +7,8 @@ import scala.util.Random
 import java.util.UUID
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpec
-import io.sparkcyclone.spark.agile.core.VeNullableInt
-import io.sparkcyclone.spark.agile.core.VeString
+import io.sparkcyclone.native.code.VeNullableInt
+import io.sparkcyclone.native.code.VeString
 
 final class ByteArrayColVectorUnitSpec extends AnyWordSpec {
   def runConversionTest[T <: AnyVal : ClassTag](input: Seq[Option[T]]): Unit = {

@@ -4,7 +4,7 @@ import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
-import io.sparkcyclone.spark.agile.core.VeScalarType
+import io.sparkcyclone.native.code.VeScalarType
 import scala.reflect.ClassTag
 import scala.util.Random
 import java.util.UUID

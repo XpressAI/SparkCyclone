@@ -20,7 +20,7 @@
 package io.sparkcyclone.native
 
 import io.sparkcyclone.native.compiler._
-import io.sparkcyclone.spark.agile.core.{CFunction2, CodeLines}
+import io.sparkcyclone.native.code.{CFunction2, CodeLines}
 import java.nio.file.{Files, Path, Paths}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkConf

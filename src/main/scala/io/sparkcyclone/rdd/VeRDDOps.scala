@@ -1,7 +1,7 @@
 package io.sparkcyclone.rdd
 
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.source
-import io.sparkcyclone.spark.planning.VERewriteStrategy.HashExchangeBuckets
+import io.sparkcyclone.spark.transformation.VERewriteStrategy.HashExchangeBuckets
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.VeProcess

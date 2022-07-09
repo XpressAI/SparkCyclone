@@ -2,8 +2,8 @@ package io.sparkcyclone.rdd
 
 import io.sparkcyclone.data.vector.{VeColVector, VeColBatch}
 import io.sparkcyclone.native.transpiler.{CompiledVeFunction, CompilerToolBox, CppTranspiler}
-import io.sparkcyclone.spark.agile.SparkExpressionToCExpression
-import io.sparkcyclone.spark.agile.core.VeType
+import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression
+import io.sparkcyclone.native.code.VeType
 import io.sparkcyclone.util.DateTimeOps._
 import io.sparkcyclone.data.serialization.VeSerializer
 import org.apache.spark.{HashPartitioner, OneToOneDependency, Partition, RangePartitioner, SparkContext, TaskContext}

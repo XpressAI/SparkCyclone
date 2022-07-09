@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.spark.agile.core.VeType
+import io.sparkcyclone.native.code.VeType
 
 final case class ColumnGroup(columns: Seq[VeColVector]) {
   require(

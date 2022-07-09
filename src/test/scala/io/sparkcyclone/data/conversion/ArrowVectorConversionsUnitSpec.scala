@@ -2,7 +2,7 @@ package io.sparkcyclone.data.conversion
 
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
-import io.sparkcyclone.spark.agile.core.VeScalarType
+import io.sparkcyclone.native.code.VeScalarType
 import scala.util.Random
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator

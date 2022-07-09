@@ -21,10 +21,10 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
-import io.sparkcyclone.spark.agile.join.JoinUtils.JoinExpression.JoinProjection
-import io.sparkcyclone.spark.agile.join.JoinUtils.TypedJoinExpression
-import io.sparkcyclone.spark.agile.CFunctionGeneration._
-import io.sparkcyclone.spark.agile.core.VeNullableDouble
+import io.sparkcyclone.spark.codegen.join.JoinUtils.JoinExpression.JoinProjection
+import io.sparkcyclone.spark.codegen.join.JoinUtils.TypedJoinExpression
+import io.sparkcyclone.spark.codegen.CFunctionGeneration._
+import io.sparkcyclone.native.code.VeNullableDouble
 import io.sparkcyclone.rdd._
 import io.sparkcyclone.vectorengine.WithVeProcess
 import io.sparkcyclone.eval.StaticTypingTestAdditions._

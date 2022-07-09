@@ -1,7 +1,7 @@
 package io.sparkcyclone.rdd
 
 import io.sparkcyclone.native.transpiler.CompiledVeFunction
-import io.sparkcyclone.spark.agile.join.SimpleEquiJoinFunction
+import io.sparkcyclone.spark.codegen.join.SimpleEquiJoinFunction
 import io.sparkcyclone.data.vector.VeBatchOfBatches
 import io.sparkcyclone.data.vector.{VeColVector, VeColBatch}
 import org.apache.spark.rdd.RDD
