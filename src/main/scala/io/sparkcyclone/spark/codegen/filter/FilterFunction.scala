@@ -1,9 +1,10 @@
 package io.sparkcyclone.spark.codegen.filter
 
+import io.sparkcyclone.spark.codegen.VeFunctionTemplate
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CExpression
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument.{Pointer, PointerPointer}
+import io.sparkcyclone.native.code._
 
 final case class VeFilter[Data, Condition](
   stringVectorComputations: Seq[StringHoleEvaluation],

@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.codegen
 
-import io.sparkcyclone.spark.codegen.core.{CodeLines, CScalarVector}
+import io.sparkcyclone.native.code.{CodeLines, CScalarVector}
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvaluationAttempt._

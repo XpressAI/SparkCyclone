@@ -1,7 +1,8 @@
 package io.sparkcyclone.spark.codegen.exchange
 
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.VeFunctionTemplate
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code._
 
 object GroupingFunction {
   final val GroupAssignmentsId = "bucket_assignments"

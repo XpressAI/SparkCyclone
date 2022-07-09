@@ -1,12 +1,8 @@
-package io.sparkcyclone.spark.codegen
+package io.sparkcyclone.native.code
 
-import io.sparkcyclone.spark.codegen.core.CodeLines
-import io.sparkcyclone.spark.codegen.CodeStructure.CodeSection
-
-final case class CodeStructure(sections: Seq[CodeSection])
+final case class CodeStructure(sections: Seq[CodeStructure.CodeSection])
 
 object CodeStructure {
-
   def combine(codes: Seq[CodeStructure]): CodeLines = {
     CodeLines.from(
       codes
@@ -21,9 +17,11 @@ object CodeStructure {
   }
 
   val empty: CodeStructure = CodeStructure(sections = Seq.empty)
+
   sealed trait CodeSection {
     def codeLines: CodeLines
   }
+
   object CodeSection {
     final case class Header(codeLines: CodeLines) extends CodeSection
 

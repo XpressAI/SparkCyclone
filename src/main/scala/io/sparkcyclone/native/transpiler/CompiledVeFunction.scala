@@ -2,7 +2,7 @@ package io.sparkcyclone.native.transpiler
 
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector, VeBatchOfBatches}
 import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
-import io.sparkcyclone.spark.codegen.core.{CFunction2, CVector}
+import io.sparkcyclone.native.code.{CFunction2, CVector}
 import io.sparkcyclone.util.CallContext
 import scala.reflect.ClassTag
 import java.nio.file.Paths

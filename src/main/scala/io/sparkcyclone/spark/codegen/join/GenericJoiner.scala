@@ -1,9 +1,9 @@
 package io.sparkcyclone.spark.codegen.join
 
-import io.sparkcyclone.spark.codegen.core._
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
-import io.sparkcyclone.spark.codegen.core.CFunction2
+import io.sparkcyclone.native.code.CFunction2
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.initializeScalarVector
 import io.sparkcyclone.spark.codegen.join.GenericJoiner.{FilteredOutput, _}
 

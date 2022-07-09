@@ -1,7 +1,8 @@
 package io.sparkcyclone.spark.codegen.sort
 
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.VeFunctionTemplate
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
+import io.sparkcyclone.native.code._
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast, NullOrdering, SortDirection}
 
 object SortFunction {

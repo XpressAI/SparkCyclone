@@ -23,8 +23,8 @@ import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline._
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code._
 
 
 final case class GroupByPartialGenerator(

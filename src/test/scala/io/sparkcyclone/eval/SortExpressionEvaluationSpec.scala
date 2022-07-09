@@ -23,7 +23,7 @@ import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback
 import io.sparkcyclone.spark.codegen.sort.VeSortExpression
 import org.apache.spark.sql.catalyst.expressions.{Ascending, Descending, NullsFirst, NullsLast}

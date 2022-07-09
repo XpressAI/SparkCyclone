@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.codegen
 
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.StringProducer.FrovedisStringProducer
 import org.apache.spark.sql.types._
 

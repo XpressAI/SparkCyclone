@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.codegen.join
 
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument.{PointerPointer, Raw}
-import io.sparkcyclone.spark.codegen.core.{CFunction2, CVector, CodeLines, VeType}
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument.{PointerPointer, Raw}
+import io.sparkcyclone.native.code.{CFunction2, CVector, CodeLines, VeType}
 
 case class SimpleEquiJoinFunction(
   name: String,

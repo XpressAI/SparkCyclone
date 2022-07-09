@@ -22,7 +22,7 @@ package io.sparkcyclone.eval
 import io.sparkcyclone.data.vector.VeColBatch
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.filter.{FilterFunction, VeFilter}
 import io.sparkcyclone.spark.codegen.join.JoinUtils._
 import io.sparkcyclone.spark.codegen.projection.ProjectionFunction

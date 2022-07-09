@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.codegen.groupby
 
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.{CExpression, TypedCExpression2}
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation.LikeStringHoleEvaluation
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.{GroupingKey, StagedAggregationAttribute, StagedProjection, StringReference}
 import org.apache.spark.sql.catalyst.expressions.{Expression, Literal}

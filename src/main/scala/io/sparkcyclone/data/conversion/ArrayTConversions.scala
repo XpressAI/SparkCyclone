@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.conversion
 
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.vector.BytePointerColVector
 import io.sparkcyclone.util.FixedBitSet

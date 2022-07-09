@@ -7,7 +7,7 @@ import io.sparkcyclone.data.transfer.BpcvTransferDescriptor
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.native.transpiler.CppTranspiler
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.exchange.GroupingFunction
 import io.sparkcyclone.spark.codegen.join.SimpleEquiJoinFunction
 import io.sparkcyclone.spark.codegen.merge.MergeFunction

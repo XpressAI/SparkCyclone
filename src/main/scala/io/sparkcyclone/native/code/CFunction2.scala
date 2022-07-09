@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.codegen.core
+package io.sparkcyclone.native.code
 
 object CFunction2 {
   sealed trait IncludeHeader {

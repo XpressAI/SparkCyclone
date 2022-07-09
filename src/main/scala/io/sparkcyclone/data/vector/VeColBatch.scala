@@ -5,7 +5,7 @@ import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, TransferDescriptor
 import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
-import io.sparkcyclone.spark.codegen.core.VeType
+import io.sparkcyclone.native.code.VeType
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}

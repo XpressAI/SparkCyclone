@@ -21,7 +21,7 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.join.JoinUtils._
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.data.VeColVectorSource

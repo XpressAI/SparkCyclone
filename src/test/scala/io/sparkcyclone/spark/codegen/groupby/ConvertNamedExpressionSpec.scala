@@ -22,7 +22,7 @@ package io.sparkcyclone.spark.codegen.groupby
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback
 import org.scalatest.freespec.AnyFreeSpec
 import ConvertNamedExpression._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.StagedProjection
 import org.apache.spark.sql.catalyst.expressions.{
   Alias,

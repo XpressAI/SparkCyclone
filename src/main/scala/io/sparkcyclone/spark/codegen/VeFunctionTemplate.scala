@@ -1,8 +1,8 @@
-package io.sparkcyclone.spark.codegen.core
+package io.sparkcyclone.spark.codegen
 
 import io.sparkcyclone.native.NativeFunction
-import io.sparkcyclone.spark.transformation.VeFunction
-import io.sparkcyclone.spark.transformation.VeFunctionStatus
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.spark.transformation.{VeFunction, VeFunctionStatus}
 
 trait VeFunctionTemplate extends NativeFunction {
   /*

@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.codegen
 
-import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.native.code.CodeLines
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CExpression
 
 sealed trait StringProducer extends Serializable {}

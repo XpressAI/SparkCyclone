@@ -3,7 +3,7 @@ package io.sparkcyclone.data.transfer
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.util.FixedBitSet
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow

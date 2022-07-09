@@ -1,10 +1,10 @@
 package io.sparkcyclone.spark.codegen.projection
 
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.spark.codegen.VeFunctionTemplate
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.spark.codegen.StringProducer.FrovedisStringProducer
-import io.sparkcyclone.spark.codegen.core._
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
 
 final case class ProjectionFunction(name: String,
                                     data: Seq[CVector],

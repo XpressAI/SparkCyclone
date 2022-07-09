@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.eval
 
-import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.native.code.CodeLines
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.{Aggregation, CExpression}
 import io.sparkcyclone.spark.codegen.DeclarativeAggregationConverter
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.EvalFallback

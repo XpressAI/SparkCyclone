@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.codegen.core
+package io.sparkcyclone.native.code
 
 import org.apache.spark.sql.types._
 import scala.reflect.ClassTag

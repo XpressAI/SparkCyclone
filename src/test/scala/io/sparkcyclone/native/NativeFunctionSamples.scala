@@ -1,7 +1,7 @@
 package io.sparkcyclone.native
 
-import io.sparkcyclone.spark.codegen.core.{CFunction2, CodeLines}
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code.{CFunction2, CodeLines}
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
 import scala.util.Random
 
 object NativeFunctionSamples {

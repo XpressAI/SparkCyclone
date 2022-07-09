@@ -2,7 +2,7 @@ package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import org.apache.spark.sql.vectorized.ColumnVector

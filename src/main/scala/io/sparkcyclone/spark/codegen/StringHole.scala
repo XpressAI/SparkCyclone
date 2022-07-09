@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.codegen
 
-import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.native.code.CodeLines
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CExpression
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation.{

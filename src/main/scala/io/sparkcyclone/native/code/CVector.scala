@@ -1,4 +1,4 @@
-package io.sparkcyclone.spark.codegen.core
+package io.sparkcyclone.native.code
 
 sealed trait CVector {
   def withNewName(str: String): CVector

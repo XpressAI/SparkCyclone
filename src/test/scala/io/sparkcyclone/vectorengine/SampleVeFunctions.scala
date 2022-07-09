@@ -1,8 +1,8 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.spark.codegen.core._
-import io.sparkcyclone.spark.codegen.core.CFunction2._
-import io.sparkcyclone.spark.codegen.core.VeScalarType
+import io.sparkcyclone.native.code._
+import io.sparkcyclone.native.code.CFunction2._
+import io.sparkcyclone.native.code.VeScalarType
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline
 
 object SampleVeFunctions {

@@ -2,7 +2,7 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.native.cmake.CMakeBuilder
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation.DateCastStringHoleEvaluation

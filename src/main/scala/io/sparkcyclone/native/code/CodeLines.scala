@@ -1,7 +1,7 @@
-package io.sparkcyclone.spark.codegen.core
+package io.sparkcyclone.native.code
 
+import io.sparkcyclone.util.CallContext
 import scala.annotation.tailrec
-import sourcecode.{FullName, Line}
 
 object CodeLines {
   def parse(source: String): CodeLines = {
@@ -10,10 +10,10 @@ object CodeLines {
 
   def empty: CodeLines = CodeLines(Seq.empty[String])
 
-  def commentHere(comments: String*)(implicit name: FullName, line: Line): CodeLines = {
+  def commentHere(comments: String*)(implicit context: CallContext): CodeLines = {
     CodeLines.from(
       comments.map(w => CodeLines.from(s"// $w")),
-      s"// ${name.value} (#${line.value})"
+      s"// ${context.fullName.value} (#${context.line.value})"
     )
   }
 
@@ -73,7 +73,7 @@ final case class CodeLines(lines: Seq[String]) {
     CodeLines(lines ++ codeLines.flatMap(_.lines))
   }
 
-  private[core] def shortenLines(lines: List[String]): List[String] = {
+  private[code] def shortenLines(lines: List[String]): List[String] = {
     @tailrec
     def rec(charsSoFar: Int, remaining: List[String], linesSoFar: List[String]): List[String] = {
       remaining match {

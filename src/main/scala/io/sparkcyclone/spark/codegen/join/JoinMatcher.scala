@@ -2,7 +2,7 @@ package io.sparkcyclone.spark.codegen.join
 
 import io.sparkcyclone.spark.codegen.CFunctionGeneration
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression.sparkTypeToVeType
-import io.sparkcyclone.spark.codegen.core.CVector
+import io.sparkcyclone.native.code.CVector
 import io.sparkcyclone.spark.codegen.join.GenericJoiner.FilteredOutput
 import io.sparkcyclone.spark.transformation.VERewriteStrategy.InputPrefix
 import org.apache.spark.sql.catalyst.expressions.{

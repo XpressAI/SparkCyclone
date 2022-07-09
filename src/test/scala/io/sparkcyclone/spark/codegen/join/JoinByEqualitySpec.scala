@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.codegen.join
 
-import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.native.code.CodeLines
 import io.sparkcyclone.spark.codegen.join.GenericJoiner.EqualityPairing
 import io.sparkcyclone.spark.codegen.join.JoinByEquality.Conjunction
 import org.scalatest.freespec.AnyFreeSpec

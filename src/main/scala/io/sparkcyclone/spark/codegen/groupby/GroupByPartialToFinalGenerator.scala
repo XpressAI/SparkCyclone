@@ -19,10 +19,11 @@
  */
 package io.sparkcyclone.spark.codegen.groupby
 
-import io.sparkcyclone.spark.codegen.core.CFunction2.CFunctionArgument
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code.CFunction2.CFunctionArgument
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.{Aggregation, CFunction}
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.StagedAggregation
+import io.sparkcyclone.util.CallContextOps._
 
 /**
  * In a staged group by, the final stage only needs the information on Aggregations,

@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.codegen.join
 
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline.initializeScalarVector
 import io.sparkcyclone.spark.codegen.join.GenericJoiner.{

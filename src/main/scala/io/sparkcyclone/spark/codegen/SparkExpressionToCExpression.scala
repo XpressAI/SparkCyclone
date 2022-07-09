@@ -20,7 +20,7 @@
 package io.sparkcyclone.spark.codegen
 
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.join.JoinUtils.{JoinType, LeftOuterJoin, RightOuterJoin}
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BinaryOperator, CaseWhen, Cast, Coalesce, Divide, ExprId, Expression, Greatest, If, IsNaN, IsNotNull, IsNull, KnownFloatingPointNormalized, Least, Literal, Not, Sqrt, Year}

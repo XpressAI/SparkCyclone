@@ -1,7 +1,7 @@
 package io.sparkcyclone.native.compiler
 
 import io.sparkcyclone.native.NativeFunction
-import io.sparkcyclone.spark.codegen.core.{CFunction2, CodeLines}
+import io.sparkcyclone.native.code.{CFunction2, CodeLines}
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import java.nio.file.{Path, Paths}
 import java.time.Instant

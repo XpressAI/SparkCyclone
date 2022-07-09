@@ -3,7 +3,7 @@ package io.sparkcyclone.vectorengine
 import com.codahale.metrics._
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.data.transfer.TransferDescriptor
-import io.sparkcyclone.spark.codegen.core.CVector
+import io.sparkcyclone.native.code.CVector
 import io.sparkcyclone.util.CallContext
 import com.typesafe.scalalogging.LazyLogging
 import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}

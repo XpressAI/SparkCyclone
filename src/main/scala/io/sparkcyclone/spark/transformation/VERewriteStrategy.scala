@@ -23,7 +23,7 @@ import io.sparkcyclone.cache.CycloneCacheBase
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression._
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.exchange.GroupingFunction
 import io.sparkcyclone.spark.codegen.filter.{FilterFunction, VeFilter}
 import io.sparkcyclone.spark.codegen.groupby.ConvertNamedExpression.{computeAggregate, mapGroupingExpression}

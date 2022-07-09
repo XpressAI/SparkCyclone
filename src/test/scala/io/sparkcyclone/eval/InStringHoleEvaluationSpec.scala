@@ -2,9 +2,9 @@ package io.sparkcyclone.eval
 
 import io.sparkcyclone.native.cmake.CMakeBuilder
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.spark.codegen.core.{CodeLines, VeNullableInt}
+import io.sparkcyclone.native.code.{CodeLines, VeNullableInt}
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
-import io.sparkcyclone.spark.codegen.core.{CVector, VeScalarType}
+import io.sparkcyclone.native.code.{CVector, VeScalarType}
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation.InStringHoleEvaluation
 import io.sparkcyclone.spark.codegen.groupby.GroupByOutline
 import scala.util.Random

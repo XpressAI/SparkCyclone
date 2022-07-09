@@ -19,8 +19,8 @@
  */
  package io.sparkcyclone.spark.codegen.join
 
- import io.sparkcyclone.spark.codegen.core._
- import io.sparkcyclone.spark.codegen.core.VeScalarType._
+ import io.sparkcyclone.native.code._
+ import io.sparkcyclone.native.code.VeScalarType._
  import io.sparkcyclone.spark.codegen.CFunctionGeneration._
  import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
  import io.sparkcyclone.spark.codegen.StringProducer.FrovedisStringProducer

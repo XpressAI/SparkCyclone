@@ -1,7 +1,7 @@
 package io.sparkcyclone.spark.codegen.groupby
 
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CExpression
-import io.sparkcyclone.spark.codegen.core.CodeLines
+import io.sparkcyclone.native.code.CodeLines
 
 final case class GroupingCodeGenerator(
                                         groupingVecName: String,

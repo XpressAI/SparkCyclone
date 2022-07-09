@@ -24,7 +24,7 @@ import io.sparkcyclone.native.compiler.VeKernelInfra
 import io.sparkcyclone.spark.codegen.join.JoinUtils.JoinExpression.JoinProjection
 import io.sparkcyclone.spark.codegen.join.JoinUtils.TypedJoinExpression
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
-import io.sparkcyclone.spark.codegen.core.VeNullableDouble
+import io.sparkcyclone.native.code.VeNullableDouble
 import io.sparkcyclone.rdd._
 import io.sparkcyclone.vectorengine.WithVeProcess
 import io.sparkcyclone.eval.StaticTypingTestAdditions._

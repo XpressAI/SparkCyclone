@@ -2,7 +2,7 @@ package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
-import io.sparkcyclone.spark.codegen.core.{VeNullableInt, VeString}
+import io.sparkcyclone.native.code.{VeNullableInt, VeString}
 import io.sparkcyclone.util.CallContextOps._
 import scala.util.Random
 import java.util.UUID

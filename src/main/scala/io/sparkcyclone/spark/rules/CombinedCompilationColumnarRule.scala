@@ -2,8 +2,8 @@ package io.sparkcyclone.sql.rules
 
 import io.sparkcyclone.native.{CompiledCodeInfo, NativeFunction}
 import io.sparkcyclone.plugin.SparkCycloneDriverPlugin
-import io.sparkcyclone.spark.codegen.core.CodeLines
-import io.sparkcyclone.spark.codegen.CodeStructure
+import io.sparkcyclone.native.code.CodeLines
+import io.sparkcyclone.native.code.CodeStructure
 import io.sparkcyclone.spark.plans.PlanCallsVeFunction.UncompiledPlan
 import io.sparkcyclone.spark.transformation._
 import io.sparkcyclone.spark.transformation.LibLocation.DistributedLibLocation

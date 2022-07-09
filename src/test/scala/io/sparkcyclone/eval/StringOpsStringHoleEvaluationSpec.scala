@@ -3,7 +3,7 @@ package io.sparkcyclone.eval
 import com.eed3si9n.expecty.Expecty.expect
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.spark.codegen.core._
+import io.sparkcyclone.native.code._
 import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import io.sparkcyclone.spark.codegen.StringHole
 import io.sparkcyclone.spark.codegen.StringHole.StringHoleEvaluation
