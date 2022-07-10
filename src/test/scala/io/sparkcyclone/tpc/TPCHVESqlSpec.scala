@@ -19,10 +19,9 @@
  */
 package io.sparkcyclone.tpc
 
-import io.sparkcyclone.spark.LocalVeoExtension.compilerRule
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.CloseAutomatically
-import io.sparkcyclone.spark.planning.{VERewriteStrategy, VeColumnarRule, VeRewriteStrategyOptions}
-import io.sparkcyclone.spark.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
+import io.sparkcyclone.plugin.{AuroraSqlPlugin, SparkCycloneExecutorPlugin}
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.CloseAutomatically
+import io.sparkcyclone.spark.transformation.{VERewriteStrategy, VeRewriteStrategyOptions}
 import io.sparkcyclone.vectorengine.VeProcess
 import java.io.File
 import org.apache.spark.sql.SparkSession

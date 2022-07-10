@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
-import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin.source
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.source
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.VeProcess
 import scala.collection.concurrent.TrieMap

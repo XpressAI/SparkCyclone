@@ -1,5 +1,4 @@
 from pyspark.sql import SparkSession
-from pyspark.sql import Row
 from pyspark.sql.types import DoubleType, StructType, StructField
 
 def basic_df_example(spark):
@@ -22,7 +21,7 @@ def basic_df_example(spark):
 if __name__ == "__main__":
     spark = SparkSession \
         .builder \
-        .config("spark.plugins", "io.sparkcyclone.spark.AuroraSqlPlugin") \
+        .config("spark.plugins", "io.sparkcyclone.plugin.AuroraSqlPlugin") \
         .config("spark.sql.columnVector.offheap.enabled", "true") \
         .getOrCreate()
 

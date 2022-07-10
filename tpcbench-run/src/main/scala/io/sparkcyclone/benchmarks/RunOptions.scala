@@ -139,7 +139,7 @@ final case class RunOptions(
           "--conf",
           s"spark.driver.extraClassPath=${exCls}",
           "--conf",
-          "spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin"
+          "spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin"
         )
       } else Nil
     } ++ List(

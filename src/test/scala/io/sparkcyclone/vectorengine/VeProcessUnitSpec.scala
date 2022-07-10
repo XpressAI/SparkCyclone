@@ -1,7 +1,7 @@
 package io.sparkcyclone.vectorengine
 
 import io.sparkcyclone.annotations.VectorEngineTest
-import io.sparkcyclone.colvector.InputSamples
+import io.sparkcyclone.data.InputSamples
 import io.sparkcyclone.native.compiler.VeKernelInfra
 import scala.concurrent.duration._
 import scala.util.Random

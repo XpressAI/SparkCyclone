@@ -10,7 +10,7 @@ time $SPARK_HOME/bin/spark-submit \
     --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
     --jars ../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
     --conf spark.executor.extraClassPath=../target/scala-2.12/spark-cyclone-sql-plugin-assembly-1.0.2-SNAPSHOT.jar \
-    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executor.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh \

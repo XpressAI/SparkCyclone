@@ -1,11 +1,11 @@
 package io.sparkcyclone.cache
 
-import io.sparkcyclone.colvector.ArrowVectorConversions._
-import io.sparkcyclone.colvector.SparkSqlColumnVectorConversions._
-import io.sparkcyclone.colvector.VeColBatch
-import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
+import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.metrics.VeProcessMetrics
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.util.CallContext
-import io.sparkcyclone.ve.VeProcessMetrics
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.TaskContext
@@ -65,8 +65,8 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       implicit val allocator: BufferAllocator = ArrowUtilsExposed.rootAllocator
         .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
       TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
-      import io.sparkcyclone.util.CallContextOps._
       import SparkCycloneExecutorPlugin._
+      import io.sparkcyclone.util.CallContextOps._
       InVectorEngineCacheSerializer
         .internalRowToCachedVeColBatch(
           rowIterator = internalRows,
@@ -85,12 +85,12 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
       .newChildAllocator(s"Writer for partial collector (Arrow)", 0, Long.MaxValue)
     TaskContext.get().addTaskCompletionListener[Unit](_ => allocator.close())
 
-    import io.sparkcyclone.spark.SparkCycloneExecutorPlugin._
+    import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
     columnarBatches.map { columnarBatch =>
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())
           .map { i =>
-            import io.sparkcyclone.util.CallContextOps._
+
             columnarBatch.column(i).getOptionalArrowValueVector match {
               case Some(acv) =>
                 acv.toBytePointerColVector.asyncToVeColVector

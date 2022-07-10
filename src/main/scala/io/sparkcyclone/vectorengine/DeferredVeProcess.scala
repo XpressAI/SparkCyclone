@@ -1,6 +1,6 @@
 package io.sparkcyclone.vectorengine
 
-import io.sparkcyclone.colvector.{VeColVectorSource => VeSource}
+import io.sparkcyclone.data.{VeColVectorSource => VeSource}
 import java.nio.file.Path
 import com.codahale.metrics.MetricRegistry
 import com.typesafe.scalalogging.LazyLogging

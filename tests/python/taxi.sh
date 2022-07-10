@@ -11,13 +11,13 @@ zip dep.zip *.py
     --num-executors=8 --executor-cores=1 --executor-memory=7G \
     --conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc \
     --jars /opt/cyclone/spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=io.sparkcyclone.spark.AuroraSqlPlugin \
+    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
     --conf spark.sql.columnVector.offheap.enabled=true \
     --conf spark.executorEnv.VE_OMP_NUM_THREADS=1 \
     --conf spark.executor.extraClassPath=/opt/cyclone/spark-cyclone-sql-plugin.jar \
     --conf spark.driver.resource.ve.amount=1 \
     --conf spark.executor.resource.ve.amount=1 \
-    --conf spark.resources.discoveryPlugin=io.sparkcyclone.ve.DiscoverVectorEnginesPlugin \
+    --conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin \
     --conf spark.cyclone.kernel.directory=/opt/spark/work/egonzalez \
     run_benchmark.py  --outputfile "yarn_test_taxi_ve" --ntest 5 \
     nycdata

@@ -1,9 +1,10 @@
 package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.colvector._
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.vectorengine._
-import scala.collection.mutable.{ArrayBuffer => MBuf}
 import org.openjdk.jmh.annotations._
+
+import scala.collection.mutable.{ArrayBuffer => MBuf}
 
 object VeTransferBenchmarks {
   @State(Scope.Benchmark)

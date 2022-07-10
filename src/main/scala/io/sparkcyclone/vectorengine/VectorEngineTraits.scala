@@ -1,9 +1,9 @@
 package io.sparkcyclone.vectorengine
 
 import com.codahale.metrics.MetricRegistry
-import io.sparkcyclone.cache.TransferDescriptor
-import io.sparkcyclone.colvector._
-import io.sparkcyclone.spark.agile.core.CVector
+import io.sparkcyclone.data.vector._
+import io.sparkcyclone.data.transfer.TransferDescriptor
+import io.sparkcyclone.native.code.CVector
 import io.sparkcyclone.util.CallContext
 
 import scala.reflect.ClassTag

@@ -1,13 +1,14 @@
 package io.sparkcyclone.benchmarks
 
-import io.sparkcyclone.ve.VeRDD
-import io.sparkcyclone.ve.VeRDD.{VeRichSparkContext, _}
+import io.sparkcyclone.rdd.VeRDD
+import io.sparkcyclone.rdd.VeRDD.{VeRichSparkContext, _}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.SparkSession
+
+import java.time.Instant
 import scala.collection.mutable.{Map => MMap}
 import scala.reflect.runtime.universe.reify
-import java.time.Instant
 
 object RDDBench {
   val timings: MMap[String, Double] = MMap.empty

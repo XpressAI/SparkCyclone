@@ -536,7 +536,7 @@ Compile / resourceGenerators += Def.taskDyn {
   // If ncc is availble, build both the BOM and the library
   if (Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))) cycloneVeLibrary.toTask
   else if (isWin) emptyTask.toTask
-  else cycloneVeSourcesBom.toTask
+  else cycloneCppSourcesBom.toTask
 }.taskValue
 
 lazy val emptyTask = taskKey[Seq[File]]("Do nothing")
@@ -581,8 +581,8 @@ copyCycloneSourcesToTarget := {
   }
 }
 
-lazy val cycloneVeSourcesBom = taskKey[Seq[File]]("Create Cyclone C++ sources BOM")
-cycloneVeSourcesBom := {
+lazy val cycloneCppSourcesBom = taskKey[Seq[File]]("Create Cyclone C++ sources BOM")
+cycloneCppSourcesBom := {
   val logger = streams.value.log
 
   // Copy the files over to the target directory

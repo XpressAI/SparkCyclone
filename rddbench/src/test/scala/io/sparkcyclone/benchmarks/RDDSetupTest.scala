@@ -3,6 +3,7 @@ package io.sparkcyclone.benchmarks
 import io.sparkcyclone.native.transpiler.CppTranspiler
 import org.apache.spark._
 import org.scalatest.freespec.AnyFreeSpec
+
 import scala.reflect.runtime.universe.reify
 
 final class RDDSetupTest extends AnyFreeSpec {
@@ -21,7 +22,7 @@ final class RDDSetupTest extends AnyFreeSpec {
     }
 
     "test our very own vemap function on local Spark" in {
-      /*import io.sparkcyclone.ve.VeRDD._
+      /*import io.sparkcyclone.rdd.VeRDD._
 
       val numbers = (1L to 6L)
       val rdd = sc.veParallelize(numbers)

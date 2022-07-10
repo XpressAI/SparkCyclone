@@ -20,9 +20,9 @@
 package io.sparkcyclone.tpc
 
 import com.eed3si9n.expecty.Expecty.expect
-import io.sparkcyclone.ve.DynamicCSqlExpressionEvaluationSpec
+import io.sparkcyclone.rdd.DynamicCSqlExpressionEvaluationSpec
 import io.sparkcyclone.spark.SparkAdditions
-import io.sparkcyclone.spark.agile.CFunctionGeneration.CFunction
+import io.sparkcyclone.spark.codegen.CFunctionGeneration.CFunction
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Dataset, SparkSession}

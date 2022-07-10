@@ -1,7 +1,7 @@
 package io.sparkcyclone.cache
 
 import io.sparkcyclone.cache.VeColColumnarVector.CachedColumnVector
-import io.sparkcyclone.colvector.VeColBatch
+import io.sparkcyclone.data.vector.VeColBatch
 import org.apache.spark.sql.columnar.CachedBatch
 
 object CachedVeBatch {
