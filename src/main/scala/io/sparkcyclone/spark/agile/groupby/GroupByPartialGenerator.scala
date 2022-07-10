@@ -20,11 +20,11 @@
 package io.sparkcyclone.spark.agile.groupby
 
 import io.sparkcyclone.spark.SparkCycloneExecutorPlugin
-import io.sparkcyclone.spark.agile.CFunctionGeneration.{Aggregation, CFunction, TypedCExpression2}
+import io.sparkcyclone.spark.agile.CFunctionGeneration.{Aggregation, TypedCExpression2}
 import io.sparkcyclone.spark.agile.StringHole.StringHoleEvaluation
-import io.sparkcyclone.spark.agile.groupby.GroupByOutline._
 import io.sparkcyclone.spark.agile.core.CFunction2.CFunctionArgument
 import io.sparkcyclone.spark.agile.core._
+import io.sparkcyclone.spark.agile.groupby.GroupByOutline._
 
 
 final case class GroupByPartialGenerator(
@@ -129,8 +129,8 @@ final case class GroupByPartialGenerator(
               computedGroupingKeys.map{
                 case (_, Right(TypedCExpression2(_, cExp))) =>
                   s"hash = 31 * hash + (${cExp.cCode});"
-                case (_, Left(StringReference(_))) =>
-                  ???
+                case (_, Left(StringReference(s))) =>
+                  s"hash = 31 * hash + (${s.hashCode});"
               },
               // Assign the bucket based on the hash
               s"${BatchAssignmentsId}[g] = __builtin_abs(hash % ${nBuckets});"
