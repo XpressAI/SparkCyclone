@@ -1,10 +1,11 @@
 import sbt.Def.spaceDelimited
 import sbt.Keys.envVars
 
+import scala.collection.mutable.{Buffer => MSeq, Map => MMap}
+import scala.sys.process.{Process, ProcessLogger}
+import scala.xml.Properties.isWin
 import java.lang.management.ManagementFactory
 import java.nio.file.{Files, Paths}
-import scala.sys.process.Process
-import scala.xml.Properties.isWin
 
 /**
  * *****************************************************************************
@@ -534,9 +535,9 @@ cycloneCppTgtDir := (Compile / resourceManaged).value / "cycloneve"
 
 Compile / resourceGenerators += Def.taskDyn {
   // If ncc is availble, build both the BOM and the library
-  if (Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))) cycloneVeLibrary.toTask
+  if (Files.exists(Paths.get("/opt/nec/ve/bin/ncc"))) buildCycloneCppLibrary.toTask
   else if (isWin) emptyTask.toTask
-  else cycloneCppSourcesBom.toTask
+  else buildCycloneCppSourcesBomOnly.toTask
 }.taskValue
 
 lazy val emptyTask = taskKey[Seq[File]]("Do nothing")
@@ -544,8 +545,8 @@ emptyTask := {
   Seq.empty
 }
 
-lazy val cycloneVeLibrarySources = taskKey[Seq[File]]("Cyclone VE library sources")
-cycloneVeLibrarySources := {
+lazy val cycloneCppLibrarySources = taskKey[Seq[File]]("Cyclone C++ library sources")
+cycloneCppLibrarySources := {
   sbt.nio.file.FileTreeView.default
     .list(Seq("frovedis/**", "cyclone/**", "tests/**", "Makefile").map { suffix =>
       Glob((Compile / resourceDirectory).value.toString + s"/io/sparkcyclone/cpp/${suffix}")
@@ -553,8 +554,8 @@ cycloneVeLibrarySources := {
     .map(_._1.toFile)
 }
 
-lazy val copyCycloneSourcesToTarget = taskKey[Unit]("Copy Cyclone C++ sources to target directory")
-copyCycloneSourcesToTarget := {
+lazy val copyCycloneCppSourcesToTarget = taskKey[Unit]("Copy Cyclone C++ sources to target directory")
+copyCycloneCppSourcesToTarget := {
   val logger = streams.value.log
 
   logger.info(s"Creating target directory: ${cycloneCppTgtDir.value}...")
@@ -581,38 +582,78 @@ copyCycloneSourcesToTarget := {
   }
 }
 
-lazy val cycloneCppSourcesBom = taskKey[Seq[File]]("Create Cyclone C++ sources BOM")
-cycloneCppSourcesBom := {
+lazy val buildCycloneCppSourcesBomOnly = taskKey[Seq[File]]("Create the Cyclone C++ sources BOM only")
+buildCycloneCppSourcesBomOnly := {
   val logger = streams.value.log
 
   // Copy the files over to the target directory
-  (copyCycloneSourcesToTarget.value: @sbtUnchecked)
+  (copyCycloneCppSourcesToTarget.value: @sbtUnchecked)
 
   // Build the BOM directly in the target directory to avoid cache issues
-  logger.info(s"Creating the sources BOM...")
-  if ((Process(Seq("make", "clean", "bom"), cycloneCppTgtDir.value) ! logger) != 0) {
-    sys.error("Failed to build the sources BOM.")
+  logger.info(s"Creating the C++ sources BOM...")
+  if ((Process(Seq("make", "bom", "clean"), cycloneCppTgtDir.value) ! logger) != 0) {
+    sys.error("Failed to create Cyclone C++ library sources BOM.")
   }
 
   Seq(new File(cycloneCppTgtDir.value, "sources.bom"))
 }
 
-lazy val cycloneVeLibrary = taskKey[Seq[File]]("Build and test Cyclone VE library")
-cycloneVeLibrary := {
+def getAvailableVeNodes: Set[String] = {
+  val lines = MSeq.empty[String]
+  if ((Process(Seq("/opt/nec/ve/bin/ps")) ! ProcessLogger(lines += _, line => ())) != 0) {
+    println("Failed to fetch VE information from ps")
+  }
+
+  val runningVeProcs = MMap.empty[String, MSeq[String]]
+  var currentProcList = MSeq.empty[String]
+
+  for (line <- lines) {
+    if (line.startsWith("VE Node")) {
+      val node = line.replace("VE Node: ", "")
+      currentProcList = MSeq.empty[String]
+      runningVeProcs += ((node, currentProcList))
+
+    } else if (line.trim.startsWith("PID TTY") || line.trim.isEmpty) {
+      ()
+
+    } else {
+      currentProcList += line
+    }
+  }
+
+  runningVeProcs.filter(_._2.isEmpty).keys.toSet
+}
+
+lazy val buildCycloneCppLibrary = taskKey[Seq[File]]("Build and test the Cyclone C++ library")
+buildCycloneCppLibrary := {
   val logger = streams.value.log
 
   val cachedFun = FileFunction.cached(streams.value.cacheDirectory / "cpp") { (in: Set[File]) =>
     in.find(_.toString.contains("Makefile")) match {
       case Some(makefile) =>
         // Copy the files over to the target directory
-        (copyCycloneSourcesToTarget.value: @sbtUnchecked)
+        (copyCycloneCppSourcesToTarget.value: @sbtUnchecked)
+
+        // Select the VE node to run the tests
+        val venode = sys.env.get("VE_NODE_NUMBER") match {
+          case Some(node) =>
+            logger.info(s"Using user-specified VE node ${node} to run Cyclone C++ tests.")
+            node
+
+          case None =>
+            val nodes = getAvailableVeNodes
+            val node = nodes.headOption.getOrElse("0")
+            logger.info(s"Detected available VE nodes: ${nodes}; using node ${node} to run Cyclone C++ tests.")
+            node
+        }
 
         // Build the library directly in the target directory to avoid cache issues
-        logger.info(s"Building and testing libcyclone.so, and creating the sources BOM...")
+        logger.info(s"Building and testing libcyclone.so...")
         if (
           (Process(
             Seq("make", "cleanall", "all", "test", "-j"),
-            cycloneCppTgtDir.value
+            cycloneCppTgtDir.value,
+            ("VE_NODE_NUMBER", venode)
           ) ! logger) != 0
         ) {
           sys.error("Failed to build libcyclone.so; please check the compiler logs.")
@@ -621,6 +662,7 @@ cycloneVeLibrary := {
         // Build the BOM directly in the target directory to avoid cache issues.
         // Must run in a subsequent process or else the `clean` task will overstep
         // earlier tasks if `make` is invoked with parallelization turned on.
+        logger.info(s"Creating the C++ source BOM...")
         if (
           (Process(
             Seq("make", "bom", "clean"),
@@ -646,9 +688,9 @@ cycloneVeLibrary := {
     }
   }
 
-  cachedFun(cycloneVeLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
+  cachedFun(cycloneCppLibrarySources.value.toSet).toList.sortBy(_.toString.contains(".so"))
 }
-cycloneVeLibrary / logBuffered := false
+buildCycloneCppLibrary / logBuffered := false
 
 
 /**

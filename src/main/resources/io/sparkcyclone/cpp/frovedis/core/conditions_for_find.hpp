@@ -2,10 +2,6 @@
 #define _CONDITIONS_FOR_FIND_
 
 #include <limits>
-#include <stdlib.h>
-#include <stdio.h>
-#include <vector>
-#include <iostream>
 #include <math.h>
 
 namespace frovedis {

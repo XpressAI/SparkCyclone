@@ -20,8 +20,8 @@
 #pragma once
 
 /*
-  This is the single main header to should be included by code that uses the
-  Cyclone C++ Library.
+  This is the single main header to be included by code that uses the Cyclone
+  C++ Library.
 */
 
 #include "cyclone/transfer-definitions.hpp"

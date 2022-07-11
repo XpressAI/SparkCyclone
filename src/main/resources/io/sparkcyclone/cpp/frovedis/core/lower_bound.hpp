@@ -1,11 +1,6 @@
 #ifndef LOWER_BOUND_HPP
 #define LOWER_BOUND_HPP
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <vector>
-#include <iostream>
-
 #if defined(_SX) || defined(__ve__)
 #define LOWER_BOUND_VLEN 2048 // not vlen, but better than 256
 #else

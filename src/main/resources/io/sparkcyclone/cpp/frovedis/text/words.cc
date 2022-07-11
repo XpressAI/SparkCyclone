@@ -1,4 +1,3 @@
-#include <iostream>
 #include "words.hpp"
 #include "find.hpp"
 #include "../core/radix_sort.hpp"
@@ -7,6 +6,8 @@
 #include "../core/upper_bound.hpp"
 #include "../core/prefix_sum.hpp"
 #include "../core/find_condition.hpp"
+#include "../core/vector_operations.hpp"
+#include "../core/exceptions.hpp"
 #include "char_int_conv.hpp"
 #include <stdexcept>
 
@@ -826,7 +827,7 @@ void substr(std::vector<size_t>& starts,
     throw std::runtime_error("substr: size error");
   substr(starts.data(), lens.data(), starts.size(), pos.data(), num.data());
 }
-              
+
 void substr(std::vector<size_t>& starts,
             std::vector<size_t>& lens,
             int pos) {
@@ -1488,10 +1489,10 @@ vector<string> words_to_vector_string(const words& ws) {
         auto idx = b * WORDS_VECTOR_BLOCK + i;
         if(posp[idx] * 4 + 3 < lensp[idx]) {
           still_working = true;
-          *(intstrpp[idx] + posp[idx]) = 
-            charsp[startsp[idx] + posp[idx] * 4] + 
-            (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) + 
-            (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) + 
+          *(intstrpp[idx] + posp[idx]) =
+            charsp[startsp[idx] + posp[idx] * 4] +
+            (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) +
+            (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) +
             (charsp[startsp[idx] + posp[idx] * 4 + 3] << 24);
           posp[idx]++;
         }
@@ -1516,10 +1517,10 @@ vector<string> words_to_vector_string(const words& ws) {
       auto idx = num_block * WORDS_VECTOR_BLOCK + i;
       if(posp[idx] * 4 + 3 < lensp[idx]) {
         still_working = true;
-        *(intstrpp[idx] + posp[idx]) = 
-          charsp[startsp[idx] + posp[idx] * 4] + 
-          (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) + 
-          (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) + 
+        *(intstrpp[idx] + posp[idx]) =
+          charsp[startsp[idx] + posp[idx] * 4] +
+          (charsp[startsp[idx] + posp[idx] * 4 + 1] << 8) +
+          (charsp[startsp[idx] + posp[idx] * 4 + 2] << 16) +
           (charsp[startsp[idx] + posp[idx] * 4 + 3] << 24);
         posp[idx]++;
       }
@@ -1612,6 +1613,12 @@ void replace(const std::vector<int>& chars,
              std::vector<size_t>& ret_lens,
              const std::string& from,
              const std::string& to) {
+  if(starts.size() == 0) {
+    ret_chars.resize(0);
+    ret_starts.resize(0);
+    ret_lens.resize(0);
+    return;
+  }
   std::vector<size_t> idx, pos;
   search(chars, starts, lens, from, idx, pos);
 
@@ -1784,7 +1791,7 @@ void replace(const std::vector<int>& chars,
     ret_lensp[i] = lensp[i];
   }
   // might be negative
-  ssize_t size_diff = (ssize_t)to_size - (ssize_t)from_size; 
+  ssize_t size_diff = (ssize_t)to_size - (ssize_t)from_size;
 #pragma _NEC ivdep
   for(size_t i = 0; i < sep_idx_size-1; i++) {
     ret_lensp[idxp[sep_idxp[i]]] += size_diff * original_num_occurrencep[i];
@@ -1794,6 +1801,54 @@ void replace(const std::vector<int>& chars,
 words replace(const words& w, const std::string& from, const std::string& to) {
   words ret;
   replace(w.chars, w.starts, w.lens, ret.chars, ret.starts, ret.lens, from, to);
+  return ret;
+}
+
+void translate(const std::vector<int>& chars,
+               const std::vector<size_t>& starts,
+               const std::vector<size_t>& lens,
+               std::vector<int>& ret_chars,
+               std::vector<size_t>& ret_starts,
+               std::vector<size_t>& ret_lens,
+               const std::string& from,
+               const std::string& to) {
+  ret_lens = lens;
+  ret_starts = starts;
+  ret_chars = chars;
+  auto rptr = ret_chars.data();
+
+  size_t i = 0;
+  auto from_len = from.length();
+  auto to_len = to.length();
+  for(; i < from_len && i < to_len; ++i) {
+    int from_char = from[i];
+    int to_char = to[i];
+    auto pos = vector_find_eq(ret_chars, from_char);
+    auto pos_ptr = pos.data();
+    auto pos_size = pos.size();
+#pragma _NEC ivdep
+#pragma _NEC vovertake
+#pragma _NEC vob
+    for(size_t j = 0; j < pos_size; ++j) rptr[pos_ptr[j]] = to_char;
+  }
+
+  // remove remaining characters...
+  for(size_t k = i ; k < from_len; ++k) {
+    std::string from_str(1, from[k]);
+    std::string to_str = "";
+    words tmp;
+    frovedis::replace(ret_chars, ret_starts, ret_lens,
+                      tmp.chars, tmp.starts, tmp.lens,
+                      from_str, to_str);
+    ret_chars.swap(tmp.chars);
+    ret_starts.swap(tmp.starts);
+    ret_lens.swap(tmp.lens);
+  }
+}
+
+words translate(const words& w, const std::string& from, const std::string& to) {
+  words ret;
+  translate(w.chars, w.starts, w.lens, ret.chars, ret.starts, ret.lens, from, to);
   return ret;
 }
 
@@ -1967,7 +2022,6 @@ void tolower(const std::vector<int>& chars,
 
 words tolower(const words& ws) {
   words ret;
-  std::vector<int> ret_chars;
   frovedis::tolower(ws.chars, ret.chars);
   ret.starts = ws.starts;
   ret.lens = ws.lens;
@@ -1990,7 +2044,6 @@ void toupper(const std::vector<int>& chars,
 
 words toupper(const words& ws) {
   words ret;
-  std::vector<int> ret_chars;
   frovedis::toupper(ws.chars, ret.chars);
   ret.starts = ws.starts;
   ret.lens = ws.lens;
@@ -2009,25 +2062,21 @@ struct is_one_byte_utf8{
   int operator()(int c) const {
     return (c < 0x80);
   }
-  //SERIALIZE_NONE
 };
 struct is_two_byte_utf8{
   int operator()(int c) const {
     return (c >= 0xC2 && c < 0xE0);
   }
-  //SERIALIZE_NONE
 };
 struct is_three_byte_utf8{
   int operator()(int c) const {
     return (c >= 0xE0 && c < 0xF0);
   }
-  //SERIALIZE_NONE
 };
 struct is_four_byte_utf8{
   int operator()(int c) const {
     return (c >= 0xF0 && c < 0xF8);
   }
-  //SERIALIZE_NONE
 };
 
 void utf8_to_utf32(const std::vector<int>& chars,
@@ -2141,25 +2190,21 @@ struct is_one_byte_utf32{
   int operator()(int c) const {
     return (c < 0x80);
   }
-  //SERIALIZE_NONE
 };
 struct is_two_byte_utf32{
   int operator()(int c) const {
     return (c >= 0x80 && c < 0x800);
   }
-  //SERIALIZE_NONE
 };
 struct is_three_byte_utf32{
   int operator()(int c) const {
     return (c >= 0x800 && c < 0x10000);
   }
-  //SERIALIZE_NONE
 };
 struct is_four_byte_utf32{
   int operator()(int c) const {
     return (c >= 0x10000);
   }
-  //SERIALIZE_NONE
 };
 void utf32_to_utf8(const std::vector<int>& chars,
                    const std::vector<size_t>& starts,
@@ -2294,6 +2339,161 @@ vector<int> utf8_to_utf32(const std::string& str) {
   tmp.starts = {0};
   auto tmp2 = utf8_to_utf32(tmp);
   return tmp2.chars;
+}
+
+std::vector<int>
+ascii(const std::vector<int>& chars,
+      const std::vector<size_t>& starts,
+      const std::vector<size_t>& lens) {
+  auto size = lens.size();
+  std::vector<int> ret(size);
+  auto retp = ret.data();
+  auto lensp = lens.data();
+  auto charsp = chars.data();
+  auto startsp = starts.data();
+#pragma _NEC ivdep
+#pragma _NEC vovertake
+#pragma _NEC vob
+  for(size_t i = 0; i < size; i++) {
+    retp[i] = lensp[i] ? charsp[startsp[i]] : 0;
+  }
+  return ret;
+}
+
+std::vector<int> ascii(const words& ws) {
+  return frovedis::ascii(ws.chars, ws.starts, ws.lens);
+}
+
+void initcap(const std::vector<int>& chars,
+             const std::vector<size_t>& starts,
+             const std::vector<size_t>& lens,
+             std::vector<int>& ret_chars) {
+  int offset = ('a' - 'A');
+  tolower(chars, ret_chars);
+  auto len = lens.size();
+  auto cptr = ret_chars.data();
+  auto lptr = lens.data();
+  auto sptr = starts.data();
+#pragma _NEC ivdep
+#pragma _NEC vovertake
+#pragma _NEC vob
+  for(size_t i = 0; i < len; ++i) {
+    if (lptr[i]) {
+      auto sidx = sptr[i];
+      auto initchar = cptr[sidx];
+      if (initchar >= 'a' && initchar <= 'z') cptr[sidx] -= offset; // toUpper
+    }
+  }
+
+  int space = ' ';
+  auto pos = vector_find_eq(chars, space);
+  auto pos_ptr = pos.data();
+  auto pos_size = pos.size();
+  if (pos_size == 0) return;
+
+  auto tsize = pos_size;
+  // last character itself can be a space
+  auto charsize = chars.size();
+  if (pos[pos_size - 1] == (charsize - 1)) tsize--;
+
+#pragma _NEC ivdep
+  for(size_t i = 0; i < tsize; ++i) {
+    auto nextchar = cptr[pos_ptr[i] + 1];
+    if (nextchar >= 'a' && nextchar <= 'z') cptr[pos_ptr[i] + 1] -= offset; // toUpper
+  }
+}
+
+words initcap(const words& ws) {
+  words ret;
+  frovedis::initcap(ws.chars, ws.starts, ws.lens, ret.chars);
+  ret.starts = ws.starts;
+  ret.lens = ws.lens;
+  return ret;
+}
+
+std::vector<int>
+hamming_distance(const std::vector<int>& chars1,
+                 const std::vector<size_t>& starts1,
+                 const std::vector<size_t>& lens1,
+                 const std::vector<int>& chars2,
+                 const std::vector<size_t>& starts2,
+                 const std::vector<size_t>& lens2,
+                 bool& all_valid) {
+  auto vlen = lens1.size();
+  checkAssumption(vlen == lens2.size());
+
+  auto cptr1 = chars1.data();
+  auto cptr2 = chars2.data();
+  auto sptr1 = starts1.data();
+  auto sptr2 = starts2.data();
+  auto lptr1 = lens1.data();
+  auto lptr2 = lens2.data();
+
+  int maxlen = 0, sum = 0;
+  std::vector<int> difflen;
+  std::vector<int> valid(vlen);
+  auto validp = valid.data();
+
+  for(size_t i = 0; i < vlen; ++i) {
+    validp[i] = (lptr1[i] == lptr2[i]);
+    sum += validp[i];
+  }
+  all_valid = (sum == vlen);
+
+  if (!all_valid) { // some targets with mismatched lengths
+    auto imax = std::numeric_limits<int>::max();
+    difflen = vector_full<int>(vlen, imax);
+    auto diffp = difflen.data();
+
+    auto pos = vector_find_one(valid);
+    auto psize = pos.size();
+    auto posp = pos.data();
+#pragma _NEC ivdep
+    for(size_t i = 0; i < psize; ++i) {
+      auto idx = posp[i];
+      diffp[idx] = 0;
+      auto l = lptr1[idx];
+      if (l > maxlen) maxlen = l;
+    }
+
+    for(size_t i = 0; i < maxlen; ++i) {
+#pragma _NEC ivdep
+      for(size_t j = 0; j < psize; ++j) {
+        auto idx = posp[j];
+        if (i < lptr1[idx]) {
+          auto c1 = cptr1[sptr1[idx] + i];
+          auto c2 = cptr2[sptr2[idx] + i];
+          diffp[idx] += (c1 != c2);
+        }
+      }
+    }
+  } else {
+    difflen = vector_zeros<int>(vlen);
+    auto diffp = difflen.data();
+
+    for(size_t i = 0; i < vlen; ++i) {
+      auto l = lptr1[i];
+      if (l > maxlen) maxlen = l;
+    }
+
+    for(size_t i = 0; i < maxlen; ++i) {
+#pragma _NEC ivdep
+      for(size_t j = 0; j < vlen; ++j) {
+        if (i < lptr1[j]) {
+          auto c1 = cptr1[sptr1[j] + i];
+          auto c2 = cptr2[sptr2[j] + i];
+          diffp[j] += (c1 != c2);
+        }
+      }
+    }
+  }
+  return difflen;
+}
+
+std::vector<int>
+hamming_distance(const words& w1, const words& w2, bool& all_valid) {
+  return hamming_distance(w1.chars, w1.starts, w1.lens,
+                          w2.chars, w2.starts, w2.lens, all_valid);
 }
 
 }

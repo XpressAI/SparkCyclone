@@ -1,12 +1,11 @@
 #ifndef PARSEFLOAT_HPP
 #define PARSEFLOAT_HPP
-#include <stdlib.h>
-#include "../text/words.hpp"
+
+#include "words.hpp"
 #include "../core/find_condition.hpp"
 #include "../core/set_operations.hpp"
 #include <stdexcept>
 #include <limits>
-#include <vector>
 #include <math.h>
 
 #if defined(__ve__) || defined(_SX)

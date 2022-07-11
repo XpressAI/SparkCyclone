@@ -1,9 +1,6 @@
 #ifndef UPPER_BOUND_HPP
 #define UPPER_BOUND_HPP
-#include <stdlib.h>
-#include <stdio.h>
-#include <vector>
-#include <iostream>
+
 #if defined(_SX) || defined(__ve__)
 #define UPPER_BOUND_VLEN 2048
 #else
