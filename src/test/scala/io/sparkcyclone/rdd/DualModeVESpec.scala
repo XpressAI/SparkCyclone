@@ -104,7 +104,7 @@ final class DualModeVESpec
         implicit val rootAllocator: RootAllocator = new RootAllocator()
         veColBatches
           .map(_.toArrowColumnarBatch)
-          .map(cb => cb.column(0).getArrowValueVector)
+          .map(cb => cb.column(0).extractArrowVector.get)
           .flatMap(fv => (0 until fv.getValueCount).map(idx => fv.asInstanceOf[IntVector].get(idx)))
       }
       .collect()

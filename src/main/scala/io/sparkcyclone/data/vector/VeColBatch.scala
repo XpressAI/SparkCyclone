@@ -4,6 +4,7 @@ import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
 import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.native.code.VeType
 import io.sparkcyclone.util.CallContext
@@ -226,12 +227,9 @@ object VeColBatch {
                                                    context: CallContext,
                                                    metrics: VeProcessMetrics): VeColBatch = {
     VeColBatch(
-      (0 until batch.numCols).map { i =>
-        batch.column(i)
-          .getArrowValueVector
-          .toBytePointerColVector
-          .asyncToVeColVector
-      }.map(_.apply()).map(_.get)
+      batch.columns
+        .map(_.extractArrowVector.get.toBytePointerColVector.asyncToVeColVector)
+        .map(_.apply()).map(_.get)
     )
   }
 

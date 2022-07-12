@@ -47,7 +47,8 @@ object ArrowBasedCacheSerializer {
         CachedVeBatch(DualColumnarBatchContainer(vecs = (0 until columnarBatch.numCols()).map {
           colNo =>
             Right(
-              columnarBatch.column(colNo).getArrowValueVector
+              columnarBatch.column(colNo)
+                .extractArrowVector.get
                 .toBytePointerColVector
                 .toByteArrayColVector
             )
@@ -95,7 +96,7 @@ class ArrowBasedCacheSerializer extends CycloneCacheBase {
       CachedVeBatch.apply(cachedColumnVectors =
         (0 until columnarBatch.numCols())
           .map(i =>
-            columnarBatch.column(i).getOptionalArrowValueVector match {
+            columnarBatch.column(i).extractArrowVector match {
               case Some(acv) =>
                 acv.toBytePointerColVector.toByteArrayColVector
               case None =>

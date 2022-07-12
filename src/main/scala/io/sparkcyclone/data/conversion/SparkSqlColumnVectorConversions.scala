@@ -6,12 +6,11 @@ import io.sparkcyclone.native.code._
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
 import io.sparkcyclone.util.ReflectionOps._
+import java.nio.charset.StandardCharsets
 import org.apache.arrow.vector.FieldVector
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector, ColumnarBatch}
+import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnVector}
 import org.bytedeco.javacpp._
-
-import java.nio.charset.StandardCharsets
 
 object SparkSqlColumnVectorConversions {
   val SparkToVeScalarTypeMap = Map[DataType, VeScalarType](
@@ -170,16 +169,7 @@ object SparkSqlColumnVectorConversions {
   }
 
   implicit class SparkSqlColumnVectorToArrow(vector: ColumnVector) {
-    def getArrowValueVector: FieldVector = {
-      vector.asInstanceOf[ArrowColumnVector]
-        .readPrivate
-        .accessor
-        .vector
-        .obj
-        .asInstanceOf[FieldVector]
-    }
-
-    def getOptionalArrowValueVector: Option[FieldVector] = {
+    def extractArrowVector: Option[FieldVector] = {
       Option(vector).collect {
         case x: ArrowColumnVector =>
           x.readPrivate
@@ -196,12 +186,6 @@ object SparkSqlColumnVectorConversions {
       PartialFunction.condOpt(vector.readPrivate.accessor.vector.obj) {
         case x: FieldVector => x
       }
-    }
-  }
-
-  implicit class ExtendedColumnarBatch(batch: ColumnarBatch) {
-    def columns: Seq[ColumnVector] = {
-      (0 until batch.numCols).map(batch.column(_))
     }
   }
 }

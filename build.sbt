@@ -600,7 +600,7 @@ buildCycloneCppSourcesBomOnly := {
 
 def getAvailableVeNodes: Set[String] = {
   val lines = MSeq.empty[String]
-  if ((Process(Seq("/opt/nec/ve/bin/ps")) ! ProcessLogger(lines += _, line => ())) != 0) {
+  if ((Process(Seq("/opt/nec/ve/bin/ps", "aux")) ! ProcessLogger(lines += _, line => ())) != 0) {
     println("Failed to fetch VE information from ps")
   }
 
@@ -613,7 +613,7 @@ def getAvailableVeNodes: Set[String] = {
       currentProcList = MSeq.empty[String]
       runningVeProcs += ((node, currentProcList))
 
-    } else if (line.trim.startsWith("PID TTY") || line.trim.isEmpty) {
+    } else if (line.trim.startsWith("USER        PID") || line.trim.isEmpty) {
       ()
 
     } else {

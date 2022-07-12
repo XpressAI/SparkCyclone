@@ -91,7 +91,7 @@ class InVectorEngineCacheSerializer extends CycloneCacheBase {
         (0 until columnarBatch.numCols())
           .map { i =>
             import io.sparkcyclone.util.CallContextOps._
-            columnarBatch.column(i).getOptionalArrowValueVector match {
+            columnarBatch.column(i).extractArrowVector match {
               case Some(acv) =>
                 acv.toBytePointerColVector.asyncToVeColVector
               case None =>

@@ -47,7 +47,7 @@ final class SparkInternalRowsToArrowColumnarBatchesUnitSpec extends AnyWordSpec 
       )
       .map { colBatch =>
         (0 until colBatch
-          .numCols()).map(idx => colBatch.column(idx).getArrowValueVector.toString).toList
+          .numCols()).map(idx => colBatch.column(idx).extractArrowVector.get.toString).toList
       }
       .toList
 

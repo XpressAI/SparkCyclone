@@ -3,6 +3,7 @@ package io.sparkcyclone.data.vector
 import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
