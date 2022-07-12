@@ -1,6 +1,5 @@
 package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
@@ -65,7 +64,8 @@ final class ByteArrayColBatchUnitSpec extends AnyWordSpec {
       batch.numCols should be (columns1.size)
       batch.numRows should be (size)
 
-      val columns2 = batch.columns.map(_.asInstanceOf[VeColColumnarVector].dualVeBatch.right.get)
+      val columns2 = batch.columns.map(_.asInstanceOf[WrappedColumnVector].underlying.asInstanceOf[WrappedColumnVector.BA].vector)
+      println(columns2)
       (columns1, columns2).zipped.map(_ === _).toSet should be (Set(true))
     }
   }

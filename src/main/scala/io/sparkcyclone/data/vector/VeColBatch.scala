@@ -11,6 +11,7 @@ import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.bytedeco.javacpp.BytePointer
 import java.io._
@@ -19,7 +20,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.util.Try
 
-final case class VeColBatch(columns: Seq[VeColVector]) {
+final case class VeColBatch(columns: Seq[VeColVector]) extends CachedBatch {
   def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
@@ -131,6 +132,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns.headOption.map(_.numItems).getOrElse(0)
   }
 
+  def sizeInBytes: Long = {
+    columns.flatMap(_.bufferSizes).map(_.toLong).foldLeft(0L)(_ + _)
+  }
+
   def toUnit: UnitColBatch = {
     UnitColBatch(columns.map(_.toUnitColVector))
   }
@@ -150,10 +155,9 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   }
 
   def toSparkColumnarBatch: ColumnarBatch = {
-    val vecs = columns.map(_.toSparkColumnVector)
-    val cb = new ColumnarBatch(vecs.toArray)
-    cb.setNumRows(numRows)
-    cb
+    val batch = new ColumnarBatch(columns.map(_.toSparkColumnVector).toArray)
+    batch.setNumRows(numRows)
+    batch
   }
 
   def totalBufferSize: Int = {

@@ -1,6 +1,6 @@
 package io.sparkcyclone.spark.plans
 
-import io.sparkcyclone.cache.ArrowEncodingSettings
+import io.sparkcyclone.data.ColumnBatchEncoding
 import io.sparkcyclone.data.vector.{VeBatchOfBatches, VeColBatch}
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin.{source, veProcess, vectorEngine}
 import io.sparkcyclone.spark.transformation.VeFunction
@@ -25,7 +25,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
-  private val encodingSettings = ArrowEncodingSettings.fromConf(conf)(sparkContext)
+  private val encodingSettings = ColumnBatchEncoding.fromConf(conf)(sparkContext)
 
   override def executeVeColumnar(): RDD[VeColBatch] = {
     initializeMetrics()
@@ -38,7 +38,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
           import io.sparkcyclone.util.BatchAmplifier.Implicits._
           withInvocationMetrics(PLAN){
             collectBatchMetrics(OUTPUT, collectBatchMetrics(INPUT, veColBatches)
-              .amplify(limit = encodingSettings.batchSizeTargetBytes, f = _.totalBufferSize)
+              .amplify(limit = encodingSettings.targetSizeBytes, f = _.totalBufferSize)
               .map {
                 case inputBatches if inputBatches.size == 1 => inputBatches.head
                 case inputBatches =>

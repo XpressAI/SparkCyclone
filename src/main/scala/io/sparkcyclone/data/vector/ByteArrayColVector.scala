@@ -1,6 +1,5 @@
 package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.native.code.{VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
@@ -46,7 +45,7 @@ final case class ByteArrayColVector private[vector] (
   }
 
   def toSparkColumnVector: ColumnVector = {
-    new VeColColumnarVector(Right(this), veType.toSparkType)
+    WrappedColumnVector(this)
   }
 
   def toBytePointerColVector: BytePointerColVector = {

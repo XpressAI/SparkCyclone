@@ -19,7 +19,7 @@
  */
 package io.sparkcyclone.spark.transformation
 
-import io.sparkcyclone.cache.CycloneCacheBase
+import io.sparkcyclone.cache.CycloneCachedBatchSerializer
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.spark.codegen.CFunctionGeneration._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression._
@@ -94,7 +94,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
              Capture specific Filter+InMemory combination when such a failure happens. */
             plan match {
               case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
-                  if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+                  if cb.serializer.isInstanceOf[CycloneCachedBatchSerializer] =>
                 inMemoryFilterPlan(cond, imr)
 
               case _ => Nil
@@ -122,7 +122,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     case SkipVe(child, enabled) => rewriteWithOptions(child, options.copy(rewriteEnabled = enabled))
 
     /* Plan rewriting */
-    case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+    case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCachedBatchSerializer] =>
       fetchFromCachePlan(imr)
 
     case WriteToDataSourceV2(_, query) =>
@@ -134,7 +134,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       }
 
     case logical.Filter(cond, imr @ InMemoryRelation(_, cb, _))
-        if cb.serializer.isInstanceOf[CycloneCacheBase] =>
+        if cb.serializer.isInstanceOf[CycloneCachedBatchSerializer] =>
       inMemoryFilterPlan(cond, imr)
 
     case f: logical.Filter if options.filterOnVe =>
@@ -457,7 +457,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
           FilterExec(
             cond,
             VectorEngineToSparkPlan(
-              VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCacheBase])
+              VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCachedBatchSerializer])
             )
           )
         )
@@ -593,7 +593,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       .flatMap(sp =>
         List(
           VectorEngineToSparkPlan(
-            VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCacheBase])
+            VeFetchFromCachePlan(sp, imr.cacheBuilder.serializer.asInstanceOf[CycloneCachedBatchSerializer])
           )
         )
       )

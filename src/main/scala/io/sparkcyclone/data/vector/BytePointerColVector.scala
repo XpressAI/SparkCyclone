@@ -5,6 +5,7 @@ import io.sparkcyclone.native.code.{VeScalarType, VeString, VeType}
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import io.sparkcyclone.metrics.VeProcessMetrics
+import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
 final case class BytePointerColVector private[vector] (
@@ -100,6 +101,10 @@ final case class BytePointerColVector private[vector] (
 
   def toVeColVector(implicit process: VeProcess): VeColVector = {
     asyncToVeColVector.apply.get
+  }
+
+  def toSparkColumnVector: ColumnVector = {
+    WrappedColumnVector(this)
   }
 
   def toByteArrayColVector: ByteArrayColVector = {
