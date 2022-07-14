@@ -1,6 +1,7 @@
 package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.vectorengine.VeProcess
+import org.apache.spark.sql.catalyst.expressions.{Attribute, PrettyAttribute}
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized._
 import org.apache.spark.unsafe.types.UTF8String
@@ -44,6 +45,18 @@ object WrappedColumnVector {
 */
 final case class WrappedColumnVector(val underlying: WrappedColumnVector.WrappedType)
   extends ColumnVector(WrappedColumnVector.extractType(underlying)) {
+
+  def name: String = {
+    underlying match {
+      case WrappedColumnVector.VE(vec) => vec.name
+      case WrappedColumnVector.BP(vec) => vec.name
+      case WrappedColumnVector.BA(vec) => vec.name
+    }
+  }
+
+  def attribute: Attribute = {
+    PrettyAttribute(name, dataType)
+  }
 
   def toVeColVector(implicit process: VeProcess): VeColVector = {
     underlying match {

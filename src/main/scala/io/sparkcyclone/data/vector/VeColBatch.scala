@@ -226,17 +226,6 @@ object VeColBatch {
     batch.withData(arrays)
   }
 
-  def fromArrowColumnarBatch(batch: ColumnarBatch)(implicit source: VeColVectorSource,
-                                                   process: VeProcess,
-                                                   context: CallContext,
-                                                   metrics: VeProcessMetrics): VeColBatch = {
-    VeColBatch(
-      batch.columns
-        .map(_.extractArrowVector.get.toBytePointerColVector.asyncToVeColVector)
-        .map(_.apply()).map(_.get)
-    )
-  }
-
   def from(columns: VeColVector*): VeColBatch = {
     assert(columns.nonEmpty)
     VeColBatch(columns)

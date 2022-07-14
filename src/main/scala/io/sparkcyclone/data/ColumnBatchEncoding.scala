@@ -38,6 +38,10 @@ object ColumnBatchEncoding {
     )
   }
 
+  def default: ColumnBatchEncoding = {
+    ColumnBatchEncoding("UTC", 128000, DefaultTargetBatchSize)
+  }
+
   private val Mb: Long = 1024 * 1024
 
   // 64M -- trying 128M does not change performance [2022-02-11]

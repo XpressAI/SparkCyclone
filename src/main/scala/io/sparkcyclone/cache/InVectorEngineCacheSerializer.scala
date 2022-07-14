@@ -15,11 +15,13 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
-/**
- * Cache that is using the Vector Engine as the target.
- * This does not account for VE memory usage at all as Spark API assumes only CPU as a Serializer.
- * The alternate approach is [[ArrowBasedCacheSerializer]].
- */
+/*
+  Cache that is using the Vector Engine as the target.  This does not account
+  for VE memory usage at all as Spark API assumes only CPU as a Serializer.
+
+  NOTE: This is still a work in progress, as the use of this serializer requires
+  changes in either [[VERewriteStrategy]] and/or [[SparkToVectorEnginePlan]].
+*/
 final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer {
   import SparkCycloneExecutorPlugin._
 

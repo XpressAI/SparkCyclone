@@ -19,8 +19,6 @@
  */
 package io.sparkcyclone.spark.codegen
 
-import io.sparkcyclone.debugging.Debugging.RichDataSet
-
 import java.util.Properties
 import io.sparkcyclone.h2.H2DatabaseConnector
 import io.sparkcyclone.spark.SampleTestData
@@ -58,6 +56,5 @@ final class RealWorldSparkPlansSpec
         "SELECT SUM(totalPrice), userId, joined_timestamp FROM Users JOIN Orders on Orders.userId = Users.id " +
           "GROUP BY userId, joined_timestamp ORDER BY joined_timestamp ASC"
       )
-      .debugSqlAndShow(name = "real-life-example")
   }
 }

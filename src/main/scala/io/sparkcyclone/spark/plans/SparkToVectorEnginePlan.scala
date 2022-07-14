@@ -58,9 +58,11 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
   }
 
   private[plans] def executeFromColInput: RDD[VeColBatch] = {
-    val schema = ColumnBatchEncoding.fromConf(conf)(sparkContext).makeArrowSchema(child.output)
+    val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
 
     child.executeColumnar.mapPartitions { colbatches =>
+      val schema = encoding.makeArrowSchema(child.output)
+
       withInvocationMetrics(PLAN) {
         val descriptor = withInvocationMetrics("Conversion") {
           collectBatchMetrics(INPUT, colbatches)
