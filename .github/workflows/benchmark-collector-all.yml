@@ -40,8 +40,6 @@ env:
         description: "Serializer"
         options:
         - "-"
-        - "io.sparkcyclone.cache.VeCachedBatchSerializer"
-        - "io.sparkcyclone.cache.ArrowBasedCacheSerializer"
         - "io.sparkcyclone.cache.InVectorEngineCacheSerializer"
         default: "-"
       use-cyclone:

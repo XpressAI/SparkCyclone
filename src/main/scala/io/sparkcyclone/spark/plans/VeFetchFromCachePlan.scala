@@ -1,8 +1,11 @@
 package io.sparkcyclone.spark.plans
 
-import io.sparkcyclone.cache.{CycloneCacheBase, VeColColumnarVector}
-import io.sparkcyclone.data.vector.{ByteArrayColVector, VeColBatch, VeColVector}
+import io.sparkcyclone.cache.CycloneCachedBatchSerializer
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
+import io.sparkcyclone.data.vector._
+import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.util.CallContext
+import io.sparkcyclone.util.CallContextOps._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -10,7 +13,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object VeFetchFromCachePlan {
-  def apply(child: SparkPlan, serializer: CycloneCacheBase): VeFetchFromCachePlan =
+  def apply(child: SparkPlan, serializer: CycloneCachedBatchSerializer): VeFetchFromCachePlan =
     VeFetchFromCachePlan(child, requiresCleanup = serializer.requiresCleanUp)
 }
 
@@ -22,36 +25,25 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
   override lazy val metrics = invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
-  private def unwrapBatch(
-    columnarBatch: ColumnarBatch
-  ): List[Either[VeColVector, ByteArrayColVector]] =
-    (0 until columnarBatch.numCols())
-      .map(colIdx => columnarBatch.column(colIdx).asInstanceOf[VeColColumnarVector].dualVeBatch)
-      .toList
-
-  override def executeVeColumnar(): RDD[VeColBatch] = {
+  override def executeVeColumnar: RDD[VeColBatch] = {
     initializeMetrics()
 
     child
-      .executeColumnar()
-      .map(cb => {
-        logger.debug(s"Mapping ColumnarBatch ${cb} to VE")
-        import io.sparkcyclone.util.CallContextOps._
-        import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
-        collectBatchMetrics(INPUT, cb)
-
-        withInvocationMetrics(BATCH){
-          val res = VeColBatch(unwrapBatch(cb).map {
-            case Left(veColVector)  => veColVector
-            case Right(baColVector) => baColVector.toVeColVector
-          })
-          logger.debug(s"Finished mapping ColumnarBatch ${cb} to VE: ${res}")
-          collectBatchMetrics(OUTPUT, res)
+      .executeColumnar
+      .map { colbatch =>
+        logger.debug(s"Mapping ColumnarBatch ${colbatch} to VE")
+        collectBatchMetrics(INPUT, colbatch)
+        withInvocationMetrics(BATCH) {
+          val batch = VeColBatch(colbatch.columns.map(_.asInstanceOf[WrappedColumnVector].toVeColVector))
+          logger.debug(s"Finished mapping ColumnarBatch ${colbatch} to VE: ${batch}")
+          collectBatchMetrics(OUTPUT, batch)
         }
-      })
+      }
   }
 
-  override def output: Seq[Attribute] = child.output
+  override def output: Seq[Attribute] = {
+    child.output
+  }
 
   override def dataCleanup: DataCleanup = {
     if (requiresCleanup) DataCleanup.cleanup(this.getClass)

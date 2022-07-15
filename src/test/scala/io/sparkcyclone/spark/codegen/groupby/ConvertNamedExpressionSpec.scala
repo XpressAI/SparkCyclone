@@ -28,8 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{
   Alias,
   Attribute,
   AttributeReference,
-  ExprId,
-  PrettyAttribute
+  ExprId
 }
 import org.apache.spark.sql.types.DoubleType
 

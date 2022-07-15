@@ -1,8 +1,7 @@
 package io.sparkcyclone.data.vector
 
-import io.sparkcyclone.cache.VeColColumnarVector
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
-import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import scala.util.Random
 import org.scalatest.matchers.should.Matchers._
@@ -49,7 +48,7 @@ final class ByteArrayColBatchUnitSpec extends AnyWordSpec {
       ByteArrayColBatch(Seq.empty).numRows should be (0)
     }
 
-    "correctly convert to Spark SQL ColumnarBatch" in {
+    "correctly convert to Spark SQL ColumnarBatch with WrappedColumnVector" in {
       val size = Random.nextInt(100) + 1
       val columns1 = Seq(
         InputSamples.seqOpt[Int](size).toBytePointerColVector("_"),
@@ -64,7 +63,7 @@ final class ByteArrayColBatchUnitSpec extends AnyWordSpec {
       batch.numCols should be (columns1.size)
       batch.numRows should be (size)
 
-      val columns2 = batch.columns.map(_.asInstanceOf[VeColColumnarVector].dualVeBatch.right.get)
+      val columns2 = batch.columns.map(_.asInstanceOf[WrappedColumnVector].underlying.asInstanceOf[WrappedColumnVector.BA].vector)
       (columns1, columns2).zipped.map(_ === _).toSet should be (Set(true))
     }
   }

@@ -4,12 +4,14 @@ import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, TransferDescriptor, UcvTransferDescriptor}
 import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnVectorConversions._
 import io.sparkcyclone.native.code.VeType
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeProcess, VectorEngine}
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.vectorized.{ArrowColumnVector, ColumnarBatch}
 import org.bytedeco.javacpp.BytePointer
 import java.io._
@@ -18,7 +20,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.util.Try
 
-final case class VeColBatch(columns: Seq[VeColVector]) {
+final case class VeColBatch(columns: Seq[VeColVector]) extends CachedBatch {
   def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
@@ -130,6 +132,10 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
     columns.headOption.map(_.numItems).getOrElse(0)
   }
 
+  def sizeInBytes: Long = {
+    columns.flatMap(_.bufferSizes).map(_.toLong).foldLeft(0L)(_ + _)
+  }
+
   def toUnit: UnitColBatch = {
     UnitColBatch(columns.map(_.toUnitColVector))
   }
@@ -149,10 +155,9 @@ final case class VeColBatch(columns: Seq[VeColVector]) {
   }
 
   def toSparkColumnarBatch: ColumnarBatch = {
-    val vecs = columns.map(_.toSparkColumnVector)
-    val cb = new ColumnarBatch(vecs.toArray)
-    cb.setNumRows(numRows)
-    cb
+    val batch = new ColumnarBatch(columns.map(_.toSparkColumnVector).toArray)
+    batch.setNumRows(numRows)
+    batch
   }
 
   def totalBufferSize: Int = {
@@ -219,20 +224,6 @@ object VeColBatch {
       reader.readObject.asInstanceOf[Array[Byte]]
     }
     batch.withData(arrays)
-  }
-
-  def fromArrowColumnarBatch(batch: ColumnarBatch)(implicit source: VeColVectorSource,
-                                                   process: VeProcess,
-                                                   context: CallContext,
-                                                   metrics: VeProcessMetrics): VeColBatch = {
-    VeColBatch(
-      (0 until batch.numCols).map { i =>
-        batch.column(i)
-          .getArrowValueVector
-          .toBytePointerColVector
-          .asyncToVeColVector
-      }.map(_.apply()).map(_.get)
-    )
   }
 
   def from(columns: VeColVector*): VeColBatch = {

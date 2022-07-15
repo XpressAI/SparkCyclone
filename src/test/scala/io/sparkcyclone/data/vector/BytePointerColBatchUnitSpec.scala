@@ -1,6 +1,7 @@
 package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.util.CallContextOps._
 import scala.util.Random
@@ -48,6 +49,25 @@ final class BytePointerColBatchUnitSpec extends AnyWordSpec {
 
         output should be (expected)
       }
+    }
+
+    "correctly convert to Spark SQL ColumnarBatch with WrappedColumnVector" in {
+      val size = Random.nextInt(100) + 1
+      val columns1 = Seq(
+        InputSamples.seqOpt[Int](size).toBytePointerColVector("_"),
+        InputSamples.seqOpt[Short](size).toBytePointerColVector("_"),
+        InputSamples.seqOpt[Long](size).toBytePointerColVector("_"),
+        InputSamples.seqOpt[Float](size).toBytePointerColVector("_"),
+        InputSamples.seqOpt[Double](size).toBytePointerColVector("_"),
+        InputSamples.seqOpt[String](size).toBytePointerColVector("_")
+      )
+
+      val batch = BytePointerColBatch(columns1).toSparkColumnarBatch
+      batch.numCols should be (columns1.size)
+      batch.numRows should be (size)
+
+      val columns2 = batch.columns.map(_.asInstanceOf[WrappedColumnVector].underlying.asInstanceOf[WrappedColumnVector.BP].vector)
+      (columns1, columns2).zipped.map(_ === _).toSet should be (Set(true))
     }
   }
 }

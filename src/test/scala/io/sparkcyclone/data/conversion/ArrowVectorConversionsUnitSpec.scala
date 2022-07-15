@@ -1,6 +1,6 @@
 package io.sparkcyclone.data.conversion
 
-import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data.{InputSamples, VeColVectorSource}
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.native.code.VeScalarType
 import scala.util.Random
@@ -84,99 +84,94 @@ final class ArrowVectorConversionsUnitSpec extends AnyWordSpec {
     }
 
     "correctly convert IntVector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000))
+      val raw = InputSamples.seqOpt[Int]
       val input = new IntVector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
-      // Set some validity bit to false
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
 
     "correctly convert ShortVector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000).toShort)
+      val raw = InputSamples.seqOpt[Short]
       val input = new SmallIntVector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
 
     "correctly convert BigIntVector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextLong)
+      val raw = InputSamples.seqOpt[Long]
       val input = new BigIntVector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
 
     "correctly convert Float4Vector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextFloat * 1000)
+      val raw = InputSamples.seqOpt[Float]
       val input = new Float4Vector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
 
     "correctly convert Float8Vector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextDouble * 1000)
+      val raw = InputSamples.seqOpt[Double]
       val input = new Float8Vector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
 
     "correctly convert DateDayVector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextInt(10000))
+      val raw = InputSamples.seqOpt[Int]
 
       val input = new DateDayVector(s"${UUID.randomUUID}", allocator)
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v)
+        case (None, i)    => input.setNull(i)
       }
 
       val expected = new IntVector(input.getName, allocator)
       expected.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        expected.set(i, v)
-      }
-
-      if (raw.size > 0) {
-        val i = Random.nextInt(raw.length)
-        input.setNull(i)
-        expected.setNull(i)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => expected.set(i, v)
+        case (None, i)    => expected.setNull(i)
       }
 
       runConversionTest(input, Some(expected))
     }
 
     "correctly convert VarCharVector to BytePointerColVector and back" in {
-      val raw = 0.until(Random.nextInt(100)).map(_ => Random.nextString(Random.nextInt(30)))
+      val raw = InputSamples.seqOpt[String]
       val input = new VarCharVector(s"${UUID.randomUUID}", allocator)
       input.allocateNew()
       input.setValueCount(raw.length)
-      raw.zipWithIndex.foreach { case (v, i) =>
-        input.set(i, v.getBytes)
+      raw.zipWithIndex.foreach {
+        case (Some(v), i) => input.set(i, v.getBytes)
+        case (None, i)    => input.setNull(i)
       }
-      if (raw.size > 0) input.setNull(Random.nextInt(raw.length))
 
       runConversionTest(input)
     }
