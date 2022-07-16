@@ -151,7 +151,7 @@ object CppTranspiler {
                 case _ =>
                   List(s"${aggs.head.name} = ${evalApply(apply)};")
               },
-            ),
+            )
           },
           "",
           signature.outputs.zip(aggs).map { case (out, agg) => CodeLines.from(
@@ -245,7 +245,7 @@ object CppTranspiler {
       "",
       s"auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
       signature.outputs.zip(signature.inputs).map { case (out, in) =>
-        s"${out.name}[0] = ${in.name}[0]->select(matching_ids);",
+        s"${out.name}[0] = ${in.name}[0]->select(matching_ids);"
       }
     )
   }

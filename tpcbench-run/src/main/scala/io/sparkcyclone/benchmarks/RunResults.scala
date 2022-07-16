@@ -2,6 +2,7 @@ package io.sparkcyclone.benchmarks
 
 import cats.effect.IO
 import scalatags.Text
+import scalatags.Text.all._
 
 import java.nio.file.{Files, Path, Paths}
 
@@ -48,7 +49,6 @@ final case class RunResults(columns: List[String], data: List[List[Option[AnyRef
     )
   }
 
-  import _root_.scalatags.Text.all._
   def toTable: Text.TypedTag[String] = html(
     head(
       tag("title")("TPC Bench results"),

@@ -138,7 +138,7 @@ object SeqOptTConversions {
         }
       }
 
-      output
+      output.toSeq
     }
 
     def toSeqOpt[T: ClassTag]: Seq[Option[T]] = {

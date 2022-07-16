@@ -7,7 +7,6 @@ import doobie.implicits._
 import cats._
 import cats.data._
 import cats.implicits._
-import scalatags.Text
 
 import java.nio.file.{Files, Path, Paths}
 import scala.collection.mutable
