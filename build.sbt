@@ -24,12 +24,8 @@ lazy val defaultScalaVersion = "2.12.10"
 ThisBuild / scalaVersion := defaultScalaVersion
 ThisBuild / organization := "io.sparkcyclone"
 
-crossScalaVersions := Seq(defaultScalaVersion, "2.11.12")
-
 val sparkVersion = SettingKey[String]("sparkVersion")
-ThisBuild / sparkVersion := {
-  if (scalaVersion.value.startsWith("2.12")) "3.3.0" else "2.3.2"
-}
+ThisBuild / sparkVersion := "3.3.0"
 
 val debugRemotePort = SettingKey[Option[Int]]("debugRemotePort")
 // set debugRemotePort := Some(5005)
@@ -453,7 +449,7 @@ lazy val tpchbench = project
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
     version := "0.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.3" % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
     libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
     libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
@@ -704,7 +700,6 @@ lazy val `rddbench` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
-      "org.apache.spark" %% "spark-yarn" % sparkVersion.value,
       "org.scalatest" %% "scalatest" % "3.2.10" % Test
     ),
     version := "0.1"
