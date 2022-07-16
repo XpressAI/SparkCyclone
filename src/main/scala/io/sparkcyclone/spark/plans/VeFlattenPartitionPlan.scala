@@ -72,6 +72,11 @@ case class VeFlattenPartitionPlan(flattenFunction: VeFunction, child: SparkPlan)
 
   override def veFunction: VeFunction = flattenFunction
 
-  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan = {
     copy(flattenFunction = f(flattenFunction))
+  }
+
+  override def withNewChildInternal(newChild: SparkPlan): VeFlattenPartitionPlan = {
+    copy(child = newChild)
+  }
 }

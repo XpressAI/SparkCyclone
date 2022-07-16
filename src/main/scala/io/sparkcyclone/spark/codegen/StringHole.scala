@@ -210,7 +210,7 @@ object StringHole {
       LikeStringHoleEvaluation.Like(left.name, v.toString).equalsTo
     case IsNotNull(item: AttributeReference) if item.dataType == StringType =>
       StringHoleEvaluation.ValidityExprHoleEvaluation(item.name)
-    case Cast(expr: AttributeReference, DateType, Some(_)) =>
+    case Cast(expr: AttributeReference, DateType, Some(_), _) =>
       DateCastStringHoleEvaluation(expr.name)
     case In(expr: AttributeReference, values: Seq[Literal]) if expr.dataType == StringType =>
       InStringHoleEvaluation(expr.name, values.map(_.toString))

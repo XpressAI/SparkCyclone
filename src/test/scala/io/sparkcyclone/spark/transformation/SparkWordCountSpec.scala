@@ -79,18 +79,5 @@ final class SparkWordCountSpec extends AnyFreeSpec with BeforeAndAfter with Spar
 
       val result = wordCountQuery.collect().toList.toMap
       assert(result == Map("ab" -> 2))
-
   }
-
-  private def collectSparkPlan[U: Encoder](sparkPlan: SparkPlan): Array[U] = {
-    import scala.collection.JavaConverters._
-    sparkPlan.sqlContext
-      .createDataFrame(
-        rows = sparkPlan.executeCollectPublic().toList.asJava,
-        schema = sparkPlan.schema
-      )
-      .as[U]
-      .collect()
-  }
-
 }

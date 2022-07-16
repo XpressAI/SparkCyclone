@@ -320,7 +320,7 @@ object SparkExpressionToCExpression {
         Right {
           CExpression(cCode = s"$v", isNotNullCode = None)
         }
-      case Cast(child, newDt, None) =>
+      case Cast(child, newDt, None, _) =>
         eval(child).map { ex =>
           CExpression(
             cCode = s"(${sparkTypeToScalarVeType(newDt).cScalarType}) (${ex.cCode})",
@@ -343,17 +343,17 @@ object SparkExpressionToCExpression {
           val oks = children.map(exp => eval(exp)).flatMap(_.right.toOption)
           FlatToNestedFunction.runWhenNotNull(items = oks.toList, function = "MIN")
         }
-      case Cast(child, IntegerType, _) =>
+      case Cast(child, IntegerType, _, _) =>
         eval(child).map { childExpression =>
           childExpression.copy("((int)" + childExpression.cCode + ")")
         }
 
-      case Cast(child, DoubleType, _) =>
+      case Cast(child, DoubleType, _, _) =>
         eval(child).map { childExpression =>
           childExpression.copy("((int)" + childExpression.cCode + ")")
         }
 
-      case Cast(child, LongType, _) =>
+      case Cast(child, LongType, _, _) =>
         eval(child).map { childExpression =>
           childExpression.copy("((long long)" + childExpression.cCode + ")")
         }

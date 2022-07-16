@@ -70,6 +70,11 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
 
   override def veFunction: VeFunction = amplifyFunction
 
-  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan = {
     copy(amplifyFunction = f(amplifyFunction))
+  }
+
+  override def withNewChildInternal(newChild: SparkPlan): VeAmplifyBatchesPlan = {
+    copy(child = newChild)
+  }
 }

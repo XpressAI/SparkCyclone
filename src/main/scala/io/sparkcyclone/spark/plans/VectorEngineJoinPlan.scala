@@ -83,4 +83,8 @@ case class VectorEngineJoinPlan(
   override def output: Seq[Attribute] = outputExpressions.map(_.toAttribute)
 
   override def veFunction: VeFunction = joinFunction
+
+  override def withNewChildrenInternal(newLeft: SparkPlan, newRight: SparkPlan): VectorEngineJoinPlan = {
+    copy(left = newLeft, right = newRight)
+  }
 }

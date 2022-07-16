@@ -125,7 +125,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCachedBatchSerializer] =>
       fetchFromCachePlan(imr)
 
-    case WriteToDataSourceV2(_, query) =>
+    case WriteToDataSourceV2(_, _, query, _) =>
       query match {
         case logical.Aggregate(ge, ae, child)
           if options.aggregateOnVe && child.output.nonEmpty && ae.nonEmpty && isSupportedAggregationExpression(ae) =>
