@@ -38,7 +38,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
           import io.sparkcyclone.util.BatchAmplifier.Implicits._
           withInvocationMetrics(PLAN){
             collectBatchMetrics(OUTPUT, collectBatchMetrics(INPUT, veColBatches)
-              .amplify(limit = encodingSettings.targetSizeBytes, f = _.totalBufferSize)
+              .amplify(limit = encodingSettings.targetSizeBytes, f = _.sizeInBytes.toInt)
               .map {
                 case inputBatches if inputBatches.size == 1 => inputBatches.head
                 case inputBatches =>
@@ -54,7 +54,7 @@ case class VeAmplifyBatchesPlan(amplifyFunction: VeFunction, child: SparkPlan)
                         )
                       }
                     logger.debug(
-                      s"Transformed input, got ${res}; produced a batch of size ${res.totalBufferSize} bytes"
+                      s"Transformed input, got ${res}; produced a batch of size ${res.sizeInBytes} bytes"
                     )
                     res
                   } finally {

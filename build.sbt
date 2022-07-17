@@ -48,7 +48,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
   "com.vladsch.flexmark" % "flexmark-all" % "0.62.2" % "test,tpc",
   "commons-io" % "commons-io" % "2.11.0",
-  // "commons-io" % "commons-io" % "2.10.0" % "test",
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",

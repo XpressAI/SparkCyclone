@@ -5,16 +5,15 @@ import io.sparkcyclone.native.code.{VeString, VeType}
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.util.CallContext
-import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 
-final case class ByteArrayColVector private[vector] (
+final case class ByteArrayColVector private[data] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,
   numItems: Int,
   buffers: Seq[Array[Byte]]
-) {
+) extends ColVectorLike {
   require(
     numItems >= 0,
     s"[${getClass.getName}] numItems should be >= 0"
@@ -44,8 +43,8 @@ final case class ByteArrayColVector private[vector] (
       buffers.map(_.toSeq) == other.buffers.map(_.toSeq)
   }
 
-  def toSparkColumnVector: ColumnVector = {
-    WrappedColumnVector(this)
+  def dataSize: Option[Int] = {
+    if (veType == VeString) Some(buffers(0).size) else None
   }
 
   def toBytePointerColVector: BytePointerColVector = {

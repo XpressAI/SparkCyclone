@@ -1,0 +1,38 @@
+package io.sparkcyclone.data.vector
+
+import io.sparkcyclone.native.code.VeType
+import org.apache.spark.sql.columnar.CachedBatch
+import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+trait ColBatchLike[+C <: ColVectorLike] extends CachedBatch {
+  def columns: Seq[C]
+
+  final def numCols: Int = {
+    columns.size
+  }
+
+  final def numRows: Int = {
+    columns.headOption.map(_.numItems).getOrElse(0)
+  }
+
+  final def isEmpty: Boolean = {
+    numRows <= 0
+  }
+
+  final def nonEmpty: Boolean = {
+    ! isEmpty
+  }
+
+  final def veTypes: Seq[VeType] = {
+    columns.map(_.veType)
+  }
+
+  final def sparkSchema: Seq[DataType] = {
+    veTypes.map(_.toSparkType)
+  }
+
+  final def toSparkColumnarBatch: ColumnarBatch = {
+    WrappedColumnarBatch(this)
+  }
+}

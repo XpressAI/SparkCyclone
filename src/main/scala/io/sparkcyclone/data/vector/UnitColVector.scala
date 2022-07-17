@@ -9,7 +9,7 @@ import java.io.{DataInputStream, DataOutputStream, InputStream}
 import java.nio.channels.Channels
 import org.bytedeco.javacpp.BytePointer
 
-final case class UnitColVector private[vector] (
+final case class UnitColVector private[data] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,

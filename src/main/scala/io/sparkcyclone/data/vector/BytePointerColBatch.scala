@@ -10,7 +10,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.UTF8String
 import org.bytedeco.javacpp.BytePointer
 
-final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) extends CachedBatch {
+final case class BytePointerColBatch private[data] (columns: Seq[BytePointerColVector]) extends ColBatchLike[BytePointerColVector] {
   private[vector] lazy val projection = {
     UnsafeProjection.create(sparkSchema.toArray)
   }
@@ -19,16 +19,8 @@ final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) extends
     columns.map(_.toSeqOptAny)
   }
 
-  def numRows: Int = {
-    columns.headOption.map(_.numItems).getOrElse(0)
-  }
-
   def sizeInBytes: Long = {
     columns.flatMap(_.buffers).map(_.nbytes).foldLeft(0L)(_ + _)
-  }
-
-  def sparkSchema: Seq[DataType] = {
-    columns.map(_.veType.toSparkType)
   }
 
   def internalRowIterator: Iterator[InternalRow] = {
@@ -54,11 +46,5 @@ final case class BytePointerColBatch(columns: Seq[BytePointerColVector]) extends
 
   def toByteArrayColBatch: ByteArrayColBatch = {
     ByteArrayColBatch(columns.map(_.toByteArrayColVector))
-  }
-
-  def toSparkColumnarBatch: ColumnarBatch = {
-    val batch = new ColumnarBatch(columns.map(_.toSparkColumnVector).toArray)
-    batch.setNumRows(numRows)
-    batch
   }
 }

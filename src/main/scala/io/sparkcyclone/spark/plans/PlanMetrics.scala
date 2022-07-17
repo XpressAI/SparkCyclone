@@ -78,7 +78,7 @@ trait PlanMetrics {
 
     batchColCount.set(batch.columns.length)
     batchRowCount.set(batch.numRows)
-    batchSize.set(batch.totalBufferSize)
+    batchSize.set(batch.sizeInBytes.toInt)
 
     totalBatchRowCount += batch.numRows
 
