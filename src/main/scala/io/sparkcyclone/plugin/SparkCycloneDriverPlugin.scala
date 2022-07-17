@@ -20,14 +20,13 @@
 package io.sparkcyclone.plugin
 
 import io.sparkcyclone.native.{CachingNativeCodeCompiler, NativeCodeCompiler}
-import io.sparkcyclone.spark.transformation.{RequestCompiledLibraryForCode, RequestCompiledLibraryResponse}
+import io.sparkcyclone.spark.transformation.{RequestCompiledLibrary, RequestCompiledLibraryResponse}
 import scala.collection.JavaConverters._
 import java.nio.file.{Files, Paths}
 import java.util.{Map => JMap}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.{DriverPlugin, PluginContext}
-import okio.ByteString
 
 object SparkCycloneDriverPlugin {
   // For assumption testing purposes only for now
@@ -59,12 +58,12 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
 
   override def receive(message: Any): AnyRef = {
     message match {
-      case RequestCompiledLibraryForCode(path) =>
+      case RequestCompiledLibrary(path) =>
         logger.debug(s"Received request for compiled code at path: '${path}'")
         val location = Paths.get(path)
 
         if (Files.exists(location)) {
-          RequestCompiledLibraryResponse(ByteString.of(Files.readAllBytes(location): _*))
+          RequestCompiledLibraryResponse(Files.readAllBytes(location).toVector)
         } else {
           throw new RuntimeException(s"Received request for code at path ${path} but it's not present on driver.")
         }

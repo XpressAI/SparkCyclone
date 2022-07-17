@@ -37,6 +37,7 @@ import io.sparkcyclone.spark.codegen.{CFunctionGeneration, SparkExpressionToCExp
 import io.sparkcyclone.spark.transformation.TransformUtil.RichTreeNode
 import io.sparkcyclone.spark.transformation.VERewriteStrategy.{GroupPrefix, HashExchangeBuckets, InputPrefix, SequenceList}
 import io.sparkcyclone.spark.plans._
+import scala.annotation.nowarn
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HyperLogLogPlusPlus}
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, NamedExpression, SortOrder}
@@ -68,9 +69,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
   extends Strategy
   with LazyLogging {
 
-  import com.github.ghik.silencer.silent
-
-  @silent
+  @nowarn
   override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
     val functionPrefix: String = s"eval_${Math.abs(plan.toString.hashCode())}"
 
@@ -125,7 +124,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     case imr @ InMemoryRelation(_, cb, _) if cb.serializer.isInstanceOf[CycloneCachedBatchSerializer] =>
       fetchFromCachePlan(imr)
 
-    case WriteToDataSourceV2(_, query) =>
+    case WriteToDataSourceV2(_, _, query, _) =>
       query match {
         case logical.Aggregate(ge, ae, child)
           if options.aggregateOnVe && child.output.nonEmpty && ae.nonEmpty && isSupportedAggregationExpression(ae) =>

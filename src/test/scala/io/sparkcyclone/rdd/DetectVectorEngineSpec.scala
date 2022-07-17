@@ -41,7 +41,6 @@ object DetectVectorEngineSpec {
       "scala-logging",
       "veoffload",
       "javacpp",
-      "jna",
       "commons-io",
       "haoyi"
     )

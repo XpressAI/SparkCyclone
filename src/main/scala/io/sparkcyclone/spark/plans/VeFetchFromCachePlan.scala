@@ -49,4 +49,8 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
     if (requiresCleanup) DataCleanup.cleanup(this.getClass)
     else DataCleanup.noCleanup(this.getClass)
   }
+
+  override def withNewChildInternal(newChild: SparkPlan): VeFetchFromCachePlan = {
+    copy(child = newChild)
+  }
 }

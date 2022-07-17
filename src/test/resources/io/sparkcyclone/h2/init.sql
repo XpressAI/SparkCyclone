@@ -4,7 +4,7 @@ CREATE TABLE Users (
  id int PRIMARY KEY NOT NULL,
  name varchar(255),
  surname varchar(255),
- joined_timestamp BIGINT UNSIGNED
+ joined_timestamp BIGINT
 );
 
 INSERT INTO Users

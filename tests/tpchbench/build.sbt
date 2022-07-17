@@ -6,7 +6,7 @@ libraryDependencies ++= Seq(
   "com.github.mrpowers" %% "spark-daria" % "0.38.2",
   "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-  "org.apache.spark" %% "spark-sql" % "3.1.1" % "provided",
+  "org.apache.spark" %% "spark-sql" % "3.3.0" % "provided",
   "org.scalatest" %% "scalatest" % "3.0.1" % "test"
 )
 

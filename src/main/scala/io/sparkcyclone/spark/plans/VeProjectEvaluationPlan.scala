@@ -104,6 +104,10 @@ final case class VeProjectEvaluationPlan(
         }
       }
   }
+
+  override def withNewChildInternal(newChild: SparkPlan): VeProjectEvaluationPlan = {
+    copy(child = newChild)
+  }
 }
 
 object VeProjectEvaluationPlan {

@@ -17,12 +17,12 @@ object LibLocation {
 
       } else {
         SparkCycloneExecutorPlugin.pluginContext.ask(
-          RequestCompiledLibraryForCode(libraryPath)
+          RequestCompiledLibrary(libraryPath)
         ) match {
           case RequestCompiledLibraryResponse(bytes) =>
             Files.write(
               path,
-              bytes.toByteArray,
+              bytes.toArray,
               StandardOpenOption.CREATE_NEW,
               StandardOpenOption.WRITE
             )

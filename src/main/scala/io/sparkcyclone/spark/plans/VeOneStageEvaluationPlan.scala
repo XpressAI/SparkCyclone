@@ -89,6 +89,11 @@ final case class VeOneStageEvaluationPlan(
       }
   }
 
-  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan = {
     copy(veFunction = f(veFunction))
+  }
+
+  override def withNewChildInternal(newChild: SparkPlan): VeOneStageEvaluationPlan = {
+    copy(child = newChild)
+  }
 }

@@ -120,4 +120,7 @@ case class VeHashExchangePlan(exchangeFunction: VeFunction, child: SparkPlan)
       }
   }
 
+  override def withNewChildInternal(newChild: SparkPlan): VeHashExchangePlan = {
+    copy(child = newChild)
+  }
 }

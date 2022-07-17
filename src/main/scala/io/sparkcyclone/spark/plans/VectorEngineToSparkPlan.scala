@@ -12,10 +12,10 @@ import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan, Unary
   Annotate the class with `ColumnarToRowTransition` to prevent Spark from injecting
   `RowToColumnarExec`s and `ColumnarToRowExec`s into the physical plan.
 */
-case class VectorEngineToSparkPlan(override val child: SparkPlan) extends UnaryExecNode
-                                                                  with ColumnarToRowTransition
-                                                                  with PlanMetrics
-                                                                  with LazyLogging {
+case class VectorEngineToSparkPlan(val child: SparkPlan) extends UnaryExecNode
+                                                          with ColumnarToRowTransition
+                                                          with PlanMetrics
+                                                          with LazyLogging {
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
   /*
@@ -56,5 +56,9 @@ case class VectorEngineToSparkPlan(override val child: SparkPlan) extends UnaryE
 
   override def output: Seq[Attribute] = {
     child.output
+  }
+
+  override def withNewChildInternal(newChild: SparkPlan): VectorEngineToSparkPlan = {
+    copy(child = newChild)
   }
 }

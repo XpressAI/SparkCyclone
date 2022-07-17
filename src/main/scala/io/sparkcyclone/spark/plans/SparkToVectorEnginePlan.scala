@@ -136,6 +136,11 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
     }
   }
 
-  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan =
+  override def withNewChildInternal(newChild: SparkPlan): SparkToVectorEnginePlan = {
+    copy(child = newChild)
+  }
+
+  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan = {
     copy(veFunction = f(veFunction))
+  }
 }

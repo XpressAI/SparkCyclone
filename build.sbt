@@ -17,19 +17,16 @@ Global / cancelable := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 /*
-  Do NOT modify this - Spark uses 2.12.10, and upgrading to newer minor versions
-  (e.g. 2.12.15) will cause issues because Spark uses some Scala library internals.
+  NOTE: Spark 2.12_3.3.0 has a dependency on 2.12.15.  Upgrades to newer minor
+  versions must be done carefully, as it may cause issues since Spark uses some
+  Scala library internals.
 */
-lazy val defaultScalaVersion = "2.12.10"
+lazy val defaultScalaVersion = "2.12.16"
 ThisBuild / scalaVersion := defaultScalaVersion
 ThisBuild / organization := "io.sparkcyclone"
 
-crossScalaVersions := Seq(defaultScalaVersion, "2.11.12")
-
 val sparkVersion = SettingKey[String]("sparkVersion")
-ThisBuild / sparkVersion := {
-  if (scalaVersion.value.startsWith("2.12")) "3.1.3" else "2.3.2"
-}
+ThisBuild / sparkVersion := "3.3.0"
 
 val debugRemotePort = SettingKey[Option[Int]]("debugRemotePort")
 // set debugRemotePort := Some(5005)
@@ -40,45 +37,33 @@ javaCppVersion := "1.5.7"
 
 resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
-lazy val silencerVersion = "1.6.0"
-lazy val slf4jVersion = "1.7.30"
+lazy val slf4jVersion = "1.7.36"
 
 libraryDependencies ++= Seq(
-  "ch.qos.logback" % "logback-classic" % "1.2.3" % "test,acc,ve",
-  "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,ve",
+  "ch.qos.logback" % "logback-classic" % "1.2.11" % "test,acc,ve",
   "com.eed3si9n.expecty" %% "expecty" % "0.15.4" % "test,acc,ve",
-  "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full,
-  "com.h2database" % "h2" % "1.4.200" % "test,ve",
-  "com.lihaoyi" %% "scalatags" % "0.10.0" % "test,tpc",
-  "com.lihaoyi" %% "sourcecode" % "0.2.7",
-  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1" % "test,acc,ve",
-  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
-  "com.vladsch.flexmark" % "flexmark-all" % "0.36.8" % "test,tpc",
-  "commons-io" % "commons-io" % "2.10.0",
-  "commons-io" % "commons-io" % "2.8.0" % "test",
-  "net.java.dev.jna" % "jna-platform" % "5.8.0",
+  "com.h2database" % "h2" % "2.1.214" % "test,ve",
+  "com.lihaoyi" %% "scalatags" % "0.11.1" % "test,tpc",
+  "com.lihaoyi" %% "sourcecode" % "0.3.0",
+  "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+  "com.vladsch.flexmark" % "flexmark-all" % "0.62.2" % "test,tpc",
+  "commons-io" % "commons-io" % "2.11.0",
+  // "commons-io" % "commons-io" % "2.10.0" % "test",
   "org.apache.spark" %% "spark-catalyst" % sparkVersion.value % "provided",
   "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT" classifier "linux-x86_64",
   "org.bytedeco" % "veoffload" % "2.8.2-1.5.7-SNAPSHOT",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value % "provided",
-  "org.scalatest" %% "scalatest" % "3.2.9" % "test,acc,ve",
-  "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test,ve",
+  "org.scala-lang" % "scala-library" % scalaVersion.value % "provided",
+  "org.scala-lang" % "scala-reflect" % scalaVersion.value % "provided",
+  "org.scalatest" %% "scalatest" % "3.2.12" % "test,acc,ve",
+  "org.scalatestplus" %% "scalacheck-1-16" % "3.2.12.0" % "test,ve",
   "org.slf4j" % "jcl-over-slf4j" % slf4jVersion % "provided",
   "org.slf4j" % "jul-to-slf4j" % slf4jVersion % "provided",
   // Log with logback in our scopes but not in production runs
-  "org.slf4j" % "log4j-over-slf4j" % "1.7.25" % "test,acc,ve",
+  "org.slf4j" % "log4j-over-slf4j" % slf4jVersion % "test,acc,ve",
 
-  compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full)
 ).map(_.excludeAll(ExclusionRule("*", "log4j"), ExclusionRule("*", "slf4j-log4j12")))
-
-libraryDependencies ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, n)) if n > 11 =>
-      List("com.nvidia" %% "rapids-4-spark" % "0.5.0" % "test,ve")
-    case _ => Nil
-  }
-}
 
 lazy val VectorEngineTestTag = "io.sparkcyclone.annotations.VectorEngineTest"
 
@@ -392,6 +377,7 @@ lazy val `fun-bench` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
+      "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,ve",
       "org.slf4j" % "log4j-over-slf4j" % "1.7.25",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
       "co.fs2" %% "fs2-io" % "3.0.6",
@@ -453,7 +439,7 @@ lazy val tpchbench = project
     libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.4",
     scalacOptions ++= Seq("-Xfatal-warnings", "-feature", "-deprecation"),
     version := "0.0.1",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.1.3" % "provided",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % sparkVersion.value % "provided",
     libraryDependencies += "com.github.mrpowers" %% "spark-daria" % "0.38.2",
     libraryDependencies += "com.github.mrpowers" %% "spark-fast-tests" % "0.21.3" % "test",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % "test",
@@ -480,6 +466,7 @@ lazy val `tpcbench-run` = project
   .disablePlugins(org.bytedeco.sbt.javacpp.Plugin)
   .settings(
     libraryDependencies ++= Seq(
+      "co.fs2" %% "fs2-io" % "3.0.6" % "test,acc,ve",
       "org.xerial" % "sqlite-jdbc" % "3.36.0.3",
       "org.tpolecat" %% "doobie-core" % "1.0.0-RC1",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC1",
@@ -704,7 +691,6 @@ lazy val `rddbench` = project
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion.value,
-      "org.apache.spark" %% "spark-yarn" % sparkVersion.value,
       "org.scalatest" %% "scalatest" % "3.2.10" % Test
     ),
     version := "0.1"

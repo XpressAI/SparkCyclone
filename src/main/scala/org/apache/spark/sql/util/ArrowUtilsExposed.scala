@@ -22,6 +22,10 @@ package org.apache.spark.sql.util
 import org.apache.arrow.vector.types.pojo.Schema
 import org.apache.spark.sql.types.StructType
 
+/*
+  The ArrowUtils object is declared as `private[sql]`, so this proxy is defined to
+  expose it for use by Spark Cyclone.
+*/
 object ArrowUtilsExposed {
   def toArrowSchema(schema: StructType, timeZoneId: String): Schema = {
     ArrowUtils.toArrowSchema(schema, timeZoneId)
