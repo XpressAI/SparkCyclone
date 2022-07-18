@@ -19,7 +19,7 @@ final case class BytePointerColBatch private[data] (columns: Seq[BytePointerColV
     columns.map(_.toSeqOptAny)
   }
 
-  def sizeInBytes: Long = {
+  override def sizeInBytes: Long = {
     columns.flatMap(_.buffers).map(_.nbytes).foldLeft(0L)(_ + _)
   }
 

@@ -120,7 +120,7 @@ final case class VeColBatch private[data] (columns: Seq[VeColVector]) extends Co
     stream.toByteArray
   }
 
-  def sizeInBytes: Long = {
+  override def sizeInBytes: Long = {
     columns.flatMap(_.bufferSizes).map(_.toLong).foldLeft(0L)(_ + _)
   }
 

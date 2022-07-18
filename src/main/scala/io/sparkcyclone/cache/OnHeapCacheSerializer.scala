@@ -16,12 +16,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
 /*
-  SQL cache serializer that uses the off-heap memory as the target.
+  SQL cache serializer that uses the JVM on-heap memory as the target.
 
   NOTE: This is still a work in progress, and is currently known to be broken
   for unknown reasons.
 */
-final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
+final class OnHeapCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
   import SparkCycloneExecutorPlugin._
 
   def requiresCleanUp: Boolean = {
@@ -33,9 +33,10 @@ final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with Laz
                                                storageLevel: StorageLevel,
                                                conf: SQLConf): RDD[CachedBatch] = {
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    logger.info(s"Converting RDD[InternalRow] to RDD[BytePointerColBatch <: CachedBatch] (target batch size ${encoding.targetNumRows}) for caching at storage level ${storageLevel}...")
-    input.toBytePointerColBatchRDD(attributes, encoding.targetNumRows).map { batch =>
-      logger.info(s"RDD[InternalRow] -> RDD[BytePointerColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
+    logger.info(s"Converting RDD[InternalRow] to RDD[ByteArrayColBatch <: CachedBatch] (batch size ${encoding.targetNumRows}) for caching at storage level ${storageLevel}...")
+    input.toBytePointerColBatchRDD(attributes, encoding.targetNumRows).map { batch0 =>
+      val batch = batch0.toByteArrayColBatch
+      logger.info(s"RDD[InternalRow] -> RDD[ByteArrayColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
       batch: CachedBatch
     }
   }
@@ -44,10 +45,11 @@ final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with Laz
                                                  attributes: Seq[Attribute],
                                                  storageLevel: StorageLevel,
                                                  conf: SQLConf): RDD[CachedBatch] = {
-    logger.info(s"Converting RDD[ColumnarBatch] to RDD[BytePointerColBatch <: CachedBatch] for caching at storage level ${storageLevel}...")
+    logger.info(s"Converting RDD[ColumnarBatch] to RDD[ByteArrayColBatch <: CachedBatch] for caching at storage level ${storageLevel}...")
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.map(_.toBytePointerColBatch(encoding.makeArrowSchema(attributes))).map { batch =>
-      logger.info(s"RDD[ColumnarBatch] -> RDD[BytePointerColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
+    input.map { batch0 =>
+      val batch = batch0.toBytePointerColBatch(encoding.makeArrowSchema(attributes)).toByteArrayColBatch
+      logger.info(s"RDD[ColumnarBatch] -> RDD[ByteArrayColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
       batch: CachedBatch
     }
   }
@@ -56,18 +58,18 @@ final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with Laz
                                                cacheAttributes: Seq[Attribute],
                                                selectedAttributes: Seq[Attribute],
                                                conf: SQLConf): RDD[InternalRow] = {
-    logger.info("Converting RDD[BytePointerColBatch <: CachedBatch] to RDD[InternalRow]...")
-    input.flatMap(_.asInstanceOf[BytePointerColBatch].internalRowIterator)
+    logger.info("Converting RDD[ByteArrayColBatch <: CachedBatch] to RDD[InternalRow]...")
+    input.flatMap(_.asInstanceOf[ByteArrayColBatch].toBytePointerColBatch.internalRowIterator)
   }
 
   override def convertCachedBatchToColumnarBatch(input: RDD[CachedBatch],
                                                  cacheAttributes: Seq[Attribute],
                                                  selectedAttributes: Seq[Attribute],
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
-    logger.info("Converting RDD[BytePointerColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
+    logger.info("Converting RDD[ByteArrayColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
     input.map { batch =>
       logger.info(s"RDD[CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows})")
-      batch.asInstanceOf[BytePointerColBatch].toSparkColumnarBatch
+      batch.asInstanceOf[ByteArrayColBatch].toSparkColumnarBatch
     }
   }
 }

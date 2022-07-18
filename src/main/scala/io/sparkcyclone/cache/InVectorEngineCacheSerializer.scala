@@ -17,11 +17,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
 /*
-  Cache that uses the Vector Engine as the target.  This does not account for VE
-  memory usage at all as Spark API assumes only CPU as a Serializer.
+  SQL cache serializer that uses the Vector Engine as the target.  This does not
+  account for VE memory usage at all as Spark API assumes only CPU as a
+  Serializer.
 
-  NOTE: This is still a work in progress, as the use of this serializer requires
-  changes in either [[VERewriteStrategy]] and/or [[SparkToVectorEnginePlan]].
+  NOTE: This is still a work in progress, and is currently known to be broken
+  for unknown reasons.
 */
 final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
   import SparkCycloneExecutorPlugin._
@@ -34,18 +35,24 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer w
                                                attributes: Seq[Attribute],
                                                storageLevel: StorageLevel,
                                                conf: SQLConf): RDD[CachedBatch] = {
-    logger.info("Converting RDD[InternalRow] to RDD[VeColBatch <: CachedBatch]...")
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDD(attributes, encoding.targetNumRows).map(x => x: CachedBatch)
+    logger.info(s"Converting RDD[InternalRow] to RDD[VeColBatch <: CachedBatch] (batch size ${encoding.targetNumRows}) for caching at storage level ${storageLevel}...")
+    input.toVeColBatchRDD(attributes, encoding.targetNumRows).map { batch =>
+      logger.info(s"RDD[InternalRow] -> RDD[VeColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
+      batch: CachedBatch
+    }
   }
 
   override def convertColumnarBatchToCachedBatch(input: RDD[ColumnarBatch],
                                                  attributes: Seq[Attribute],
                                                  storageLevel: StorageLevel,
                                                  conf: SQLConf): RDD[CachedBatch] = {
-    logger.info("Converting RDD[ColumnarBatch] to RDD[VeColBatch <: CachedBatch]...")
+    logger.info(s"Converting RDD[ColumnarBatch] to RDD[VeColBatch <: CachedBatch] for caching at storage level ${storageLevel}...")
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDD(encoding.makeArrowSchema(attributes)).map(x => x: CachedBatch)
+    input.toVeColBatchRDD(encoding.makeArrowSchema(attributes)).map { batch =>
+      logger.info(s"RDD[ColumnarBatch] -> RDD[VeColBatch <: CachedBatch]: Generated a batch (rows = ${batch.numRows}, size = ${batch.sizeInBytes})")
+      batch: CachedBatch
+    }
   }
 
   override def convertCachedBatchToInternalRow(input: RDD[CachedBatch],
@@ -61,6 +68,9 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer w
                                                  selectedAttributes: Seq[Attribute],
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
     logger.info("Converting RDD[VeColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
-    input.map(_.asInstanceOf[VeColBatch].toSparkColumnarBatch)
+    input.map { batch =>
+      logger.info(s"RDD[VeColBatch <: CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows})")
+      batch.asInstanceOf[VeColBatch].toSparkColumnarBatch
+    }
   }
 }

@@ -54,7 +54,9 @@ object RDDConversions {
               currentRowCount += 1
             }
 
-            descriptor.toBytePointerColBatch
+            val batch = descriptor.toBytePointerColBatch
+            descriptor.close
+            batch
           }
         }
       }
