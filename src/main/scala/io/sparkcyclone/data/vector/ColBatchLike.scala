@@ -1,6 +1,7 @@
 package io.sparkcyclone.data.vector
 
 import io.sparkcyclone.native.code.VeType
+import org.apache.spark.sql.catalyst.expressions.{Attribute, PrettyAttribute}
 import org.apache.spark.sql.columnar.CachedBatch
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -30,6 +31,10 @@ trait ColBatchLike[+C <: ColVectorLike] extends CachedBatch {
 
   final def sparkSchema: Seq[DataType] = {
     veTypes.map(_.toSparkType)
+  }
+
+  final def sparkAttributes: Seq[Attribute] = {
+    columns.map { col => PrettyAttribute(col.name, col.veType.toSparkType) }
   }
 
   final def toSparkColumnarBatch: ColumnarBatch = {

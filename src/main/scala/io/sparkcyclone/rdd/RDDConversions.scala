@@ -2,7 +2,7 @@ package io.sparkcyclone.rdd
 
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
-import io.sparkcyclone.data.vector.{ByteArrayColBatch, VeColBatch}
+import io.sparkcyclone.data.vector.{BytePointerColBatch, VeColBatch}
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.util.CallContextOps._
 import org.apache.arrow.vector.types.pojo.Schema
@@ -32,6 +32,29 @@ object RDDConversions {
             }
 
             vectorEngine.executeTransfer(descriptor)
+          }
+        }
+      }
+    }
+
+    def toBytePointerColBatchRDD(attributes: Seq[Attribute],
+                                 targetBatchSize: Int): RDD[BytePointerColBatch] = {
+      rdd.mapPartitions { rows =>
+        new Iterator[BytePointerColBatch] {
+          override def hasNext: Boolean = {
+            rows.hasNext
+          }
+
+          override def next: BytePointerColBatch = {
+            var currentRowCount = 0
+            val descriptor = RowCollectingTransferDescriptor(attributes, targetBatchSize)
+
+            while (rows.hasNext && currentRowCount < targetBatchSize) {
+              descriptor.append(rows.next)
+              currentRowCount += 1
+            }
+
+            descriptor.toBytePointerColBatch
           }
         }
       }

@@ -66,7 +66,7 @@ object ArrayTConversions {
     }
   }
 
-  private[conversion] implicit class ExtendedArrayArrayByte(bytesAA: Array[Array[Byte]]) {
+  private[data] implicit class ExtendedArrayArrayByte(bytesAA: Array[Array[Byte]]) {
     def constructBuffers: (BytePointer, BytePointer, BytePointer) = {
       // Allocate the buffers
       val dataBuffer = new BytePointer(bytesAA.foldLeft(0)(_ + _.size).toLong)

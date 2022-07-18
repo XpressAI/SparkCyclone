@@ -1,12 +1,11 @@
 package io.sparkcyclone.cache
 
 import io.sparkcyclone.data.ColumnBatchEncoding
-import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
-import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
+import io.sparkcyclone.data.transfer.BpcvTransferDescriptor
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin
 import io.sparkcyclone.rdd.RDDConversions._
-import io.sparkcyclone.util.CallContext
-import scala.util.Try
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -17,50 +16,46 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
 /*
-  Cache that uses the Vector Engine as the target.  This does not account for VE
-  memory usage at all as Spark API assumes only CPU as a Serializer.
-
-  NOTE: This is still a work in progress, as the use of this serializer requires
-  changes in either [[VERewriteStrategy]] and/or [[SparkToVectorEnginePlan]].
+  Cache that uses the off heap memory as the target.
 */
-final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
+final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
   import SparkCycloneExecutorPlugin._
 
   def requiresCleanUp: Boolean = {
-    false
+    true
   }
 
   override def convertInternalRowToCachedBatch(input: RDD[InternalRow],
                                                attributes: Seq[Attribute],
                                                storageLevel: StorageLevel,
                                                conf: SQLConf): RDD[CachedBatch] = {
-    logger.info("Converting RDD[InternalRow] to RDD[VeColBatch <: CachedBatch]...")
+    logger.info("Converting RDD[InternalRow] to RDD[BytePointerColBatch <: CachedBatch]...")
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDD(attributes, encoding.targetNumRows).map(x => x: CachedBatch)
+    input.toBytePointerColBatchRDD(attributes, encoding.targetNumRows).map(x => x: CachedBatch)
   }
 
   override def convertColumnarBatchToCachedBatch(input: RDD[ColumnarBatch],
                                                  attributes: Seq[Attribute],
                                                  storageLevel: StorageLevel,
                                                  conf: SQLConf): RDD[CachedBatch] = {
-    logger.info("Converting RDD[ColumnarBatch] to RDD[VeColBatch <: CachedBatch]...")
+    logger.info("Converting RDD[ColumnarBatch] to RDD[BytePointerColBatch <: CachedBatch]...")
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDD(encoding.makeArrowSchema(attributes)).map(x => x: CachedBatch)
+    input.map(_.toBytePointerColBatch(encoding.makeArrowSchema(attributes)): CachedBatch)
   }
 
   override def convertCachedBatchToInternalRow(input: RDD[CachedBatch],
                                                cacheAttributes: Seq[Attribute],
                                                selectedAttributes: Seq[Attribute],
                                                conf: SQLConf): RDD[InternalRow] = {
-    logger.info("Converting RDD[VeColBatch <: CachedBatch] to RDD[InternalRow]...")
-    input.flatMap(_.asInstanceOf[VeColBatch].toBytePointerColBatch.internalRowIterator)
+    logger.info("Converting RDD[BytePointerColBatch <: CachedBatch] to RDD[InternalRow]...")
+    input.flatMap(_.asInstanceOf[BytePointerColBatch].internalRowIterator)
   }
 
   override def convertCachedBatchToColumnarBatch(input: RDD[CachedBatch],
                                                  cacheAttributes: Seq[Attribute],
                                                  selectedAttributes: Seq[Attribute],
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
-    logger.info("Converting RDD[VeColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
-    input.map(_.asInstanceOf[VeColBatch].toSparkColumnarBatch)
+    logger.info("Converting RDD[BytePointerColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
+    input.map(_.asInstanceOf[BytePointerColBatch].toSparkColumnarBatch)
   }
 }

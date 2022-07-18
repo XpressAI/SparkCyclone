@@ -3,8 +3,9 @@ package io.sparkcyclone.data.vector
 import io.sparkcyclone.native.code.{VeScalarType, VeString, VeType}
 
 trait ColVectorLike {
-  def numItems: Int
+  def name: String
   def veType: VeType
+  def numItems: Int
   def dataSize: Option[Int]
 
   final def nonEmpty: Boolean = {

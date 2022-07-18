@@ -1,10 +1,13 @@
 package io.sparkcyclone.data.transfer
 
-import io.sparkcyclone.data.VeColVectorSource
+import io.sparkcyclone.data._
+import io.sparkcyclone.data.conversion.SeqOptTConversions._
+import io.sparkcyclone.data.vector.BytePointerColBatch
 import io.sparkcyclone.annotations.VectorEngineTest
 import io.sparkcyclone.util.FixedBitSet
 import io.sparkcyclone.util.PointerOps._
 import io.sparkcyclone.vectorengine.WithVeProcess
+import scala.util.Random
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, GenericInternalRow, PrettyAttribute}
 import org.apache.spark.sql.types.{DoubleType, FloatType, ShortType, StringType}
@@ -186,6 +189,31 @@ final class RowCollectingTransferDescriptorUnitSpec extends AnyWordSpec with Wit
 
       col4.container should be (10)
       col4.buffers should be (Seq(11, 12, 13, 14))
+    }
+
+    "correctly generate a BytePointerColBatch" in {
+      val size = Random.nextInt(50) + 10
+      val x1 = InputSamples.seqOpt[Int](size)
+      val x2 = InputSamples.seqOpt[Double](size)
+      val x3 = InputSamples.seqOpt[String](size)
+
+      val batch1 = BytePointerColBatch(Seq(
+        x1.toBytePointerColVector("_"),
+        x2.toBytePointerColVector("_"),
+        x3.toBytePointerColVector("_")
+      ))
+
+      val batch2 = batch1.internalRowIterator
+        .foldLeft(RowCollectingTransferDescriptor(batch1.sparkAttributes, size)) { case (accum, row) =>
+          accum.append(row)
+          accum
+        }
+        .toBytePointerColBatch
+
+      batch2.numCols should be (batch1.numCols)
+      batch2.columns(0).toSeqOpt[Int] should be (x1)
+      batch2.columns(1).toSeqOpt[Double] should be (x2)
+      batch2.columns(2).toSeqOpt[String] should be (x3)
     }
   }
 }
