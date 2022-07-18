@@ -219,7 +219,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeOneStageEvaluationPlan(
           outputExpressions = s.output,
           veFunction = veFunction,
-          child = SparkToVectorEnginePlan(planLater(child), veFunction, Some(orders)),
+          child = SparkToVectorEnginePlan(planLater(child), Some(orders)),
         )
       )
     )
@@ -352,7 +352,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     } yield {
       val partialAggregatePlan = VePartialAggregatePlan(
         partialFunction = partialAggregateFn.toVeFunction,
-        child = SparkToVectorEnginePlan(planLater(child), partialAggregateFn.toVeFunction),
+        child = SparkToVectorEnginePlan(planLater(child)),
         expectedOutputs = partialAggregateFn.outputs
           .map(_.veType)
           .zipWithIndex
@@ -434,13 +434,13 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
         VeProjectEvaluationPlan(
           outputExpressions = projectList,
           veFunction = veFunction,
-          child = SparkToVectorEnginePlan(planLater(child), veFunction)
+          child = SparkToVectorEnginePlan(planLater(child))
         )
       } else {
         VeOneStageEvaluationPlan(
           outputExpressions = projectList,
           veFunction = veFunction,
-          child = SparkToVectorEnginePlan(planLater(child), veFunction)
+          child = SparkToVectorEnginePlan(planLater(child))
         )
       }))
     }
@@ -495,7 +495,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
       val filterPlan = VeOneStageEvaluationPlan(
         outputExpressions = f.output,
         veFunction = veFunction,
-        child = SparkToVectorEnginePlan(planLater(child), veFunction)
+        child = SparkToVectorEnginePlan(planLater(child))
       )
 
       List(
@@ -582,7 +582,7 @@ final case class VERewriteStrategy(options: VeRewriteStrategyOptions)
     val veFunction = exchangeFn.toVeFunction
     VeHashExchangePlan(
       exchangeFunction = veFunction,
-      child = SparkToVectorEnginePlan(planLater(child), veFunction)
+      child = SparkToVectorEnginePlan(planLater(child))
     )
   }
 

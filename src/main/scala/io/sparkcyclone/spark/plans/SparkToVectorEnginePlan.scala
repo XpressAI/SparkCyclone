@@ -18,12 +18,10 @@ import org.apache.spark.sql.catalyst.plans.physical.{Distribution, OrderedDistri
 import org.apache.spark.sql.execution.{RowToColumnarTransition, SparkPlan, UnaryExecNode}
 
 final case class SparkToVectorEnginePlan(val child: SparkPlan,
-                                         val veFunction: VeFunction,
                                          sortOrder: Option[Seq[SortOrder]] = None)
                                          extends UnaryExecNode
                                          with LazyLogging
                                          with SupportsVeColBatch
-                                         with PlanCallsVeFunction
                                          with RowToColumnarTransition
                                          with PlanMetrics {
 
@@ -48,45 +46,6 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
   override def dataCleanup: DataCleanup = {
     DataCleanup.cleanup(getClass)
   }
-
-  private[plans] def loadLibCyclone: LibraryReference = {
-    /*
-      The veFunction is used to locate and load the Cyclone C++ library, so that
-      `handle_transfer` can be called.
-
-      TODO: Find a better way of calling a library function ("handle_transfer") from here
-    */
-    veProcess.load(veFunction.libraryPath.getParent.resolve("sources").resolve(LibCyclone.FileName))
-  }
-
-  // private[plans] def executeFromColInput: RDD[VeColBatch] = {
-  //   val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
-
-  //   child.executeColumnar.mapPartitions { colbatches =>
-  //     val schema = encoding.makeArrowSchema(child.output)
-
-  //     withInvocationMetrics(PLAN) {
-  //       val descriptor = withInvocationMetrics("Conversion") {
-  //         collectBatchMetrics(INPUT, colbatches)
-  //           .foldLeft(new BpcvTransferDescriptor.Builder()) { case (builder, colbatch) =>
-  //             builder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
-  //           }
-  //           .build()
-  //       }
-
-  //       collectBatchMetrics(OUTPUT, if (descriptor.isEmpty) {
-  //         logger.debug("Empty transfer descriptor")
-  //         Iterator.empty
-
-  //       } else {
-  //         val batch = withInvocationMetrics(VE) {
-  //           vectorEngine.executeTransfer(loadLibCyclone, descriptor)
-  //         }
-  //         Seq(batch).iterator
-  //       })
-  //     }
-  //   }
-  // }
 
   private[plans] def executeFromColInput: RDD[VeColBatch] = {
     val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
@@ -119,7 +78,7 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
         }
 
         val newbatches = if (descriptor.nonEmpty) {
-          Seq(withInvocationMetrics(VE) { vectorEngine.executeTransfer(loadLibCyclone, descriptor) })
+          Seq(withInvocationMetrics(VE) { vectorEngine.executeTransfer(descriptor) })
         } else {
           Seq.empty
         }
@@ -157,7 +116,7 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
             }
 
             val batch = withInvocationMetrics(VE) {
-              vectorEngine.executeTransfer(loadLibCyclone, descriptor)
+              vectorEngine.executeTransfer(descriptor)
             }
 
             collectBatchMetrics(OUTPUT, batch)
@@ -180,9 +139,5 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
 
   override def withNewChildInternal(newChild: SparkPlan): SparkToVectorEnginePlan = {
     copy(child = newChild)
-  }
-
-  override def updateVeFunction(f: VeFunction => VeFunction): SparkPlan = {
-    copy(veFunction = f(veFunction))
   }
 }

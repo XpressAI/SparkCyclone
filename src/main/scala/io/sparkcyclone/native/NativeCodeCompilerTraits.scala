@@ -20,6 +20,7 @@
 package io.sparkcyclone.native
 
 import io.sparkcyclone.native.compiler._
+import io.sparkcyclone.native.compiler.CppResource.CppResources
 import io.sparkcyclone.native.code.{CFunction2, CodeLines}
 import java.nio.file.{Files, Path, Paths}
 import com.typesafe.scalalogging.LazyLogging
@@ -107,15 +108,21 @@ object NativeCodeCompiler extends LazyLogging {
                         context: PluginContext): NativeCodeCompiler = {
     val veconfig = VeCompilerConfig.fromSparkConf(config)
 
-    // Allow for possible other underlying compilers in the future
-    val underlying = config.getOption("spark.cyclone.kernel.directory").map(Paths.get(_))  match {
-      case Some(dir) =>
-        OnDemandVeCodeCompiler(dir, veconfig)
+    // Determine the kernel build directory
+    val cwd = (config.getOption("spark.cyclone.kernel.directory").map(Paths.get(_)) match {
+      case Some(dir)  => dir
+      case None       => Files.createTempDirectory("ve-spark-tmp", VeKernelCompilation.FileAttributes)
+    }).toAbsolutePath
+    logger.info(s"Using the following directory for building Spark Cyclone kernels: ${cwd}")
 
-      case None =>
-        val dir = Files.createTempDirectory("ve-spark-tmp", VeKernelCompilation.FileAttributes).toAbsolutePath
-        OnDemandVeCodeCompiler(dir, veconfig)
-    }
+    // Copy libcyclone.so over
+    val sourcespath = cwd.resolve("sources")
+    CppResources.AllVe.copyTo(sourcespath)
+    logger.info(s"Copied C++ library sources and libcyclone.so over to: ${sourcespath}")
+
+    // Initialize the underlying compiler
+    val underlying = OnDemandVeCodeCompiler(cwd, veconfig)
+    logger.info(s"Initialized the underlying native code compiler: ${underlying}")
 
     // Extend compiler with a cache
     CachingNativeCodeCompiler(underlying)

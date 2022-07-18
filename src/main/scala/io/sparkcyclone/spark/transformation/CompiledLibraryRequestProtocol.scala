@@ -22,3 +22,7 @@ package io.sparkcyclone.spark.transformation
 final case class RequestCompiledLibrary(path: String) extends Serializable
 
 final case class RequestCompiledLibraryResponse(bytes: Vector[Byte]) extends Serializable
+
+final object RequestLibCyclone extends Serializable
+
+final case class RequestLibCycloneResponse(destpath: String, bytes: Vector[Byte]) extends Serializable

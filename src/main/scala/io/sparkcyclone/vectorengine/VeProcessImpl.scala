@@ -597,7 +597,7 @@ final case class WrappingVeo private (val node: Int,
         // Complain about un-released heap allocations
         val hRecords = heapRecords.take(MaxToShow)
         if (hRecords.nonEmpty) {
-          logger.error(s"There were some unreleased heap allocations. First ${MaxToShow}:")
+          logger.error(s"There were ${heapRecords.size} unreleased heap allocations. First ${MaxToShow}:")
           hRecords.foreach { case (_, record) =>
             logger.error(s"Position: ${record.address}", record.toThrowable)
           }
@@ -608,7 +608,7 @@ final case class WrappingVeo private (val node: Int,
         // Complain about un-released args stack allocations
         val sRecords = stackRecords.take(MaxToShow)
         if (sRecords.nonEmpty) {
-          logger.error(s"There were some unreleased stack allocations. First ${MaxToShow}:")
+          logger.error(s"There were ${stackRecords.size} unreleased stack allocations. First ${MaxToShow}:")
           sRecords.foreach { case (_, record) =>
             logger.error(s"Position: ${record.args.address}")
           }
