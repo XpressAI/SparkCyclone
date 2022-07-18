@@ -36,24 +36,9 @@ object RDDConversions {
         }
       }
     }
-
-    def toVeColBatchRDDCached(attributes: Seq[Attribute],
-                              targetBatchSize: Int): RDD[CachedBatch] = {
-      toVeColBatchRDD(attributes, targetBatchSize).map(x => x: CachedBatch)
-    }
   }
 
   implicit class ColumnarBatchRDDConversions(rdd: RDD[ColumnarBatch]) {
-    def toByteArrayColBatchRDD(schema: Schema): RDD[ByteArrayColBatch] = {
-      rdd.mapPartitions { colbatches =>
-        colbatches.map(_.toBytePointerColBatch(schema).toByteArrayColBatch)
-      }
-    }
-
-    def toByteArrayColBatchRDDCached(schema: Schema): RDD[CachedBatch] = {
-      toByteArrayColBatchRDD(schema).map(x => x: CachedBatch)
-    }
-
     def toVeColBatchRDD(schema: Schema): RDD[VeColBatch] = {
       rdd.mapPartitions { colbatches =>
         val descriptor = colbatches
@@ -68,10 +53,6 @@ object RDDConversions {
           Seq(vectorEngine.executeTransfer(descriptor)).iterator
         }
       }
-    }
-
-    def toVeColBatchRDDCached(schema: Schema): RDD[CachedBatch] = {
-      toVeColBatchRDD(schema).map(x => x: CachedBatch)
     }
   }
 }

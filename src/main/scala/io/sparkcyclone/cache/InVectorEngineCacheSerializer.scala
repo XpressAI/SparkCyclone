@@ -34,7 +34,7 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer {
                                                storageLevel: StorageLevel,
                                                conf: SQLConf): RDD[CachedBatch] = {
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDDCached(attributes, encoding.targetNumRows)
+    input.toVeColBatchRDD(attributes, encoding.targetNumRows).map(x => x: CachedBatch)
   }
 
   override def convertColumnarBatchToCachedBatch(input: RDD[ColumnarBatch],
@@ -42,7 +42,7 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer {
                                                  storageLevel: StorageLevel,
                                                  conf: SQLConf): RDD[CachedBatch] = {
     val encoding = ColumnBatchEncoding.fromConf(conf)(input.sparkContext)
-    input.toVeColBatchRDDCached(encoding.makeArrowSchema(attributes))
+    input.toVeColBatchRDD(encoding.makeArrowSchema(attributes)).map(x => x: CachedBatch)
   }
 
   override def convertCachedBatchToInternalRow(input: RDD[CachedBatch],

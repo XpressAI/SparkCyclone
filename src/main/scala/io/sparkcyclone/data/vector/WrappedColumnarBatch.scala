@@ -5,7 +5,6 @@ import org.apache.spark.sql.vectorized._
 import org.apache.spark.unsafe.types.UTF8String
 import scala.reflect.ClassTag
 import java.util.{Iterator => JIterator}
-import org.apache.spark.sql.columnar.CachedBatch
 
 /*
   Implementation of a [[ColumnarBatch]] backed by a SparkCyclone-defined
@@ -17,7 +16,7 @@ import org.apache.spark.sql.columnar.CachedBatch
   calls are intentional.
 */
 final case class WrappedColumnarBatch[C <: ColVectorLike] private[data] (val underlying: ColBatchLike[C])
-  extends ColumnarBatch(Array.empty[ColumnVector], 0) with CachedBatch {
+  extends ColumnarBatch(Array.empty[ColumnVector], 0) {
 
   private[vector] def unsupported: Nothing = {
     throw new UnsupportedOperationException("Operation is not supported - this class is only intended to be a data carrier class.")
@@ -35,10 +34,6 @@ final case class WrappedColumnarBatch[C <: ColVectorLike] private[data] (val und
 
   override def numRows: Int = {
     underlying.numRows
-  }
-
-  override def sizeInBytes: Long = {
-    underlying.sizeInBytes
   }
 
   override def column(ordinal: Int): ColumnVector = unsupported

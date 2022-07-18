@@ -4,11 +4,12 @@ import io.sparkcyclone.data.ColumnBatchEncoding
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
-import io.sparkcyclone.data.vector.VeColBatch
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.spark.transformation._
 import io.sparkcyclone.util.CallContextOps._
 import io.sparkcyclone.vectorengine.{LibCyclone, LibraryReference}
+import scala.collection.mutable.{Buffer => MSeq}
 import scala.util.Try
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
@@ -18,12 +19,13 @@ import org.apache.spark.sql.execution.{RowToColumnarTransition, SparkPlan, Unary
 
 final case class SparkToVectorEnginePlan(val child: SparkPlan,
                                          val veFunction: VeFunction,
-                                         sortOrder: Option[Seq[SortOrder]] = None) extends UnaryExecNode
-                                                                                    with LazyLogging
-                                                                                    with SupportsVeColBatch
-                                                                                    with PlanCallsVeFunction
-                                                                                    with RowToColumnarTransition
-                                                                                    with PlanMetrics {
+                                         sortOrder: Option[Seq[SortOrder]] = None)
+                                         extends UnaryExecNode
+                                         with LazyLogging
+                                         with SupportsVeColBatch
+                                         with PlanCallsVeFunction
+                                         with RowToColumnarTransition
+                                         with PlanMetrics {
 
   override lazy val metrics = invocationMetrics(PLAN) ++ invocationMetrics(VE) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT) ++ invocationMetrics("Conversion") ++ invocationMetrics("Materialization") ++ batchMetrics("byte")
 
@@ -57,31 +59,72 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
     veProcess.load(veFunction.libraryPath.getParent.resolve("sources").resolve(LibCyclone.FileName))
   }
 
+  // private[plans] def executeFromColInput: RDD[VeColBatch] = {
+  //   val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
+
+  //   child.executeColumnar.mapPartitions { colbatches =>
+  //     val schema = encoding.makeArrowSchema(child.output)
+
+  //     withInvocationMetrics(PLAN) {
+  //       val descriptor = withInvocationMetrics("Conversion") {
+  //         collectBatchMetrics(INPUT, colbatches)
+  //           .foldLeft(new BpcvTransferDescriptor.Builder()) { case (builder, colbatch) =>
+  //             builder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
+  //           }
+  //           .build()
+  //       }
+
+  //       collectBatchMetrics(OUTPUT, if (descriptor.isEmpty) {
+  //         logger.debug("Empty transfer descriptor")
+  //         Iterator.empty
+
+  //       } else {
+  //         val batch = withInvocationMetrics(VE) {
+  //           vectorEngine.executeTransfer(loadLibCyclone, descriptor)
+  //         }
+  //         Seq(batch).iterator
+  //       })
+  //     }
+  //   }
+  // }
+
   private[plans] def executeFromColInput: RDD[VeColBatch] = {
     val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
 
     child.executeColumnar.mapPartitions { colbatches =>
       val schema = encoding.makeArrowSchema(child.output)
+      val dbuilder = new BpcvTransferDescriptor.Builder()
+      val oldbatches = MSeq.empty[VeColBatch]
 
       withInvocationMetrics(PLAN) {
-        val descriptor = withInvocationMetrics("Conversion") {
-          collectBatchMetrics(INPUT, colbatches)
-            .foldLeft(new BpcvTransferDescriptor.Builder()) { case (builder, colbatch) =>
-              builder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
-            }
-            .build()
+        colbatches.map(collectBatchMetrics(INPUT, _)).foreach {
+          case WrappedColumnarBatch(wrapped: BytePointerColBatch) =>
+            dbuilder.newBatch().addColumns(wrapped.columns)
+
+          case WrappedColumnarBatch(wrapped: ByteArrayColBatch) =>
+            dbuilder.newBatch().addColumns(wrapped.toBytePointerColBatch.columns)
+
+          case WrappedColumnarBatch(wrapped: VeColBatch) =>
+            oldbatches += wrapped
+
+          case WrappedColumnarBatch(other) =>
+            sys.error(s"WrappedColumnarBatch[${other.getClass.getSimpleName}] is currently not supported")
+
+          case colbatch =>
+            dbuilder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
         }
 
-        collectBatchMetrics(OUTPUT, if (descriptor.isEmpty) {
-          logger.debug("Empty transfer descriptor")
-          Iterator.empty
+        val descriptor = withInvocationMetrics("Conversion") {
+          dbuilder.build
+        }
 
+        val newbatches = if (descriptor.nonEmpty) {
+          Seq(withInvocationMetrics(VE) { vectorEngine.executeTransfer(loadLibCyclone, descriptor) })
         } else {
-          val batch = withInvocationMetrics(VE) {
-            vectorEngine.executeTransfer(loadLibCyclone, descriptor)
-          }
-          Seq(batch).iterator
-        })
+          Seq.empty
+        }
+
+        collectBatchMetrics(OUTPUT, (oldbatches ++ newbatches).iterator)
       }
     }
   }
@@ -127,7 +170,6 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
   override def executeVeColumnar: RDD[VeColBatch] = {
     require(! child.isInstanceOf[SupportsVeColBatch], "Child plan should not be a VE plan")
     initializeMetrics()
-    val byteTotalBatchRowCount = longMetric(s"byteTotalBatchRowCount")
 
     if (child.supportsColumnar) {
       executeFromColInput
