@@ -28,22 +28,6 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
   override lazy val metrics = invocationMetrics(BATCH) ++ batchMetrics(INPUT) ++ batchMetrics(OUTPUT)
 
-  // override def executeVeColumnar: RDD[VeColBatch] = {
-  //   initializeMetrics()
-
-  //   child
-  //     .executeColumnar
-  //     .map { colbatch =>
-  //       logger.debug(s"Mapping ColumnarBatch ${colbatch} to VE")
-  //       collectBatchMetrics(INPUT, colbatch)
-  //       withInvocationMetrics(BATCH) {
-  //         val batch = VeColBatch(colbatch.columns.map(_.asInstanceOf[WrappedColumnVector].toVeColVector))
-  //         logger.debug(s"Finished mapping ColumnarBatch ${colbatch} to VE: ${batch}")
-  //         collectBatchMetrics(OUTPUT, batch)
-  //       }
-  //     }
-  // }
-
   override def executeVeColumnar: RDD[VeColBatch] = {
     initializeMetrics()
     val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
