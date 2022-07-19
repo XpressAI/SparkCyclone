@@ -15,7 +15,7 @@ import java.util.{Iterator => JIterator}
   returned.  It is NOT for general consumption, and as such, the `unsupported`
   calls are intentional.
 */
-final case class WrappedColumnarBatch[C <: ColVectorLike] private[data] (val underlying: ColBatchLike[C])
+final case class WrappedColumnarBatch[C <: ColVectorLike] private[data] (underlying: ColBatchLike[C])
   extends ColumnarBatch(Array.empty[ColumnVector], 0) {
 
   private[vector] def unsupported: Nothing = {

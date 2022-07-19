@@ -41,6 +41,8 @@ class DefaultCachedBatchSerializerWithLogging extends DefaultCachedBatchSerializ
                                                selectedAttributes: Seq[Attribute],
                                                conf: SQLConf): RDD[InternalRow] = {
     logger.info("Converting RDD[CachedBatch] to RDD[InternalRow]...")
+    logger.info(s"Cached attributes:    ${cacheAttributes}")
+    logger.info(s"Selected attributes:  ${selectedAttributes}")
     super.convertCachedBatchToInternalRow(input, cacheAttributes, selectedAttributes, conf)
   }
 
@@ -48,9 +50,11 @@ class DefaultCachedBatchSerializerWithLogging extends DefaultCachedBatchSerializ
                                                  cacheAttributes: Seq[Attribute],
                                                  selectedAttributes: Seq[Attribute],
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
-    logger.info("Converting RDD[CachedBatch] to RDD[ColumnarBatch]...")
+    logger.info(s"Converting RDD[CachedBatch] to RDD[ColumnarBatch] (selecting ${selectedAttributes.size} of ${cacheAttributes.size} columns)...")
+    logger.info(s"Cached attributes:    ${cacheAttributes}")
+    logger.info(s"Selected attributes:  ${selectedAttributes}")
     super.convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf).map { batch =>
-      logger.info(s"RDD[CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows})")
+      logger.info(s"RDD[CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows}, cols = ${batch.numCols})")
       batch
     }
   }

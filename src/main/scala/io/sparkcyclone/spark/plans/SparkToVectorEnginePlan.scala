@@ -58,18 +58,22 @@ final case class SparkToVectorEnginePlan(val child: SparkPlan,
       withInvocationMetrics(PLAN) {
         colbatches.map(collectBatchMetrics(INPUT, _)).foreach {
           case WrappedColumnarBatch(wrapped: BytePointerColBatch) =>
+            logger.debug(s"Got a BytePointerColBatch (rows = ${wrapped.numRows})")
             dbuilder.newBatch().addColumns(wrapped.columns)
 
           case WrappedColumnarBatch(wrapped: ByteArrayColBatch) =>
+            logger.debug(s"Got a ByteArrayColBatch (rows = ${wrapped.numRows})")
             dbuilder.newBatch().addColumns(wrapped.toBytePointerColBatch.columns)
 
           case WrappedColumnarBatch(wrapped: VeColBatch) =>
+            logger.debug(s"Got a VeColBatch (rows = ${wrapped.numRows})")
             oldbatches += wrapped
 
           case WrappedColumnarBatch(other) =>
             sys.error(s"WrappedColumnarBatch[${other.getClass.getSimpleName}] is currently not supported")
 
           case colbatch =>
+            logger.debug(s"Got a Spark BatchColumnar (rows = ${colbatch.numRows})")
             dbuilder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
         }
 

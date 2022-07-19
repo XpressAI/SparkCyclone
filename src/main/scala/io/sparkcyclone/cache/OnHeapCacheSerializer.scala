@@ -68,7 +68,7 @@ final class OnHeapCacheSerializer extends CycloneCachedBatchSerializer with Lazy
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
     logger.info("Converting RDD[ByteArrayColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
     input.map { batch =>
-      logger.info(s"RDD[CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows})")
+      logger.info(s"RDD[ByteArrayColBatch <: CachedBatch]: Fetched a batch (rows = ${batch.numRows})")
       batch.asInstanceOf[ByteArrayColBatch].toSparkColumnarBatch
     }
   }

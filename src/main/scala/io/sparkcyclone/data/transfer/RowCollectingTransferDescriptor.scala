@@ -259,13 +259,13 @@ case class RowCollectingTransferDescriptor(schema: Seq[Attribute], capacity: Int
     transferCols.foreach{ tCol =>
       headerPos = tCol.writeHeader(header, headerPos)
       dataPos = tCol.writeData(buffer, dataPos)
-      tCol.close()
     }
 
     buffer
   }
 
   override def close: Unit = {
+    transferCols.map(_.close)
     resultBuffer.close()
     buffer.close()
   }

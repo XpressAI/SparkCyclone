@@ -42,6 +42,10 @@ trait ColBatchLike[+C <: ColVectorLike] extends SimpleMetricsCachedBatch {
     WrappedColumnarBatch(this)
   }
 
+  final def select(indices: Seq[Int]): Seq[C] = {
+   indices.map(columns(_))
+  }
+
   final val stats: InternalRow = {
     InternalRow.fromSeq(Array[Any](null, null, 0L, numRows, sizeInBytes))
   }

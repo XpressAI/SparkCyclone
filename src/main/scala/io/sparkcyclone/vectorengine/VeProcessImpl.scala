@@ -21,11 +21,13 @@ final case class WrappingVeo private (val node: Int,
                                       tcontexts: Seq[veo_thr_ctxt],
                                       val metrics: MetricRegistry)
                                       extends VeProcess with LazyLogging {
-  require(tcontexts.nonEmpty, "No asynchronous VEO context was provided")
+  require(handle.address >= 0, s"Invalid ${classOf[veo_proc_handle].getSimpleName} address was provided; cannot initialize ${classOf[WrappingVeo].getSimpleName}")
+  require(tcontexts.nonEmpty, s"[${handle.address}] No asynchronous VEO context was provided")
 
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
   private val openlock = new ReentrantReadWriteLock(true)
+  private var getSymbolLock = 0L
 
   // VEO async thread context locks
   private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
@@ -73,12 +75,12 @@ final case class WrappingVeo private (val node: Int,
   )
 
   logger.info(s"[${handle.address}] Opened VE process (Node ${node}) @ ${handle.address}: ${handle}")
-  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(_.address)}")
+  logger.info(s"[${handle.address}] Opened VEO asynchronous contexts @ ${tcontexts.map(_.address).mkString("[ ", ", ", " ]")}")
   logger.info(s"[${handle.address}] VEO version ${version}; API version ${apiVersion}")
 
   private[vectorengine] def requireValidBufferForPut(buffer: Pointer): Unit = {
-    require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
-    require(buffer.nbytes > 0L, s"Buffer has a declared size of ${buffer.nbytes}; nothing to put to VE memory")
+    require(buffer.address > 0L, s"[${handle.address}] Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
+    require(buffer.nbytes > 0L, s"[${handle.address}] Buffer has a declared size of ${buffer.nbytes}; nothing to put to VE memory")
   }
 
   private[vectorengine] def requireValidBufferForGet(buffer: Pointer): Unit = {
@@ -87,7 +89,7 @@ final case class WrappingVeo private (val node: Int,
       (e.g. the output of a filter on a column vector can be column vector of
       size 0), and so we don't require `buffer.nbytes` to be > 0L
     */
-    require(buffer.address > 0L, s"Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
+    require(buffer.address > 0L, s"[${handle.address}] Buffer has an invalid address ${buffer.address}; either it is un-initialized or already closed")
   }
 
   private[vectorengine] def withVeoProc[T](thunk: => T): T = {
@@ -176,7 +178,7 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _alloc(out: LongPointer, size: Long): Long = {
-    require(libCyclone != null, s"${LibCyclone.FileName} has not been loaded yet")
+    require(libCyclone != null, s"[${handle.address}] ${LibCyclone.FileName} has not been loaded yet")
 
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.AllocFn)
@@ -191,7 +193,7 @@ final case class WrappingVeo private (val node: Int,
 
   def allocate(size: Long): VeAllocation = {
     withVeoProc {
-      require(size > 0L, s"Requested size ${size} is invalid")
+      require(size > 0L, s"[${handle.address}] Requested allocation size ${size} is invalid")
 
       // Value is initialized to 0
       val ptr = new LongPointer(1)
@@ -199,8 +201,8 @@ final case class WrappingVeo private (val node: Int,
 
       // Ensure memory is properly allocated
       val address = ptr.get
-      require(result == 0, s"Memory allocation failed with code: ${result}")
-      require(address > 0, s"Memory allocation returned an invalid address: ${ptr.get}")
+      require(result == 0, s"[${handle.address}] Memory allocation failed with code: ${result}")
+      require(address > 0, s"[${handle.address}] Memory allocation returned an invalid address: ${ptr.get}")
       logger.trace(s"[${handle.address}] Allocated ${size} bytes ==> ${ptr}")
       ptr.close
 
@@ -217,9 +219,9 @@ final case class WrappingVeo private (val node: Int,
 
   def registerAllocation(address: Long, size: Long): VeAllocation = {
     // Explicitly allow address of 0
-    require(address >= 0L, s"Memory address ${address} is invalid; cannot register allocation!")
+    require(address >= 0L, s"[${handle.address}] Provided memory address ${address} is invalid; cannot register allocation!")
     // Explicitly allow registrations of zero-sized allocations
-    require(size >= 0L, s"Memory size ${size} is invalid; cannot register allocation!")
+    require(size >= 0L, s"[${handle.address}] Provided memory size ${size} is invalid; cannot register allocation!")
 
     heapRecords.get(address) match {
       case Some(allocation) if allocation.size == size =>
@@ -228,7 +230,7 @@ final case class WrappingVeo private (val node: Int,
         allocation
 
       case Some(allocation) =>
-        throw new IllegalArgumentException(s"Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
+        throw new IllegalArgumentException(s"[${handle.address}] Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
 
       case None =>
         logger.debug(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
@@ -245,7 +247,7 @@ final case class WrappingVeo private (val node: Int,
 
   def unregisterAllocation(address: Long): Unit = {
     // Explicitly allow address of 0
-    require(address >= 0L, s"Invalid VE memory address ${address}")
+    require(address >= 0L, s"[${handle.address}] Provided memory address ${address} is invalid; cannot un-register allocation!")
 
     heapRecords.get(address) match {
       case Some(allocation) =>
@@ -258,7 +260,7 @@ final case class WrappingVeo private (val node: Int,
   }
 
   private[vectorengine] def _free(addresses: Seq[Long]): Int = {
-    require(libCyclone != null, s"${LibCyclone.FileName} has not been loaded yet")
+    require(libCyclone != null, s"[${handle.address}] ${LibCyclone.FileName} has not been loaded yet")
 
     withVeoProc {
       val func = getSymbol(libCyclone, LibCyclone.FreeFn)
@@ -293,7 +295,7 @@ final case class WrappingVeo private (val node: Int,
     withVeoProc {
       val toFree = addresses.flatMap { address =>
         // Explicitly allow address of 0
-        require(address >= 0L, s"Invalid VE memory address ${address}")
+        require(address >= 0L, s"[${handle.address}] Invalid VE memory address provided: ${address}")
 
         heapRecords.get(address) match {
           case Some(allocation) =>
@@ -309,7 +311,7 @@ final case class WrappingVeo private (val node: Int,
             Seq()
 
           case None =>
-            logger.error(s"VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
+            logger.error(s"[${handle.address}] VE memory address does not correspond to a tracked allocation: ${address}; will not call veo_free_mem()")
             Seq()
         }
       }
@@ -324,7 +326,7 @@ final case class WrappingVeo private (val node: Int,
       }
 
       val (result, duration) = measureTime { _free(toFree) }
-      require(result == 0, s"Memory release failed with code: ${result}")
+      require(result == 0, s"[${handle.address}] Memory release failed with code: ${result}")
       freeTimer.update(Duration.ofNanos(duration))
     }
   }
@@ -373,9 +375,9 @@ final case class WrappingVeo private (val node: Int,
   def putAsync(buffer: Pointer, destination: Long): VeAsyncReqId = {
     withVeoThread { tcontext =>
       requireValidBufferForPut(buffer)
-      require(destination > 0L, s"Invalid VE memory address ${destination}")
+      require(destination > 0L, s"[${handle.address}][${tcontext.address}] Invalid VE memory address for put: ${destination}")
       val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
-      require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_write_mem failed and returned ${id}")
+      require(id != veo.VEO_REQUEST_ID_INVALID, s"[${handle.address}][${tcontext.address}] veo_async_write_mem failed and returned ${id}")
       VeAsyncReqId(id, tcontext.address)
     }
   }
@@ -387,9 +389,9 @@ final case class WrappingVeo private (val node: Int,
   def getAsync(buffer: Pointer, source: Long): VeAsyncReqId = {
     withVeoThread { tcontext =>
       requireValidBufferForGet(buffer)
-      require(source > 0L, s"Invalid VE memory address ${source}")
+      require(source > 0L, s"[${handle.address}][${tcontext.address}] Invalid VE memory address for get: ${source}")
       val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
-      require(id != veo.VEO_REQUEST_ID_INVALID, s"veo_async_read_mem failed and returned ${id}")
+      require(id != veo.VEO_REQUEST_ID_INVALID, s"[${handle.address}][${tcontext.address}] veo_async_read_mem failed and returned ${id}")
       VeAsyncReqId(id, tcontext.address)
     }
   }
@@ -408,7 +410,7 @@ final case class WrappingVeo private (val node: Int,
       val retp = new LongPointer(1)
       retp.put(Long.MinValue)
       val res = veo.veo_call_wait_result(tcontext, id.value, retp)
-      require(res == veo.VEO_COMMAND_OK, s"VE function returned value: ${res}")
+      require(res == veo.VEO_COMMAND_OK, s"[${handle.address}][${tcontext.address}] VE function returned value: ${res}")
       retp
     }
   }
@@ -424,12 +426,12 @@ final case class WrappingVeo private (val node: Int,
 
           case None =>
             // AVEO has a check on paths to be less than 255 chars
-            require(npath.toString.size <= veo.VEO_SYMNAME_LEN_MAX, s"Path is longer than ${veo.VEO_SYMNAME_LEN_MAX} characters, which AVEO will not load")
-            require(Files.exists(npath), s"Path does not correspond to an existing file: ${npath}")
+            require(npath.toString.size <= veo.VEO_SYMNAME_LEN_MAX, s"[${handle.address}] Path is longer than ${veo.VEO_SYMNAME_LEN_MAX} characters, which AVEO will not load")
+            require(Files.exists(npath), s"[${handle.address}] Path does not correspond to an existing file: ${npath}")
 
             logger.info(s"[${handle.address}] Loading from path as .SO: ${npath}...")
             val result = veo.veo_load_library(handle, npath.toString)
-            require(result > 0, s"Expected library reference to be > 0, got ${result} (library at: ${npath})")
+            require(result > 0, s"[${handle.address}] Expected library reference to be > 0, got ${result} (library at: ${npath})")
 
             // Create a library load record to track
             val lib = LibraryReference(npath.toString, result)
@@ -462,12 +464,12 @@ final case class WrappingVeo private (val node: Int,
           case Some(lib) =>
             logger.info(s"[${handle.address}] Unloading library from the VE process: ${npath}...")
             val result = veo.veo_unload_library(handle, lib.value)
-            require(result == 0, s"Failed to unload library from the VE process, got ${result} (library at: ${npath})")
+            require(result == 0, s"[${handle.address}] Failed to unload library from the VE process, got ${result} (library at: ${npath})")
             // Remove only after the veo_unload_library() was successful
             loadedLibRecords.remove(npath.toString)
 
           case None =>
-            throw new IllegalArgumentException(s"VE process does not have library loaded; nothing to unload: ${npath}")
+            throw new IllegalArgumentException(s"[${handle.address}] VE process does not have library loaded; nothing to unload: ${npath}")
         }
       }
     }
@@ -484,28 +486,30 @@ final case class WrappingVeo private (val node: Int,
 
   def getSymbol(lib: LibraryReference, name: String): LibrarySymbol = {
     withVeoProc {
-      require(name.trim.nonEmpty, "Symbol name is empty or contains only whitespaces")
-      val result = veo.veo_get_sym(handle, lib.value, name)
-      require(result > 0, s"Expected > 0, but got ${result} when looking up symbol '${name}' (library at: ${lib.path})")
-      LibrarySymbol(lib, name, result)
+      getSymbolLock.synchronized {
+        require(name.trim.nonEmpty, s"[${handle.address}] Symbol name is empty or contains only whitespaces")
+        val result = veo.veo_get_sym(handle, lib.value, name)
+        require(result > 0, s"[${handle.address}] Expected > 0, but got ${result} when looking up symbol '${name}' (library at: ${lib.path})")
+        LibrarySymbol(lib, name, result)
+      }
     }
   }
 
   def newArgsStack(inputs: Seq[CallStackArgument]): VeCallArgsStack = {
     withVeoProc {
       val args = veo.veo_args_alloc
-      require(! args.isNull,  s"Fail to allocate arguments stack")
+      require(! args.isNull,  s"[${handle.address}] Fail to allocate arguments stack")
       logger.trace(s"[${handle.address}] Allocated veo_args @ ${args.address}")
 
       inputs.zipWithIndex.foreach {
         case (I32Arg(value), i) =>
           val result = veo.veo_args_set_i32(args, i, value)
-          require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
+          require(result == 0, s"[${handle.address}] Failed to set arguments stack at position ${i} to: ${value}")
           logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
         case (U64Arg(value), i) =>
           val result = veo.veo_args_set_u64(args, i, value)
-          require(result == 0, s"Failed to set arguments stack at position ${i} to: ${value}")
+          require(result == 0, s"[${handle.address}] Failed to set arguments stack at position ${i} to: ${value}")
           logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${value}")
 
         case (BuffArg(intent, buffer), i) =>
@@ -515,7 +519,7 @@ final case class WrappingVeo private (val node: Int,
             case VeArgIntent.InOut  => veo.VEO_INTENT_INOUT
           }
           val result = veo.veo_args_set_stack(args, icode, i, new BytePointer(buffer), buffer.nbytes)
-          require(result == 0, s"Failed to set arguments stack at position ${i} to: ${buffer}")
+          require(result == 0, s"[${handle.address}] Failed to set arguments stack at position ${i} to: ${buffer}")
           logger.trace(s"[${handle.address}] [veo_args @ ${args.address}] Insert @ position ${i}: ${buffer.getClass.getSimpleName} buffer @ VH ${buffer.address} (${buffer.nbytes} bytes)")
       }
 
@@ -539,7 +543,7 @@ final case class WrappingVeo private (val node: Int,
             stackRecords.remove(stack.args.address)
 
           case None =>
-            throw new IllegalArgumentException(s"VeCallArgsStack does not correspond to a tracked veo_args allocation: ${stack.args.address}")
+            throw new IllegalArgumentException(s"[${handle.address}] VeCallArgsStack does not correspond to a tracked veo_args allocation: ${stack.args.address}")
         }
       }
     }
@@ -564,12 +568,12 @@ final case class WrappingVeo private (val node: Int,
 
   def callAsync(func: LibrarySymbol, stack: VeCallArgsStack): VeAsyncReqId = {
     withVeoThread { tcontext =>
-      logger.debug(s"[${handle.address}][${tcontext.address}] Async call '${func.name}' with veo_args @ ${stack.args.address}")
+      logger.debug(s"[${handle.address}][${tcontext.address}] Making VE async call '${func.name}' with veo_args @ ${stack.args.address}")
 
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(
         id != veo.VEO_REQUEST_ID_INVALID,
-        s"VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
+        s"[${handle.address}][${tcontext.address}] VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
       )
 
       VeAsyncReqId(id, tcontext.address)
@@ -586,9 +590,9 @@ final case class WrappingVeo private (val node: Int,
         // Complain about un-released context locks
         val cRecords = contextLocks.filter(_._1.isWriteLocked)
         if (cRecords.nonEmpty) {
-          logger.error("There are still locked aynchronous VEO contexts:")
+          logger.error(s"[${handle.address}] There are still locked aynchronous VEO contexts:")
           cRecords.foreach { case (tlock, tcontext) =>
-            logger.error(s"Context: ${tcontext}: Queue Size = ${tlock.getQueueLength}")
+            logger.error(s"[${handle.address}] Context: ${tcontext.address}: Queue Size = ${tlock.getQueueLength}")
           }
         } else {
           logger.info(s"[${handle.address}] There are no locked asynchronous VEO contexts; this is good.")
@@ -597,9 +601,9 @@ final case class WrappingVeo private (val node: Int,
         // Complain about un-released heap allocations
         val hRecords = heapRecords.take(MaxToShow)
         if (hRecords.nonEmpty) {
-          logger.error(s"There were ${heapRecords.size} unreleased heap allocations. First ${MaxToShow}:")
+          logger.error(s"[${handle.address}] There were ${heapRecords.size} unreleased heap allocations. First ${MaxToShow}:")
           hRecords.foreach { case (_, record) =>
-            logger.error(s"Position: ${record.address}", record.toThrowable)
+            logger.error(s"[${handle.address}] Position: ${record.address}", record.toThrowable)
           }
         } else {
           logger.info(s"[${handle.address}] There are no unreleased heap allocations; this is good.")
@@ -608,9 +612,9 @@ final case class WrappingVeo private (val node: Int,
         // Complain about un-released args stack allocations
         val sRecords = stackRecords.take(MaxToShow)
         if (sRecords.nonEmpty) {
-          logger.error(s"There were ${stackRecords.size} unreleased stack allocations. First ${MaxToShow}:")
+          logger.error(s"[${handle.address}] There were ${stackRecords.size} unreleased stack allocations. First ${MaxToShow}:")
           sRecords.foreach { case (_, record) =>
-            logger.error(s"Position: ${record.args.address}")
+            logger.error(s"[${handle.address}] Position: ${record.args.address}")
           }
         } else {
           logger.info(s"[${handle.address}] There are no unreleased stack allocations; this is good.")

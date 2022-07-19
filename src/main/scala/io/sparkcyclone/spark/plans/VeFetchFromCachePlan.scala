@@ -37,36 +37,35 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
       val dbuilder = new BpcvTransferDescriptor.Builder()
       val oldbatches = MSeq.empty[VeColBatch]
 
-      withInvocationMetrics(PLAN) {
-        colbatches.map(collectBatchMetrics(INPUT, _)).foreach {
-          case WrappedColumnarBatch(wrapped: BytePointerColBatch) =>
-            dbuilder.newBatch().addColumns(wrapped.columns)
+      colbatches.map(collectBatchMetrics(INPUT, _)).foreach {
+        case WrappedColumnarBatch(wrapped: BytePointerColBatch) =>
+          logger.debug(s"Got a BytePointerColBatch (rows = ${wrapped.numRows})")
+          dbuilder.newBatch().addColumns(wrapped.columns)
 
-          case WrappedColumnarBatch(wrapped: ByteArrayColBatch) =>
-            dbuilder.newBatch().addColumns(wrapped.toBytePointerColBatch.columns)
+        case WrappedColumnarBatch(wrapped: ByteArrayColBatch) =>
+          logger.debug(s"Got a ByteArrayColBatch (rows = ${wrapped.numRows})")
+          dbuilder.newBatch().addColumns(wrapped.toBytePointerColBatch.columns)
 
-          case WrappedColumnarBatch(wrapped: VeColBatch) =>
-            oldbatches += wrapped
+        case WrappedColumnarBatch(wrapped: VeColBatch) =>
+          logger.debug(s"Got a VeColBatch (rows = ${wrapped.numRows})")
+          oldbatches += wrapped
 
-          case WrappedColumnarBatch(other) =>
-            sys.error(s"WrappedColumnarBatch[${other.getClass.getSimpleName}] is currently not supported")
+        case WrappedColumnarBatch(other) =>
+          sys.error(s"WrappedColumnarBatch[${other.getClass.getSimpleName}] is currently not supported")
 
-          case colbatch =>
-            dbuilder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
-        }
-
-        val descriptor = withInvocationMetrics("Conversion") {
-          dbuilder.build
-        }
-
-        val newbatches = if (descriptor.nonEmpty) {
-          Seq(withInvocationMetrics(VE) { vectorEngine.executeTransfer(descriptor) })
-        } else {
-          Seq.empty
-        }
-
-        collectBatchMetrics(OUTPUT, (oldbatches ++ newbatches).iterator)
+        case colbatch =>
+          logger.debug(s"Got a Spark BatchColumnar (rows = ${colbatch.numRows})")
+          dbuilder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
       }
+
+      val descriptor = dbuilder.build
+      val newbatches = if (descriptor.nonEmpty) {
+        Seq(vectorEngine.executeTransfer(descriptor))
+      } else {
+        Seq.empty
+      }
+
+      collectBatchMetrics(OUTPUT, (oldbatches ++ newbatches).iterator)
     }
   }
 

@@ -60,7 +60,13 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer w
                                                selectedAttributes: Seq[Attribute],
                                                conf: SQLConf): RDD[InternalRow] = {
     logger.info("Converting RDD[VeColBatch <: CachedBatch] to RDD[InternalRow]...")
-    input.flatMap(_.asInstanceOf[VeColBatch].toBytePointerColBatch.internalRowIterator)
+    logger.info(s"Cached attributes:    ${cacheAttributes}")
+    logger.info(s"Selected attributes:  ${selectedAttributes}")
+    val columnIndices = selectedAttributes.map(a => cacheAttributes.map(o => o.exprId).indexOf(a.exprId)).toSeq
+
+    input.flatMap { batch0 =>
+      VeColBatch(batch0.asInstanceOf[VeColBatch].select(columnIndices)).toBytePointerColBatch.internalRowIterator
+    }
   }
 
   override def convertCachedBatchToColumnarBatch(input: RDD[CachedBatch],
@@ -68,9 +74,14 @@ final class InVectorEngineCacheSerializer extends CycloneCachedBatchSerializer w
                                                  selectedAttributes: Seq[Attribute],
                                                  conf: SQLConf): RDD[ColumnarBatch] = {
     logger.info("Converting RDD[VeColBatch <: CachedBatch] to RDD[ColumnarBatch]...")
-    input.map { batch =>
-      logger.info(s"RDD[VeColBatch <: CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows})")
-      batch.asInstanceOf[VeColBatch].toSparkColumnarBatch
+    logger.info(s"Cached attributes:    ${cacheAttributes}")
+    logger.info(s"Selected attributes:  ${selectedAttributes}")
+    val columnIndices = selectedAttributes.map(a => cacheAttributes.map(o => o.exprId).indexOf(a.exprId)).toSeq
+
+    input.map { batch0 =>
+      val batch = VeColBatch(batch0.asInstanceOf[VeColBatch].select(columnIndices)).toSparkColumnarBatch
+      logger.info(s"RDD[VeColBatch <: CachedBatch] -> RDD[ColumnarBatch]: Fetched a batch (rows = ${batch.numRows}, cols = ${batch.numCols})")
+      batch
     }
   }
 }
