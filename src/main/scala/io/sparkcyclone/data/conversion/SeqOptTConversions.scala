@@ -154,7 +154,7 @@ object SeqOptTConversions {
       val bitset = FixedBitSet.from(buffers(1))
 
       if (klass == classOf[Int]) {
-        val buffer = new IntPointer(dataBuffer)
+        val buffer = new IntPointer(dataBuffer).position(0L)
         val output = MSeq.fill[Option[Int]](numItems)(None)
         0.until(numItems).foreach { i =>
           if (bitset.get(i)) output(i) = Some(buffer.get(i.toLong))
@@ -162,7 +162,7 @@ object SeqOptTConversions {
         output.asInstanceOf[Seq[Option[T]]]
 
       } else if (klass == classOf[Long]) {
-        val buffer = new LongPointer(dataBuffer)
+        val buffer = new LongPointer(dataBuffer).position(0L)
         val output = MSeq.fill[Option[Long]](numItems)(None)
         0.until(numItems).foreach { i =>
           if (bitset.get(i)) output(i) = Some(buffer.get(i.toLong))
@@ -170,7 +170,7 @@ object SeqOptTConversions {
         output.asInstanceOf[Seq[Option[T]]]
 
       } else if (klass == classOf[Float]) {
-        val buffer = new FloatPointer(dataBuffer)
+        val buffer = new FloatPointer(dataBuffer).position(0L)
         val output = MSeq.fill[Option[Float]](numItems)(None)
         0.until(numItems).foreach { i =>
           if (bitset.get(i)) output(i) = Some(buffer.get(i.toLong))
@@ -178,7 +178,7 @@ object SeqOptTConversions {
         output.asInstanceOf[Seq[Option[T]]]
 
       } else if (klass == classOf[Double]) {
-        val buffer = new DoublePointer(dataBuffer)
+        val buffer = new DoublePointer(dataBuffer).position(0L)
         val output = MSeq.fill[Option[Double]](numItems)(None)
         0.until(numItems).foreach { i =>
           if (bitset.get(i)) output(i) = Some(buffer.get(i.toLong))
@@ -186,7 +186,7 @@ object SeqOptTConversions {
         output.asInstanceOf[Seq[Option[T]]]
 
       } else if (klass == classOf[Short]) {
-        val buffer = new IntPointer(dataBuffer)
+        val buffer = new IntPointer(dataBuffer).position(0L)
         val output = MSeq.fill[Option[Short]](numItems)(None)
         0.until(numItems).foreach { i =>
           if (bitset.get(i)) output(i) = Some(buffer.get(i.toLong).toShort)

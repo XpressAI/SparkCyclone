@@ -116,8 +116,8 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
 
 case class VeStringTransferCol(idx: Int) extends VeTransferCol {
   val veType: VeType = VeString
-  private val listBuffer: ListBuffer[Array[Byte]] = ListBuffer()
-  private lazy val converted = listBuffer.toArray
+  private[transfer] val listBuffer: ListBuffer[Array[Byte]] = ListBuffer()
+  private[transfer] lazy val converted = listBuffer.toArray
 
 
   override def append(row: InternalRow): Unit = {
@@ -199,7 +199,7 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
     val validityBuffer = FixedBitSet.ones(count)
     converted.zipWithIndex.filter(_._1 == null).foreach(t => validityBuffer.clear(t._2))
 
-    val data = converted.map { x => if (x == null) Array.empty[Byte] else x }
+    val data = listBuffer.map { x => if (x == null) Array.empty[Byte] else x }.toArray
     val (dataBuffer, startsBuffer, lensBuffer) = data.constructBuffers
 
     BytePointerColVector(

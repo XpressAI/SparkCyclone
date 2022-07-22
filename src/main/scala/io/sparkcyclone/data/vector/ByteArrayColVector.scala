@@ -50,9 +50,7 @@ final case class ByteArrayColVector private[data] (
   def toBytePointerColVector: BytePointerColVector = {
     val pointers = buffers.map { buffer =>
       // Copy the Array[Byte] to off-heap BytePointer
-      val ptr = new BytePointer(buffer.length)
-      ptr.put(buffer, 0, buffer.length)
-      ptr.position(0)
+      new BytePointer(buffer.length).put(buffer, 0, buffer.length).position(0L)
     }
 
     BytePointerColVector(

@@ -27,7 +27,6 @@ final case class WrappingVeo private (val node: Int,
   // Declare this prior to the logging statements or else the logging statements will fail
   private var opened = true
   private val openlock = new ReentrantReadWriteLock(true)
-  private var getSymbolLock = 0L
 
   // VEO async thread context locks
   private val contextLocks: Seq[(ReentrantReadWriteLock, veo_thr_ctxt)] = tcontexts.map(new ReentrantReadWriteLock(true) -> _)
@@ -486,12 +485,10 @@ final case class WrappingVeo private (val node: Int,
 
   def getSymbol(lib: LibraryReference, name: String): LibrarySymbol = {
     withVeoProc {
-      getSymbolLock.synchronized {
-        require(name.trim.nonEmpty, s"[${handle.address}] Symbol name is empty or contains only whitespaces")
-        val result = veo.veo_get_sym(handle, lib.value, name)
-        require(result > 0, s"[${handle.address}] Expected > 0, but got ${result} when looking up symbol '${name}' (library at: ${lib.path})")
-        LibrarySymbol(lib, name, result)
-      }
+      require(name.trim.nonEmpty, s"[${handle.address}] Symbol name is empty or contains only whitespaces")
+      val result = veo.veo_get_sym(handle, lib.value, name)
+      require(result > 0, s"[${handle.address}] Expected > 0, but got ${result} when looking up symbol '${name}' (library at: ${lib.path})")
+      LibrarySymbol(lib, name, result)
     }
   }
 

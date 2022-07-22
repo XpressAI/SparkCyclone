@@ -88,7 +88,7 @@ object ArrayTConversions {
       }
 
       (
-        dataBuffer,
+        dataBuffer.position(0L),
         startsBuffer.asBytePointer,
         lensBuffer.asBytePointer
       )
@@ -178,27 +178,27 @@ object ArrayTConversions {
 
       if (klass == classOf[Int]) {
         val output = new Array[Int](numItems)
-        new IntPointer(dataBuffer).get(output)
+        new IntPointer(dataBuffer).position(0L).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Long]) {
         val output = new Array[Long](numItems)
-        new LongPointer(dataBuffer).get(output)
+        new LongPointer(dataBuffer).position(0L).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Float]) {
         val output = new Array[Float](numItems)
-        new FloatPointer(dataBuffer).get(output)
+        new FloatPointer(dataBuffer).position(0L).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Double]) {
         val output = new Array[Double](numItems)
-        new DoublePointer(dataBuffer).get(output)
+        new DoublePointer(dataBuffer).position(0L).get(output)
         output.asInstanceOf[Array[T]]
 
       } else if (klass == classOf[Short]) {
         val output = new Array[Short](numItems)
-        val buf = new IntPointer(dataBuffer)
+        val buf = new IntPointer(dataBuffer).position(0L)
         for (i <- 0 until numItems) {
           output(i) = buf.get(i.toLong).toShort
         }

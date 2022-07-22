@@ -15,7 +15,7 @@ object FixedBitSet {
     val bitset = FixedBitSet(buffer.capacity().toInt * 8)
 
     // Copy the BytePointer buffer to the underlying bitset
-    bitset.underlying = BitSet.valueOf(buffer.asBuffer)
+    bitset.underlying = BitSet.valueOf(buffer.position(0L).asBuffer)
     bitset
   }
 }
@@ -77,6 +77,6 @@ case class FixedBitSet(size: Int) {
 
     // Copy byte array over to BytePointer
     val buffer = new BytePointer(bytes.size.toLong)
-    buffer.put(bytes, 0, bytes.size)
+    buffer.put(bytes, 0, bytes.size).position(0L)
   }
 }

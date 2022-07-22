@@ -18,8 +18,8 @@ import org.apache.spark.storage.StorageLevel
 /*
   SQL cache serializer that uses the off-heap memory as the target.
 
-  NOTE: This is still a work in progress, and is currently known to be broken
-  for unknown reasons.
+  NOTE: This is still a work in progress, and is currently known to cause JVM
+  crashes for yet unknown reasons.
 */
 final class OffHeapCacheSerializer extends CycloneCachedBatchSerializer with LazyLogging {
   import SparkCycloneExecutorPlugin._
