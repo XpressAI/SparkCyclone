@@ -2,7 +2,7 @@ package io.sparkcyclone.rdd
 
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
 import io.sparkcyclone.data.transfer.{BpcvTransferDescriptor, RowCollectingTransferDescriptor}
-import io.sparkcyclone.data.vector.{ByteArrayColBatch, VeColBatch}
+import io.sparkcyclone.data.vector.{BytePointerColBatch, VeColBatch}
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.util.CallContextOps._
 import org.apache.arrow.vector.types.pojo.Schema
@@ -37,23 +37,33 @@ object RDDConversions {
       }
     }
 
-    def toVeColBatchRDDCached(attributes: Seq[Attribute],
-                              targetBatchSize: Int): RDD[CachedBatch] = {
-      toVeColBatchRDD(attributes, targetBatchSize).map(x => x: CachedBatch)
+    def toBytePointerColBatchRDD(attributes: Seq[Attribute],
+                                 targetBatchSize: Int): RDD[BytePointerColBatch] = {
+      rdd.mapPartitions { rows =>
+        new Iterator[BytePointerColBatch] {
+          override def hasNext: Boolean = {
+            rows.hasNext
+          }
+
+          override def next: BytePointerColBatch = {
+            var currentRowCount = 0
+            val descriptor = RowCollectingTransferDescriptor(attributes, targetBatchSize)
+
+            while (rows.hasNext && currentRowCount < targetBatchSize) {
+              descriptor.append(rows.next)
+              currentRowCount += 1
+            }
+
+            val batch = descriptor.toBytePointerColBatch
+            descriptor.close
+            batch
+          }
+        }
+      }
     }
   }
 
   implicit class ColumnarBatchRDDConversions(rdd: RDD[ColumnarBatch]) {
-    def toByteArrayColBatchRDD(schema: Schema): RDD[ByteArrayColBatch] = {
-      rdd.mapPartitions { colbatches =>
-        colbatches.map(_.toBytePointerColBatch(schema).toByteArrayColBatch)
-      }
-    }
-
-    def toByteArrayColBatchRDDCached(schema: Schema): RDD[CachedBatch] = {
-      toByteArrayColBatchRDD(schema).map(x => x: CachedBatch)
-    }
-
     def toVeColBatchRDD(schema: Schema): RDD[VeColBatch] = {
       rdd.mapPartitions { colbatches =>
         val descriptor = colbatches
@@ -68,10 +78,6 @@ object RDDConversions {
           Seq(vectorEngine.executeTransfer(descriptor)).iterator
         }
       }
-    }
-
-    def toVeColBatchRDDCached(schema: Schema): RDD[CachedBatch] = {
-      toVeColBatchRDD(schema).map(x => x: CachedBatch)
     }
   }
 }

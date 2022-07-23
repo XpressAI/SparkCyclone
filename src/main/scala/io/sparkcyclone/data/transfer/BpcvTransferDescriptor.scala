@@ -21,6 +21,10 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     batches.size.toLong
   }
 
+  private[transfer] lazy val nrows: Long = {
+    batches.map(_.headOption.map(_.numItems.toLong).getOrElse(0L)).foldLeft(0L)(_ + _)
+  }
+
   private[transfer] lazy val ncolumns: Long = {
     batches.headOption.map(_.size.toLong).getOrElse(0L)
   }
@@ -52,7 +56,7 @@ case class BpcvTransferDescriptor(batches: Seq[Seq[BytePointerColVector]])
     require(nbatches > 0, "Need more than 0 batches for transfer!")
     require(ncolumns > 0, "Need more than 0 columns for transfer!")
     require(batches.forall(_.size == ncolumns), "All batches must have the same column count!")
-    logger.debug(s"Preparing transfer buffer for ${nbatches} batches of ${ncolumns} columns")
+    logger.debug(s"Preparing transfer buffer for ${nbatches} batches of ${ncolumns} columns (${nrows} rows total)")
 
     // Total size of the buffer is computed from scan-left of the header and data sizes
     val tsize = dataOffsets.last

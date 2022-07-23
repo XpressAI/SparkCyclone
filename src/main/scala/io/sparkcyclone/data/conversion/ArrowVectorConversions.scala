@@ -81,7 +81,7 @@ object ArrowVectorConversions {
         vec.setValueCount(numItems)
 
         // Cast the data buffer as int[] and read directly into SmallIntVector
-        val buffer = new IntPointer(buffers(0))
+        val buffer = new IntPointer(buffers(0)).position(0L)
         for (i <- 0 until numItems) {
           vec.set(i, buffer.get(i).toShort)
         }
@@ -106,8 +106,8 @@ object ArrowVectorConversions {
         vec.setValueCount(numItems)
 
         val dataBuffer = buffers(0)
-        val startsBuffer = new IntPointer(buffers(1))
-        val lensBuffer = new IntPointer(buffers(2))
+        val startsBuffer = new IntPointer(buffers(1)).position(0L)
+        val lensBuffer = new IntPointer(buffers(2)).position(0L)
         val bitset = FixedBitSet.from(buffers(3))
 
         for (i <- 0 until numItems) {
@@ -185,8 +185,8 @@ object ArrowVectorConversions {
         veType,
         vector.getValueCount,
         Seq(
-          new BytePointer(vector.getDataBuffer.nioBuffer),
-          new BytePointer(vector.getValidityBuffer.nioBuffer)
+          new BytePointer(vector.getDataBuffer.nioBuffer).position(0L),
+          new BytePointer(vector.getValidityBuffer.nioBuffer).position(0L)
         )
       )
     }
@@ -208,7 +208,7 @@ object ArrowVectorConversions {
         vector.getValueCount,
         Seq(
           buffer.asBytePointer,
-          new BytePointer(vector.getValidityBuffer.nioBuffer)
+          new BytePointer(vector.getValidityBuffer.nioBuffer).position(0L)
         )
       )
     }
@@ -256,7 +256,7 @@ object ArrowVectorConversions {
       }
 
       (
-        dataBuffer,
+        dataBuffer.position(0L),
         startsBuffer.asBytePointer,
         lensBuffer.asBytePointer
       )
@@ -274,7 +274,7 @@ object ArrowVectorConversions {
           dataBuffer,
           startsBuffer,
           lensBuffer,
-          new BytePointer(vector.getValidityBuffer.nioBuffer)
+          new BytePointer(vector.getValidityBuffer.nioBuffer).position(0L)
         )
       )
     }

@@ -1,7 +1,8 @@
 package io.sparkcyclone.data.transfer
 
+import io.sparkcyclone.data.conversion.ArrayTConversions._
 import io.sparkcyclone.data.VeColVectorSource
-import io.sparkcyclone.data.vector.{VeColBatch, VeColVector}
+import io.sparkcyclone.data.vector._
 import io.sparkcyclone.spark.codegen.SparkExpressionToCExpression
 import io.sparkcyclone.native.code._
 import io.sparkcyclone.util.FixedBitSet
@@ -9,7 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.bytedeco.javacpp.indexer.ByteIndexer
-import org.bytedeco.javacpp.{BytePointer, LongPointer, Pointer}
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, Pointer}
 
 import scala.collection.mutable.ListBuffer
 
@@ -23,6 +24,7 @@ trait VeTransferCol {
 
   def writeHeader(target: LongPointer, targetPosition: Long): Long
   def writeData(target: BytePointer, targetPosition: Long): Long
+  def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector
 }
 
 case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) extends VeTransferCol {
@@ -97,12 +99,25 @@ case class VeScalarTransferCol(veType: VeScalarType, capacity: Int, idx: Int) ex
 
   // scalar vectors produce 3 pointers (struct, data buffer, validity buffer)
   override def resultSize: Int = 3
+
+  def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
+    BytePointerColVector(
+      source,
+      "_",
+      veType,
+      count,
+      Seq(
+        pointer,
+        validityBuffer.toBytePointer
+      )
+    )
+  }
 }
 
 case class VeStringTransferCol(idx: Int) extends VeTransferCol {
   val veType: VeType = VeString
-  private val listBuffer: ListBuffer[Array[Byte]] = ListBuffer()
-  private lazy val converted = listBuffer.toArray
+  private[transfer] val listBuffer: ListBuffer[Array[Byte]] = ListBuffer()
+  private[transfer] lazy val converted = listBuffer.toArray
 
 
   override def append(row: InternalRow): Unit = {
@@ -179,6 +194,27 @@ case class VeStringTransferCol(idx: Int) extends VeTransferCol {
 
   // nullable_varchar_vector produce 5 pointers (struct, data buffer, offsets, lengths, validity buffer)
   override def resultSize: Int = 5
+
+  def toBytePointerColVector(implicit source: VeColVectorSource): BytePointerColVector = {
+    val validityBuffer = FixedBitSet.ones(count)
+    converted.zipWithIndex.filter(_._1 == null).foreach(t => validityBuffer.clear(t._2))
+
+    val data = listBuffer.map { x => if (x == null) Array.empty[Byte] else x }.toArray
+    val (dataBuffer, startsBuffer, lensBuffer) = data.constructBuffers
+
+    BytePointerColVector(
+      source,
+      "_",
+      VeString,
+      count,
+      Seq(
+        dataBuffer,
+        startsBuffer,
+        lensBuffer,
+        validityBuffer.toBytePointer
+      )
+    )
+  }
 }
 
 case class RowCollectingTransferDescriptor(schema: Seq[Attribute], capacity: Int) extends TransferDescriptor with LazyLogging {
@@ -223,15 +259,19 @@ case class RowCollectingTransferDescriptor(schema: Seq[Attribute], capacity: Int
     transferCols.foreach{ tCol =>
       headerPos = tCol.writeHeader(header, headerPos)
       dataPos = tCol.writeData(buffer, dataPos)
-      tCol.close()
     }
 
     buffer
   }
 
   override def close: Unit = {
+    transferCols.map(_.close)
     resultBuffer.close()
     buffer.close()
+  }
+
+  def toBytePointerColBatch(implicit source: VeColVectorSource): BytePointerColBatch = {
+    BytePointerColBatch(transferCols.map(_.toBytePointerColVector))
   }
 
   override def resultToColBatch(implicit source: VeColVectorSource): VeColBatch = {

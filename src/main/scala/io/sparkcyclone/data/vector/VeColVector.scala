@@ -4,12 +4,11 @@ import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.native.code._
 import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.vectorengine.{VeAsyncResult, VeProcess}
-import org.apache.spark.sql.vectorized.ColumnVector
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.veoffload.global.veo
 import org.slf4j.LoggerFactory
 
-final case class VeColVector private[vector] (
+final case class VeColVector private[data] (
   source: VeColVectorSource,
   name: String,
   veType: VeType,
@@ -49,10 +48,6 @@ final case class VeColVector private[vector] (
       val handle = process.getAsync(buffer, location)
       VeAsyncResult(handle) { () => buffer }
     }
-  }
-
-  def toSparkColumnVector: ColumnVector = {
-    WrappedColumnVector(this)
   }
 
   def toBytePointerColVector(implicit process: VeProcess): BytePointerColVector = {

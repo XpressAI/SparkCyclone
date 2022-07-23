@@ -1,9 +1,10 @@
 package io.sparkcyclone.data.conversion
 
+import io.sparkcyclone.data._
 import io.sparkcyclone.data.conversion.SeqOptTConversions._
 import io.sparkcyclone.data.conversion.ArrowVectorConversions._
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
-import io.sparkcyclone.data.{ColumnBatchEncoding, InputSamples, VeColVectorSource}
+import io.sparkcyclone.data.vector.WrappedColumnarBatch
 import java.util.UUID
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._

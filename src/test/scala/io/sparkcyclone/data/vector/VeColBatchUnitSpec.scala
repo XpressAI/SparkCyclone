@@ -59,7 +59,7 @@ final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
       batch2.columns(2).toBytePointerColVector.toSeqOpt[String] should be (input3)
     }
 
-    "correctly convert to Spark SQL ColumnarBatch with WrappedColumnVector" in {
+    "correctly convert to Spark SQL ColumnarBatch as a WrappedColumnarBatch" in {
       val size = Random.nextInt(100) + 1
       val columns1 = Seq(
         InputSamples.seqOpt[Int](size).toBytePointerColVector("_"),
@@ -74,7 +74,7 @@ final class VeColBatchUnitSpec extends AnyWordSpec with WithVeProcess {
       batch.numCols should be (columns1.size)
       batch.numRows should be (size)
 
-      val columns2 = batch.columns.map(_.asInstanceOf[WrappedColumnVector].underlying.asInstanceOf[WrappedColumnVector.VE].vector)
+      val columns2 = batch.asInstanceOf[WrappedColumnarBatch[VeColVector]].underlying.columns
       (columns1, columns2).zipped.map(_ === _).toSet should be (Set(true))
     }
   }

@@ -20,7 +20,8 @@
 package io.sparkcyclone.plugin
 
 import io.sparkcyclone.native.{CachingNativeCodeCompiler, NativeCodeCompiler}
-import io.sparkcyclone.spark.transformation.{RequestCompiledLibrary, RequestCompiledLibraryResponse}
+import io.sparkcyclone.spark.transformation._
+import io.sparkcyclone.vectorengine.LibCyclone
 import scala.collection.JavaConverters._
 import java.nio.file.{Files, Paths}
 import java.util.{Map => JMap}
@@ -42,7 +43,7 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
 
     // Initialize the native code compiler
     SparkCycloneDriverPlugin.currentCompiler = NativeCodeCompiler.createFromContext(sparkContext.getConf, pluginContext)
-    logger.info(s"Using native code compiler: ${SparkCycloneDriverPlugin.currentCompiler}")
+    logger.info(s"Initialized the native code compilation infrastructure: ${SparkCycloneDriverPlugin.currentCompiler}")
 
     // Inject the extensions into the Spark plugin context
     val extensions = Seq(classOf[LocalVeoExtension])
@@ -58,6 +59,16 @@ class SparkCycloneDriverPlugin extends DriverPlugin with LazyLogging {
 
   override def receive(message: Any): AnyRef = {
     message match {
+      case RequestLibCyclone =>
+        logger.debug(s"Received request for libcyclone.so")
+        val location = SparkCycloneDriverPlugin.currentCompiler.cwd.resolve("sources").resolve(LibCyclone.FileName)
+
+        if (Files.exists(location)) {
+          RequestLibCycloneResponse(location.toString, Files.readAllBytes(location).toVector)
+        } else {
+          throw new RuntimeException(s"Received request for libcyclone.so, but it's not present on the driver: ${location}")
+        }
+
       case RequestCompiledLibrary(path) =>
         logger.debug(s"Received request for compiled code at path: '${path}'")
         val location = Paths.get(path)

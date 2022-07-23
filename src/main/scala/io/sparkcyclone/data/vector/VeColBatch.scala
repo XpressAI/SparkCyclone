@@ -20,7 +20,7 @@ import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.util.Try
 
-final case class VeColBatch(columns: Seq[VeColVector]) extends CachedBatch {
+final case class VeColBatch private[data] (columns: Seq[VeColVector]) extends ColBatchLike[VeColVector] {
   def toCPUSeq[T: TypeTag](implicit process: VeProcess): Seq[T] = {
     val tag = implicitly[TypeTag[T]]
     tag.tpe.asInstanceOf[TypeRef].args match {
@@ -120,19 +120,7 @@ final case class VeColBatch(columns: Seq[VeColVector]) extends CachedBatch {
     stream.toByteArray
   }
 
-  def veTypes: Seq[VeType] = {
-    columns.map(_.veType)
-  }
-
-  def nonEmpty: Boolean = {
-    numRows > 0
-  }
-
-  def numRows: Int = {
-    columns.headOption.map(_.numItems).getOrElse(0)
-  }
-
-  def sizeInBytes: Long = {
+  override def sizeInBytes: Long = {
     columns.flatMap(_.bufferSizes).map(_.toLong).foldLeft(0L)(_ + _)
   }
 
@@ -152,16 +140,6 @@ final case class VeColBatch(columns: Seq[VeColVector]) extends CachedBatch {
     val cb = new ColumnarBatch(vecs.map(col => new ArrowColumnVector(col)).toArray)
     cb.setNumRows(numRows)
     cb
-  }
-
-  def toSparkColumnarBatch: ColumnarBatch = {
-    val batch = new ColumnarBatch(columns.map(_.toSparkColumnVector).toArray)
-    batch.setNumRows(numRows)
-    batch
-  }
-
-  def totalBufferSize: Int = {
-    columns.flatMap(_.bufferSizes).foldLeft(0)(_ + _)
   }
 }
 

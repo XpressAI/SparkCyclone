@@ -1,11 +1,14 @@
 package io.sparkcyclone.spark.plans
 
 import io.sparkcyclone.cache.CycloneCachedBatchSerializer
+import io.sparkcyclone.data.ColumnBatchEncoding
 import io.sparkcyclone.data.conversion.SparkSqlColumnarBatchConversions._
+import io.sparkcyclone.data.transfer.BpcvTransferDescriptor
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.plugin.SparkCycloneExecutorPlugin._
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.util.CallContextOps._
+import scala.collection.mutable.{Buffer => MSeq}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -27,18 +30,43 @@ case class VeFetchFromCachePlan(child: SparkPlan, requiresCleanup: Boolean)
 
   override def executeVeColumnar: RDD[VeColBatch] = {
     initializeMetrics()
+    val encoding = ColumnBatchEncoding.fromConf(conf)(sparkContext)
 
-    child
-      .executeColumnar
-      .map { colbatch =>
-        logger.debug(s"Mapping ColumnarBatch ${colbatch} to VE")
-        collectBatchMetrics(INPUT, colbatch)
-        withInvocationMetrics(BATCH) {
-          val batch = VeColBatch(colbatch.columns.map(_.asInstanceOf[WrappedColumnVector].toVeColVector))
-          logger.debug(s"Finished mapping ColumnarBatch ${colbatch} to VE: ${batch}")
-          collectBatchMetrics(OUTPUT, batch)
-        }
+    child.executeColumnar.mapPartitions { colbatches =>
+      val schema = encoding.makeArrowSchema(child.output)
+      val dbuilder = new BpcvTransferDescriptor.Builder()
+      val oldbatches = MSeq.empty[VeColBatch]
+
+      colbatches.map(collectBatchMetrics(INPUT, _)).foreach {
+        case WrappedColumnarBatch(wrapped: BytePointerColBatch) =>
+          logger.debug(s"Got a BytePointerColBatch (rows = ${wrapped.numRows})")
+          dbuilder.newBatch().addColumns(wrapped.columns)
+
+        case WrappedColumnarBatch(wrapped: ByteArrayColBatch) =>
+          logger.debug(s"Got a ByteArrayColBatch (rows = ${wrapped.numRows})")
+          dbuilder.newBatch().addColumns(wrapped.toBytePointerColBatch.columns)
+
+        case WrappedColumnarBatch(wrapped: VeColBatch) =>
+          logger.debug(s"Got a VeColBatch (rows = ${wrapped.numRows})")
+          oldbatches += wrapped
+
+        case WrappedColumnarBatch(other) =>
+          sys.error(s"WrappedColumnarBatch[${other.getClass.getSimpleName}] is currently not supported")
+
+        case colbatch =>
+          logger.debug(s"Got a Spark BatchColumnar (rows = ${colbatch.numRows})")
+          dbuilder.newBatch().addColumns(colbatch.toBytePointerColBatch(schema).columns)
       }
+
+      val descriptor = dbuilder.build
+      val newbatches = if (descriptor.nonEmpty) {
+        Seq(vectorEngine.executeTransfer(descriptor))
+      } else {
+        Seq.empty
+      }
+
+      collectBatchMetrics(OUTPUT, (oldbatches ++ newbatches).iterator)
+    }
   }
 
   override def output: Seq[Attribute] = {

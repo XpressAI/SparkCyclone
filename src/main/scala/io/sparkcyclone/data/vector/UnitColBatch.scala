@@ -5,7 +5,7 @@ import io.sparkcyclone.metrics.VeProcessMetrics
 import io.sparkcyclone.util.CallContext
 import io.sparkcyclone.vectorengine.VeProcess
 
-final case class UnitColBatch(columns: Seq[UnitColVector]) {
+final case class UnitColBatch private[data] (columns: Seq[UnitColVector]) {
   def withData(arrays: Seq[Array[Byte]])(implicit source: VeColVectorSource,
                                          process: VeProcess,
                                          context: CallContext,

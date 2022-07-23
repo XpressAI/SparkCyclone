@@ -23,9 +23,11 @@ import io.sparkcyclone.cache.VeColBatchesCache
 import io.sparkcyclone.data.vector._
 import io.sparkcyclone.data.VeColVectorSource
 import io.sparkcyclone.metrics.ProcessExecutorMetrics
+import io.sparkcyclone.spark.transformation.{RequestLibCyclone, RequestLibCycloneResponse}
 import io.sparkcyclone.vectorengine._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import java.util.{Map => JMap}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.spark.api.plugin.{ExecutorPlugin, PluginContext}
@@ -68,6 +70,24 @@ object SparkCycloneExecutorPlugin {
 }
 
 class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLogging {
+  private[plugin] def laodLibCyclone(context: PluginContext): LibraryReference = {
+    logger.info(s"Fetching libcyclone.so from ${classOf[SparkCycloneDriverPlugin].getSimpleName}...")
+
+    // Fetch libcyclone.so from the driver plugin and write to disk
+    val libpath = context.ask(RequestLibCyclone) match {
+      case RequestLibCycloneResponse(dpath, bytes) =>
+        val destpath = Paths.get(dpath)
+        if (! Files.exists(destpath)) {
+          Files.write(destpath, bytes.toArray, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
+        } else {
+          destpath
+        }
+    }
+
+    // Load libcyclone.so
+    SparkCycloneExecutorPlugin.veProcess.load(libpath)
+  }
+
   override def init(context: PluginContext, conf: JMap[String, String]): Unit = {
     logger.info(s"Initializing ${getClass.getSimpleName}...")
 
@@ -85,6 +105,14 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
     // Start the actual VE process by calling a method that will initialize it
     SparkCycloneExecutorPlugin.veProcess.apiVersion
+
+    /*
+      Fetch and load libcyclone.so from the driver plugin, so that Cyclone C++
+      library functions such as `handle_transfer` can be called without the
+      need to load a pre-built library.
+    */
+    laodLibCyclone(context)
+    logger.info(s"Loaded libcyclone.so as part of ${getClass.getSimpleName} initialization...")
   }
 
   override def shutdown: Unit = {
