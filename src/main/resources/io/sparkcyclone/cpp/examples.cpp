@@ -187,11 +187,210 @@ void test_statement_expressions() {
   std::cout << "================================================================================" << std::endl;
 }
 
+
+template <typename T, bool sort_ascending = true>
+inline const std::vector<size_t> multiple_radix_sort_and_group(T      * sort_data_arr,
+                                                               size_t * index_data_arr,
+                                                               const std::vector<size_t> & input_group_delims) {
+
+  std::vector<std::vector<size_t>> component_group_delims(input_group_delims.size() - 1);
+
+  // For each subset denoted by input_group_delims, perform sort + grouping
+  // and get back a component delim group
+  #pragma _NEC vector
+  #pragma _NEC ivdep
+  for (auto i = 1; i < input_group_delims.size(); i++) {
+    // Fetch the boundaries of the range containing subset i
+    const auto subset_start = input_group_delims[i-1];
+    const auto subset_end   = input_group_delims[i];
+    const auto subset_size  = subset_end - subset_start;
+
+    if (subset_size < 2) {
+      component_group_delims[i - 1] = {{ 0, 1 }};
+
+    } else {
+      // Sort the elements in subset i
+      if constexpr (sort_ascending) {
+        frovedis::radix_sort(&sort_data_arr[subset_start], &index_data_arr[subset_start], subset_size);
+      } else {
+        frovedis::radix_sort_desc(&sort_data_arr[subset_start], &index_data_arr[subset_start], subset_size);
+      }
+
+      // Construct the array of indices where the value of the keys change
+      component_group_delims[i - 1] = frovedis::set_separate(&sort_data_arr[subset_start], subset_size);
+    }
+  }
+
+  // Compute a prefix sum to get the offsets of the data elements
+  std::vector<size_t> data_len_offsets(input_group_delims.size(), 0);
+  #pragma _NEC vector
+  for (auto i = 1; i < input_group_delims.size(); i++) {
+    const auto subset_start = input_group_delims[i-1];
+    const auto subset_end   = input_group_delims[i];
+    data_len_offsets[i] = data_len_offsets[i - 1] + (subset_end - subset_start);
+  }
+
+  // Compute a prefix sum to get the offsets of the component delim groups
+  std::vector<size_t> component_group_offsets(input_group_delims.size(), 0);
+  #pragma _NEC vector
+  for (auto i = 1; i < component_group_offsets.size(); i++) {
+    component_group_offsets[i] = component_group_offsets[i - 1] + component_group_delims[i - 1].size() - 1;
+  }
+
+  // Using the component arrays, construct the final array of indices where the
+  // value of the keys change
+  std::vector<size_t> output_group_delims(component_group_offsets.back() + 1);
+
+  // Populate the combined delimiters from the component delim groups in parallel
+  #pragma _NEC vector
+  #pragma _NEC ivdep
+  for (auto i = 0; i < component_group_delims.size(); i++) {
+    const auto delims = component_group_delims[i];
+
+    #pragma _NEC vector
+    #pragma _NEC ivdep
+    for (auto j = 0; j < delims.size() - 1; j++) {
+      // Each delim value in a component delim group is relative to the positions
+      // specified in the orignal input group, and each delim value's position
+      // in the final group array is relative as well.
+      output_group_delims[j + component_group_offsets[i]] = delims[j] + data_len_offsets[i];
+    }
+  }
+
+  // Populate the last delimiter
+  output_group_delims.back() = data_len_offsets.back();
+
+  return output_group_delims;
+}
+
+void group_strings(const nullable_varchar_vector *input) {
+  // Fetch the validity vector and re-use the underyling data for sorting later on
+  auto tmp = input->validity_vec();
+  auto * sorted_data = tmp.data();
+
+  // Set up the indices
+  std::vector<size_t> index(input->count);
+  #pragma _NEC vector
+  #pragma _NEC ivdep
+  for (auto i = 0; i < index.size(); i++) index[i] = i;
+
+  // Set up the initial grouping, which is [0, count]
+  std::vector<size_t> grouping {{ 0, static_cast<size_t>(input->count) }};
+
+  {
+    // STEP 1: Separate out the elements by those marked as valid vs invalid
+
+    // Sort DESC by validity bits (valid values go left and invalid values
+    // go right)
+    grouping = multiple_radix_sort_and_group<int32_t, false>(sorted_data, index.data(), grouping);
+    std::cout << "grouping: " << grouping << std::endl;
+
+    // The returned grouping should have either 2 elements (all strings are
+    // valid) or 3 elements (there is a partition separating valid and invalid
+    // elements). Remove the last element if needed so we can focus on sorting
+    // only the valid eleements
+    if (grouping.size() > 2) {
+      grouping.resize(2);
+    }
+  }
+
+  {
+    // STEP 2: From here on out, we are working only with the subset of the
+    // elements that are valid.  Sort by the element lengths
+
+    // Collect the element lengths into sorted_data
+    #pragma _NEC vector
+    #pragma _NEC ivdep
+    for (auto i = 0; i < grouping.back(); i++) {
+      sorted_data[i] = input->lengths[index[i]];
+    }
+
+    // Sort ASC by element length
+    grouping = multiple_radix_sort_and_group<int32_t, true>(sorted_data, index.data(), grouping);
+  }
+
+  {
+    // STEP 3: Iterate over n, where n = max length of a valid element, and sort
+    // ASC by the ith character of each element in each iteration.  The grouping
+    // will be constructed slowly over each iteration
+
+    // Compute the length of the largest valid element
+    auto maxlen = 0;
+    #pragma _NEC vector
+    for (auto i = 0; i < grouping.back(); i++) {
+      auto len = input->lengths[index[i]];
+      if (len > maxlen) {
+        maxlen = len;
+      }
+    }
+
+    // Iterate the sorting over each element and accumulate the new grouping
+    // with each iteration
+    for (auto pos = 0; pos < maxlen; pos++) {
+      // Collect the pos-th character of every valid string into sorted_data
+      #pragma _NEC vector
+      #pragma _NEC ivdep
+      for (auto i = 0; i < grouping.back(); i++) {
+        auto j = index[i];
+        sorted_data[i] = (pos < input->lengths[j]) ? input->data[input->offsets[j] + pos] : -1;
+      }
+
+      // Sort ASC by elem[pos]. using the existing grouping
+      grouping = multiple_radix_sort_and_group<int32_t, true>(sorted_data, index.data(), grouping);
+    }
+  }
+
+  std::cout << "index: " << index << std::endl;
+  std::cout << "grouping: " << grouping << std::endl;
+  input->select(index)->print();
+}
+
+void test_grouping() {
+  std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
+  std::vector<size_t>       index(input.size());
+  const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
+  for (auto i = 0; i < index.size(); i++) index[i] = i;
+
+  std::cout << "input: " << input << std::endl;
+  std::cout << "index: " << index << std::endl;
+  std::cout << "grouping: " << grouping << std::endl;
+
+  auto new_grouping = multiple_radix_sort_and_group(input.data(), index.data(), grouping);
+
+  std::cout << "values after grouping: " << input << std::endl;
+  std::cout << "new grouping: " << new_grouping << std::endl;
+}
+
+void test_grouping_desc() {
+  std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
+  std::vector<size_t>       index(input.size());
+  const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
+  for (auto i = 0; i < index.size(); i++) index[i] = i;
+
+  std::cout << "input: " << input << std::endl;
+  std::cout << "index: " << index << std::endl;
+  std::cout << "grouping: " << grouping << std::endl;
+
+  auto new_grouping = multiple_radix_sort_and_group<int32_t, false>(input.data(), index.data(), grouping);
+
+  std::cout << "values after grouping: " << input << std::endl;
+  std::cout << "new grouping: " << new_grouping << std::endl;
+}
+
 int main() {
   // projection_test();
   // filter_test();
   // test_sort1();
   // test_sort2();
   // test_lambda();
-  test_statement_expressions();
+  // test_statement_expressions();
+
+  // test_grouping();
+  // test_grouping_desc();
+
+  auto vec1 = nullable_varchar_vector(std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "JANU", "SEP", "OCT", "NOV", "DEC" });
+  vec1.set_validity(3, 0);
+  vec1.set_validity(9, 0);
+  vec1.print();
+  group_strings(&vec1);
 }

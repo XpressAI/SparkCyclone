@@ -156,7 +156,12 @@ struct NullableScalarVec {
   // out_group_pos will be in the same format as group_pos and delineate the
   // found groups
   // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(size_t* iter_order_arr, size_t* group_pos, size_t group_pos_size, size_t* idx_arr, size_t* out_group_pos, size_t &out_group_pos_size) const;
+  void group_indexes_on_subset(const size_t * iter_order_arr,
+                               const size_t * group_pos,
+                               const size_t group_pos_size,
+                               size_t * idx_arr,
+                               size_t * out_group_pos,
+                               size_t & out_group_pos_size) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -310,7 +315,12 @@ struct nullable_varchar_vector {
   // out_group_pos will be in the same format as group_pos and delineate the
   // found groups
   // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(size_t* iter_order_arr, size_t* group_pos, size_t group_pos_size, size_t* idx_arr, size_t* out_group_pos, size_t &out_group_pos_size) const;
+  void group_indexes_on_subset(const size_t * iter_order_arr,
+                               const size_t * group_pos,
+                               const size_t group_pos_size,
+                               size_t * idx_arr,
+                               size_t * out_group_pos,
+                               size_t & out_group_pos_size) const;
 };
 
 struct non_null_c_bounded_string {
