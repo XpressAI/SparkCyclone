@@ -286,6 +286,9 @@ void group_strings(const nullable_varchar_vector *input) {
 }
 
 void test_grouping() {
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "GROUPING TEST 1\n" << std::endl;
+
   std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
   std::vector<size_t>       index(input.size());
   const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
@@ -295,13 +298,17 @@ void test_grouping() {
   std::cout << "index: " << index << std::endl;
   std::cout << "grouping: " << grouping << std::endl;
 
-  auto new_grouping = cyclone::grouping::sort_and_group_multiple(input, index, grouping);
+  auto new_grouping = cyclone::grouping::sort_and_group_multiple2(input, index, grouping);
 
   std::cout << "values after grouping: " << input << std::endl;
   std::cout << "new grouping: " << new_grouping << std::endl;
+  std::cout << "================================================================================" << std::endl;
 }
 
 void test_grouping_desc() {
+  std::cout << "================================================================================" << std::endl;
+  std::cout << "GROUPING TEST 2\n" << std::endl;
+
   std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
   std::vector<size_t>       index(input.size());
   const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
@@ -311,10 +318,11 @@ void test_grouping_desc() {
   std::cout << "index: " << index << std::endl;
   std::cout << "grouping: " << grouping << std::endl;
 
-  auto new_grouping = cyclone::grouping::sort_and_group_multiple<int32_t, false>(input, index, grouping);
+  auto new_grouping = cyclone::grouping::sort_and_group_multiple2<int32_t, false>(input, index, grouping);
 
   std::cout << "values after grouping: " << input << std::endl;
   std::cout << "new grouping: " << new_grouping << std::endl;
+  std::cout << "================================================================================" << std::endl;
 }
 
 int main() {
@@ -325,14 +333,14 @@ int main() {
   // test_lambda();
   // test_statement_expressions();
 
-  // test_grouping();
-  // test_grouping_desc();
+  test_grouping();
+  test_grouping_desc();
 
   auto vec1 = nullable_varchar_vector(std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "JANU", "SEP", "OCT", "NOV", "DEC" });
   vec1.set_validity(3, 0);
   vec1.set_validity(9, 0);
   // vec1.print();
-  // group_strings(&vec1);
+  group_strings(&vec1);
 
   std::cout << "original" << vec1.group_indexes()  << std::endl;
   std::cout << "new" << vec1.group_indexes2()  << std::endl;

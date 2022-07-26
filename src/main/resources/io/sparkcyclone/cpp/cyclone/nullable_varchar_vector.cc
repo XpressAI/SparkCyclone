@@ -618,6 +618,7 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t * iter_order_
 
   out_group_pos_size = 0;
   out_group_pos[out_group_pos_size++] = group_pos[0];
+
   #pragma _NEC vector
   for (auto g = 1; g < group_pos_size; g++) {
     auto start = group_pos[g - 1];

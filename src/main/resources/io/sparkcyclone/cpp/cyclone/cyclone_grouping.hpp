@@ -27,7 +27,7 @@ namespace cyclone::grouping {
   template <typename T, bool sort_ascending = true>
   inline const std::vector<size_t> sort_and_group_multiple(T            * sort_data_arr,
                                                            size_t         sort_data_len,
-                                                           size_t       * index_data_arr,
+                                                           size_t       * index_arr,
                                                            const size_t * input_group_delims_arr,
                                                            const size_t   input_group_delims_len) {
     // If there are more group delimiters than elements in the range, then that
@@ -56,9 +56,9 @@ namespace cyclone::grouping {
       } else {
         // Sort the elements in subset i
         if constexpr (sort_ascending) {
-          frovedis::radix_sort(&sort_data_arr[subset_start], &index_data_arr[subset_start], subset_size);
+          frovedis::radix_sort(&sort_data_arr[subset_start], &index_arr[subset_start], subset_size);
         } else {
-          frovedis::radix_sort_desc(&sort_data_arr[subset_start], &index_data_arr[subset_start], subset_size);
+          frovedis::radix_sort_desc(&sort_data_arr[subset_start], &index_arr[subset_start], subset_size);
         }
 
         // Construct the array of indices where the value of the keys change
@@ -105,6 +105,88 @@ namespace cyclone::grouping {
     // Populate the last delimiter
     output_group_delims.back() = data_len_offsets.back();
 
+    return output_group_delims;
+  }
+
+
+
+
+
+
+
+  template <typename T, bool sort_ascending = true>
+  inline const void sort_and_group_multiple2(T            * sort_data_arr,
+                                                           size_t         sort_data_len,
+                                                           size_t       * index_arr,
+                                                           const size_t * input_group_delims_arr,
+                                                           const size_t   input_group_delims_len,
+                                                           size_t       * output_group_delims_arr,
+                                                           size_t       & output_group_delims_len) {
+    // If there are more group delimiters than elements in the range, then that
+    // means that each subset will contain just one element
+    if (input_group_delims_len > sort_data_len) {
+      memcpy(output_group_delims_arr, input_group_delims_arr, sizeof(size_t) * input_group_delims_len);
+      output_group_delims_len = input_group_delims_len;
+      return;
+    }
+
+    // Set the output_group_delims_arr to be of length 0
+    output_group_delims_len = 0;
+
+    // For each subset denoted by input_group_delims, perform sort + grouping
+    // and get back a component delim group
+    #pragma _NEC vector
+    #pragma _NEC ivdep
+    for (auto i = 1; i < input_group_delims_len; i++) {
+      // Fetch the boundaries of the range containing subset i
+      const auto subset_start = input_group_delims_arr[i-1];
+      const auto subset_end   = input_group_delims_arr[i];
+      const auto subset_size  = subset_end - subset_start;
+
+      if (subset_size == 1) {
+        output_group_delims_arr[output_group_delims_len++] = subset_start;
+        output_group_delims_arr[output_group_delims_len++] = subset_end;
+
+      } else {
+        // Sort the elements in subset i
+        if constexpr (sort_ascending) {
+          frovedis::radix_sort(&sort_data_arr[subset_start], &index_arr[subset_start], subset_size);
+        } else {
+          frovedis::radix_sort_desc(&sort_data_arr[subset_start], &index_arr[subset_start], subset_size);
+        }
+
+        // Construct the array of indices where the value of the keys change
+        auto delims = frovedis::set_separate(&sort_data_arr[subset_start], subset_size);
+
+        // Append them to the output_group_delims_arr (accounting for relative position)
+        #pragma _NEC vector
+        for (auto d = 0; d < delims.size(); d++) {
+          output_group_delims_arr[output_group_delims_len++] = subset_start + delims[d];
+        }
+      }
+    }
+
+    return;
+  }
+
+  template <typename T, bool sort_ascending = true>
+  inline const std::vector<size_t> sort_and_group_multiple2(std::vector<T>             & sort_data,
+                                                           std::vector<size_t>        & index_data,
+                                                           const std::vector<size_t>  & input_group_delims) {
+    std::vector<size_t> output_group_delims(input_group_delims.back() - input_group_delims.front());
+    size_t output_group_delims_len;
+
+    sort_and_group_multiple2<T, sort_ascending>(
+      sort_data.data(),
+      sort_data.size(),
+      index_data.data(),
+      input_group_delims.data(),
+      input_group_delims.size(),
+      output_group_delims.data(),
+      output_group_delims_len
+    );
+
+    output_group_delims.resize(output_group_delims_len);
     return output_group_delims;
   }
 
