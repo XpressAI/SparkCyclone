@@ -44,7 +44,7 @@ namespace cyclone::benchmarks {
     // Generate the groups
     std::vector<std::string> groups(group_count);
     for (auto i = 0; i < groups.size(); i++) {
-      groups[i] = random_string(rand() % 50);
+      groups[i] = random_string(rand() % 190 + 10);
     }
 
     // Generate the input
@@ -56,46 +56,15 @@ namespace cyclone::benchmarks {
     return new nullable_varchar_vector(input);
   }
 
-  // size_t tuple_group_by(NullableScalarVec<int64_t> *input){
-  //   std::vector<std::tuple<int64_t, int>> grouping_vec(input->count);
-  //   std::vector<size_t> sorted_idx(input->count);
+  size_t vector_group1(nullable_varchar_vector *input) {
+    auto groups = input->group_indexes();
+    return groups.size();
+  }
 
-  //   for (auto i = 0; i < input->count; i++) {
-  //     grouping_vec[i] = std::tuple<int64_t, int>(input->data[i], input->get_validity(i));
-  //   }
-
-  //   sorted_idx = cyclone::sort_tuples(grouping_vec, std::array<int, 2>{{ 1, 1 }});
-
-  //   for (auto j = 0; j < input->count; j++) {
-  //     auto i = sorted_idx[j];
-  //     grouping_vec[j] = std::tuple<int64_t, int>(input->data[i], input->get_validity(i));
-  //   }
-
-  //   std::vector<size_t> groups_indices = frovedis::set_separate(grouping_vec);
-  //   auto groups_count = groups_indices.size() - 1;
-
-  //   std::vector<size_t> matching_ids(groups_count);
-  //   for (auto g = 0; g < groups_count; g++) {
-  //     matching_ids[g] = sorted_idx[groups_indices[g]];
-  //   }
-
-  //   return matching_ids.size();
-  // }
-
-
-  // size_t separate_to_groups_no_validity(NullableScalarVec<int64_t> *input){
-  //   std::vector<size_t> input_keys = input->size_t_data_vec();
-
-  //   std::vector<size_t> keys;
-  //   std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(input_keys, keys);
-  //   return groups.size();
-  // }
-
-
-  // size_t vector_group(NullableScalarVec<int64_t> *input){
-  //   std::vector<std::vector<size_t>> groups = input->group_indexes();
-  //   return groups.size();
-  // }
+  size_t vector_group2(nullable_varchar_vector *input) {
+    auto groups = input->group_indexes2();
+    return groups.size();
+  }
 
   // size_t vector_multi_group(NullableScalarVec<int64_t> *input1, NullableScalarVec<int64_t> *input2, NullableScalarVec<int64_t> *input3){
   //   size_t count = static_cast<size_t>(input1->count);
@@ -121,9 +90,9 @@ namespace cyclone::benchmarks {
   // }
 
   TEST_CASE("String Group-by Implementation Benchmarks") {
-    // auto *input = create_string_input(3500000, 150);
-    // auto *input_with_invalids = create_string_input(3500000, 150);
-    // input_with_invalids->set_validity(1, 0);
+    auto *input = create_string_input(3500000, 150);
+    auto *input_with_invalids = create_string_input(3500000, 150);
+    input_with_invalids->set_validity(1, 0);
 
     // ankerl::nanobench::Bench().run("tuple_group_by", [&]() {
     //   ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input));
@@ -137,13 +106,21 @@ namespace cyclone::benchmarks {
     //   ankerl::nanobench::doNotOptimizeAway(separate_to_groups_no_validity(input));
     // });
 
-    // ankerl::nanobench::Bench().run("vector_group(with validity, all valid input)", [&]() {
-    //   ankerl::nanobench::doNotOptimizeAway(vector_group(input));
-    // });
+    ankerl::nanobench::Bench().run("vector_group 1 (with validity, all valid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group1(input));
+    });
 
-    // ankerl::nanobench::Bench().run("vector_group(with validity, some invalid input)", [&]() {
-    //   ankerl::nanobench::doNotOptimizeAway(vector_group(input_with_invalids));
-    // });
+    ankerl::nanobench::Bench().run("vector_group 1 (with validity, some invalid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group1(input_with_invalids));
+    });
+
+    ankerl::nanobench::Bench().run("vector_group 2 (with validity, all valid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group2(input));
+    });
+
+    ankerl::nanobench::Bench().run("vector_group 2 (with validity, some invalid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group2(input_with_invalids));
+    });
 
     // free(input);
     // free(input_with_invalids);

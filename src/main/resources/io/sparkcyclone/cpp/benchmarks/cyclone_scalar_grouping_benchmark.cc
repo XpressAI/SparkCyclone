@@ -65,13 +65,13 @@ namespace cyclone::benchmarks {
     std::vector<size_t> input_keys = input->size_t_data_vec();
 
     std::vector<size_t> keys;
-    std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(input_keys, keys);
+    const auto groups = cyclone::separate_to_groups(input_keys, keys);
     return groups.size();
   }
 
 
   size_t vector_group(NullableScalarVec<int64_t> *input){
-    std::vector<std::vector<size_t>> groups = input->group_indexes();
+    const auto groups = input->group_indexes();
     return groups.size();
   }
 

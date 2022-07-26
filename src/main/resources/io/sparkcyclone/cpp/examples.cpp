@@ -331,6 +331,9 @@ int main() {
   auto vec1 = nullable_varchar_vector(std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "JANU", "SEP", "OCT", "NOV", "DEC" });
   vec1.set_validity(3, 0);
   vec1.set_validity(9, 0);
-  vec1.print();
-  group_strings(&vec1);
+  // vec1.print();
+  // group_strings(&vec1);
+
+  std::cout << "original" << vec1.group_indexes()  << std::endl;
+  std::cout << "new" << vec1.group_indexes2()  << std::endl;
 }
