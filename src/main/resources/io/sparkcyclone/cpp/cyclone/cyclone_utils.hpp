@@ -34,7 +34,8 @@
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 namespace cyclone {
-  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids, std::vector<size_t> &group_keys) {
+  inline const std::vector<std::vector<size_t>> separate_to_groups(const std::vector<size_t> &ids,
+                                                                   std::vector<size_t> &group_keys) {
     std::vector<size_t> groups = ids;
     frovedis::radix_sort(groups);
     std::vector<size_t> unique_groups = frovedis::set_unique(groups);
@@ -109,18 +110,25 @@ namespace cyclone {
     return output;
   }
 
-  inline void equi_join_indices(std::vector<size_t> &left, std::vector<size_t> &right, std::vector<size_t> &matchingLeft, std::vector<size_t> &matchingRight) {
-      size_t left_len = left.size();
-      size_t right_len = right.size();
-      std::vector<size_t> left_idxs(left_len);
-      std::vector<size_t> right_idxs(right_len);
-      for(auto i = 0; i < left_len; i++){
-          left_idxs[i] = i;
-      }
-      for(auto i = 0; i < right_len; i++){
-          right_idxs[i] = i;
-      }
-      frovedis::equi_join(left, left_idxs, right, right_idxs, matchingLeft, matchingRight);
+  inline void equi_join_indices(std::vector<size_t> &left,
+                                std::vector<size_t> &right,
+                                std::vector<size_t> &matchingLeft,
+                                std::vector<size_t> &matchingRight) {
+    size_t left_len = left.size();
+    size_t right_len = right.size();
+
+    std::vector<size_t> left_idxs(left_len);
+    std::vector<size_t> right_idxs(right_len);
+
+    for (auto i = 0; i < left_len; i++) {
+      left_idxs[i] = i;
+    }
+
+    for (auto i = 0; i < right_len; i++) {
+      right_idxs[i] = i;
+    }
+
+    frovedis::equi_join(left, left_idxs, right, right_idxs, matchingLeft, matchingRight);
   }
 
   // Print out a std::tuple to ostream
@@ -146,12 +154,16 @@ namespace cyclone {
   auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
                    std::vector<T> const &vec) {
     std::basic_stringstream<Ch, Tr> tmp;
-    tmp << "[ ";
-    for (const auto &elem : vec) {
-      tmp << elem << ", ";
+    if (vec.size() > 0) {
+      tmp << "[ ";
+      for (const auto &elem : vec) {
+        tmp << elem << ", ";
+      }
+      tmp.seekp(-2, tmp.cur);
+      tmp << " ]";
+    } else {
+      tmp << "[ ]";
     }
-    tmp.seekp(-2, tmp.cur);
-    tmp << " ]";
     return stream << tmp.str();
   }
 
@@ -182,19 +194,23 @@ namespace cyclone {
    * @param second Pointer to the to-be-appended bitset
    * @param second_bit_count Count of bits in second
    */
-  inline void append_bitsets(uint64_t* first, size_t first_bit_count, uint64_t* second, size_t second_bit_count){
+  inline void append_bitsets(uint64_t * first,
+                             const size_t first_bit_count,
+                             const uint64_t * second,
+                             const size_t second_bit_count) {
     size_t bits_per_container = sizeof(uint64_t) * CHAR_BIT;
 
     size_t tail_pos = first_bit_count / bits_per_container;
-    uint64_t* tail = &first[tail_pos];
+    uint64_t * tail = & first[tail_pos];
 
     size_t spilled_bits = first_bit_count % bits_per_container;
     // when spilled_bits = 0, we can directly copy the data without any shifting
     // (also shifting by > 63 is undefined, so we should take a defined route anyway)
-    if(spilled_bits == 0){
+    if (spilled_bits == 0) {
       size_t bytes = frovedis::ceil_div(second_bit_count, bits_per_container) * sizeof(uint64_t);
       std::memcpy(tail, second, bytes);
-    }else{
+
+    } else {
       size_t prev_space = bits_per_container - spilled_bits;
 
       size_t step_count = frovedis::ceil_div(second_bit_count, bits_per_container);
@@ -206,38 +222,36 @@ namespace cyclone {
       tail[0] &= mask;
 
       // Prepare additional containers, by setting their initial value to the spill-over from the previous container
-#pragma _NEC vector
-#pragma _NEC ivdep
-      for(size_t i = 0; i < additional_container_count; i++){
+      #pragma _NEC vector
+      #pragma _NEC ivdep
+      for (size_t i = 0; i < additional_container_count; i++) {
         tail[i + 1] = second[i] >> prev_space;
       }
 
       // Set values into empty space
-#pragma _NEC vector
-#pragma _NEC ivdep
-      for(size_t i = 0; i < step_count; i++){
+      #pragma _NEC vector
+      #pragma _NEC ivdep
+      for (size_t i = 0; i < step_count; i++) {
         tail[i] |= second[i] << spilled_bits;
       }
     }
   }
-}
 
-template<typename T>
-void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_t batches) {
-  size_t bit_output_cnt = 0;
+  template<typename T>
+  void fast_validity_merge(uint64_t *outbuf, T * const * const inputs, const size_t batches) {
+    size_t bit_output_cnt = 0;
 
-  for (auto b=0; b<batches; b++) {
+    for (auto b = 0; b < batches; b++) {
+      size_t inputs_cnt = inputs[b] -> count;
 
-      size_t inputs_cnt = inputs[b]->count;
-
-      cyclone::append_bitsets(
+      append_bitsets(
         outbuf,
         bit_output_cnt,
-        inputs[b]->validityBuffer,
+        inputs[b] -> validityBuffer,
         inputs_cnt
-       );
+      );
 
       bit_output_cnt += inputs_cnt;
-   }
+    }
+  }
 }
-

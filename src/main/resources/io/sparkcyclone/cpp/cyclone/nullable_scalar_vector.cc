@@ -365,7 +365,7 @@ NullableScalarVec<T> * NullableScalarVec<T>::merge(const NullableScalarVec<T> * 
   }
 
   // Preserve the validityBuffer across the merge
-  fast_validity_merge(output->validityBuffer, inputs, batches);
+  cyclone::fast_validity_merge(output->validityBuffer, inputs, batches);
 
   return output;
 }
@@ -528,7 +528,7 @@ template <typename T>
 const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() const {
   // Short-circuit for simple cases
   if (count == 0) return {};
-  if (count == 1) return {{0}};
+  if (count == 1) return {{ 0 }};
 
   // group_indexes is a special case of group_indexes_on_subset, where we are
   // performing grouping on just one subset, which is the entire data array.

@@ -305,6 +305,7 @@ struct nullable_varchar_vector {
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
+  const std::vector<std::vector<size_t>> group_indexes2() const;
 
   // Create group index array on a subset of data.
   // iter_order_arr may be null if the regular iteration order is to be used

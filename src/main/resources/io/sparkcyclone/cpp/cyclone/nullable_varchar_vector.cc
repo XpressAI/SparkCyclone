@@ -18,11 +18,12 @@
  *
  */
 #include "cyclone/transfer-definitions.hpp"
+#include "cyclone/cyclone_grouping.hpp"
+#include "cyclone/cyclone_utils.hpp"
 #include "frovedis/core/utility.hpp"
 #include "frovedis/text/char_int_conv.hpp"
 #include "frovedis/text/datetime_utility.hpp"
 #include "frovedis/text/dict.hpp"
-#include "cyclone_utils.hpp"
 #include <stdlib.h>
 #include <iostream>
 #include <cstring>
@@ -484,8 +485,8 @@ nullable_varchar_vector * nullable_varchar_vector::merge(const nullable_varchar_
   // Merge using Frovedis and convert back to nullable_varchar_vector
   auto *output = from_words(frovedis::merge_multi_words(multi_words));
 
- // Preserve the validityBuffer across the merge
-  fast_validity_merge(output->validityBuffer, inputs, batches);
+  // Preserve the validityBuffer across the merge
+  cyclone::fast_validity_merge(output->validityBuffer, inputs, batches);
   return output;
 }
 
@@ -694,7 +695,7 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t * iter_order_
   free(sorted_data);
 }
 
-const std::vector < std::vector < size_t >> nullable_varchar_vector::group_indexes() const {
+const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() const {
   // Short-circuit for simple cases
   if (count == 0) return {};
   if (count == 1) return {{ 0 }};
@@ -718,6 +719,98 @@ const std::vector < std::vector < size_t >> nullable_varchar_vector::group_index
 
   free(idx_arr);
   free(max_group_pos);
+
+  return result;
+}
+
+const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes2() const {
+  // Fetch the validity vector and re-use the underyling data for sorting later on
+  auto sorted_data = this->validity_vec();
+
+  // Set up the indices
+  std::vector<size_t> index(this->count);
+  #pragma _NEC vector
+  #pragma _NEC ivdep
+  for (auto i = 0; i < index.size(); i++) index[i] = i;
+
+  // Set up the initial grouping, which is [0, count]
+  std::vector<size_t> grouping {{ 0, static_cast<size_t>(this->count) }};
+
+  {
+    // STEP 1: Separate out the elements by those marked as valid vs invalid
+
+    // Sort DESC by validity bits (valid values go left and invalid values
+    // go right)
+    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, false>(sorted_data, index, grouping);
+
+    // The returned grouping should have either 2 elements (all strings are
+    // valid) or 3 elements (there is a partition separating valid and invalid
+    // elements). Remove the last element if needed so we can focus on sorting
+    // only the valid eleements
+    if (grouping.size() > 2) {
+      grouping.resize(2);
+    }
+  }
+
+  {
+    // STEP 2: From here on out, we are working only with the subset of the
+    // elements that are valid.  Sort by the element lengths
+
+    // Collect the element lengths into sorted_data
+    #pragma _NEC vector
+    #pragma _NEC ivdep
+    for (auto i = 0; i < grouping.back(); i++) {
+      sorted_data[i] = this->lengths[index[i]];
+    }
+
+    // Sort ASC by element length
+    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
+  }
+
+  {
+    // STEP 3: Iterate over n, where n = max length of a valid element, and sort
+    // ASC by the ith character of each element in each iteration.  The grouping
+    // will be constructed slowly over each iteration
+
+    // Compute the length of the largest valid element
+    auto maxlen = 0;
+    #pragma _NEC vector
+    for (auto i = 0; i < grouping.back(); i++) {
+      auto len = this->lengths[index[i]];
+      if (len > maxlen) {
+        maxlen = len;
+      }
+    }
+
+    // Iterate the sorting over each element and accumulate the new grouping
+    // with each iteration
+    for (auto pos = 0; pos < maxlen; pos++) {
+      // Collect the pos-th character of every valid string into sorted_data
+      #pragma _NEC vector
+      #pragma _NEC ivdep
+      for (auto i = 0; i < grouping.back(); i++) {
+        auto j = index[i];
+        sorted_data[i] = (pos < this->lengths[j]) ? this->data[this->offsets[j] + pos] : -1;
+      }
+
+      // Sort ASC by elem[pos]. using the existing grouping
+      grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
+    }
+  }
+
+  {
+    // STEP 4: Iterate over n, where n = max length of a valid element, and sort
+    grouping.resize(grouping.size() + 1);
+    grouping.back() = this->count;
+  }
+
+  // Construct the groups from the grouping and indices
+  std::vector<std::vector<size_t>> result(grouping.size() - 1);
+  #pragma _NEC vector
+  #pragma _NEC ivdep
+  for (auto i = 1; i < grouping.size(); i++) {
+    result[i - 1] = std::vector<size_t>(&index[grouping[i - 1]], &index[grouping[i]]);
+  }
 
   return result;
 }
