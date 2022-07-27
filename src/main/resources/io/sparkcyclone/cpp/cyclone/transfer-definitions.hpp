@@ -305,7 +305,7 @@ struct nullable_varchar_vector {
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
-  const std::vector<std::vector<size_t>> group_indexes2() const;
+  const std::vector<std::vector<size_t>> group_indexes3() const;
 
   // Create group index array on a subset of data.
   // iter_order_arr may be null if the regular iteration order is to be used
@@ -322,6 +322,15 @@ struct nullable_varchar_vector {
                                size_t * idx_arr,
                                size_t * out_group_pos,
                                size_t & out_group_pos_size) const;
+
+  const void group_indexes_on_subset2(const size_t  * input_index_arr,
+                                const size_t  * input_group_delims_arr,
+                                const size_t    input_group_delims_len,
+                                size_t        * output_index_arr,
+                                size_t        * output_group_delims_arr,
+                                size_t        & output_group_delims_len) const;
+
+  const std::vector<std::vector<size_t>> group_indexes2() const;
 };
 
 struct non_null_c_bounded_string {

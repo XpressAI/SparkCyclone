@@ -333,15 +333,21 @@ int main() {
   // test_lambda();
   // test_statement_expressions();
 
-  test_grouping();
-  test_grouping_desc();
+  // test_grouping();
+  // test_grouping_desc();
 
-  auto vec1 = nullable_varchar_vector(std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "JANU", "SEP", "OCT", "NOV", "DEC" });
+  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+  auto vec1 = nullable_varchar_vector(input);
   vec1.set_validity(3, 0);
-  vec1.set_validity(9, 0);
+  vec1.set_validity(10, 0);
   // vec1.print();
-  group_strings(&vec1);
+  // group_strings(&vec1);
+  // std::cout << "\n\n\n\n\n" << std::endl;
 
-  std::cout << "original" << vec1.group_indexes()  << std::endl;
-  std::cout << "new" << vec1.group_indexes2()  << std::endl;
+  // std::cout << "original" << vec1.group_indexes()  << std::endl;
+  // std::cout << "new" << vec1.group_indexes3()  << std::endl;
+  // std::cout << "new" << vec1.group_indexes2()  << std::endl;
+
+  // std::cout << input << std::endl;
+  vec1.group_indexes2();
 }

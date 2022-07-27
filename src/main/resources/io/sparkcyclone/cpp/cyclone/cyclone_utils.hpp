@@ -172,6 +172,14 @@ namespace cyclone {
     std::cout << name <<  " = " << vec << std::endl;
   }
 
+  template<typename T>
+  void print_vec(const std::string &name, const T * array, const size_t len) {
+    std::cout << name <<  " = [ ";
+    for (auto i = 0; i < len; i++) {
+      std::cout << array[i] << ", ";
+    }
+    std::cout << "]" << std::endl;
+  }
 
   /**
    * Append two bitsets using uint64_t as the container type.

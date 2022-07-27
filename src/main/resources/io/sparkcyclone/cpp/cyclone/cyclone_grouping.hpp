@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include "cyclone/cyclone_utils.hpp"
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"
 #include <vector>
@@ -108,12 +109,6 @@ namespace cyclone::grouping {
     return output_group_delims;
   }
 
-
-
-
-
-
-
   template <typename T, bool sort_ascending = true>
   inline const void sort_and_group_multiple2(T            * sort_data_arr,
                                                            size_t         sort_data_len,
@@ -132,6 +127,7 @@ namespace cyclone::grouping {
 
     // Set the output_group_delims_arr to be of length 0
     output_group_delims_len = 0;
+    output_group_delims_arr[output_group_delims_len++] = 0;
 
     // For each subset denoted by input_group_delims, perform sort + grouping
     // and get back a component delim group
@@ -139,12 +135,11 @@ namespace cyclone::grouping {
     #pragma _NEC ivdep
     for (auto i = 1; i < input_group_delims_len; i++) {
       // Fetch the boundaries of the range containing subset i
-      const auto subset_start = input_group_delims_arr[i-1];
+      const auto subset_start = input_group_delims_arr[i - 1];
       const auto subset_end   = input_group_delims_arr[i];
       const auto subset_size  = subset_end - subset_start;
 
       if (subset_size == 1) {
-        output_group_delims_arr[output_group_delims_len++] = subset_start;
         output_group_delims_arr[output_group_delims_len++] = subset_end;
 
       } else {
@@ -160,7 +155,7 @@ namespace cyclone::grouping {
 
         // Append them to the output_group_delims_arr (accounting for relative position)
         #pragma _NEC vector
-        for (auto d = 0; d < delims.size(); d++) {
+        for (auto d = 1; d < delims.size(); d++) {
           output_group_delims_arr[output_group_delims_len++] = subset_start + delims[d];
         }
       }
