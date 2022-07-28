@@ -65,7 +65,7 @@ namespace cyclone::benchmarks {
     std::vector<size_t> input_keys = input->size_t_data_vec();
 
     std::vector<size_t> keys;
-    const auto groups = cyclone::separate_to_groups(input_keys, keys);
+    const auto groups = cyclone::grouping::separate_to_groups(input_keys, keys);
     return groups.size();
   }
 

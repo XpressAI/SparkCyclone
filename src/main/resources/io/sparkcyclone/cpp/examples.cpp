@@ -192,8 +192,8 @@ void test_multiple_grouping() {
   std::cout << "GROUPING TEST\n" << std::endl;
 
   std::vector<int32_t>      input1 { 23, 0, 1, 4, 3, -2, 1, 5, 3, 0, 1, 6, 9, 6, 42, -100 };
-  std::vector<size_t>       index1(input1.size());
   const std::vector<size_t> grouping {{ 1, 6, 11, 14 }};
+  std::vector<size_t>       index1(input1.size());
   for (auto i = 0; i < index1.size(); i++) index1[i] = i;
 
   auto input2 = input1;

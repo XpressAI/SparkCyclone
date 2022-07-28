@@ -56,13 +56,13 @@ namespace cyclone::benchmarks {
     return new nullable_varchar_vector(input);
   }
 
-  size_t vector_group1(nullable_varchar_vector *input) {
-    auto groups = input->group_indexes();
+  size_t vector_group0(nullable_varchar_vector *input) {
+    auto groups = input->group_indexes0();
     return groups.size();
   }
 
-  size_t vector_group2(nullable_varchar_vector *input) {
-    auto groups = input->group_indexes2();
+  size_t vector_group1(nullable_varchar_vector *input) {
+    auto groups = input->group_indexes();
     return groups.size();
   }
 
@@ -71,20 +71,20 @@ namespace cyclone::benchmarks {
     auto *input_with_invalids = create_string_input(3500000, 150);
     input_with_invalids->set_validity(1, 0);
 
+    ankerl::nanobench::Bench().run("vector_group 0 (with validity, all valid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group0(input));
+    });
+
+    ankerl::nanobench::Bench().run("vector_group 0 (with validity, some invalid input)", [&]() {
+      ankerl::nanobench::doNotOptimizeAway(vector_group0(input_with_invalids));
+    });
+
     ankerl::nanobench::Bench().run("vector_group 1 (with validity, all valid input)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_group1(input));
     });
 
     ankerl::nanobench::Bench().run("vector_group 1 (with validity, some invalid input)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_group1(input_with_invalids));
-    });
-
-    ankerl::nanobench::Bench().run("vector_group 2 (with validity, all valid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group2(input));
-    });
-
-    ankerl::nanobench::Bench().run("vector_group 2 (with validity, some invalid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group2(input_with_invalids));
     });
   }
 }
