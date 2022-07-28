@@ -584,12 +584,12 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
   return from_words(output_words);
 }
 
-void nullable_varchar_vector::group_indexes_on_subset(const size_t * iter_order_arr,
-                                                      const size_t * group_pos,
-                                                      const size_t group_pos_size,
-                                                      size_t * idx_arr,
-                                                      size_t * out_group_pos,
-                                                      size_t & out_group_pos_size) const {
+const void nullable_varchar_vector::group_indexes_on_subset2(const size_t * iter_order_arr,
+                                                             const size_t * group_pos,
+                                                             const size_t group_pos_size,
+                                                             size_t * idx_arr,
+                                                             size_t * out_group_pos,
+                                                             size_t & out_group_pos_size) const {
   // Shortcut for case when every element would end up in its own group anyway
   if (group_pos_size > count) {
     auto start = group_pos[0];
@@ -700,7 +700,7 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t * iter_order_
   free(sorted_data);
 }
 
-const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() const {
+const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes2() const {
   // Short-circuit for simple cases
   if (count == 0) return {};
   if (count == 1) return {{ 0 }};
@@ -712,7 +712,7 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() 
   size_t * idx_arr = static_cast < size_t * > (malloc(sizeof(size_t) * count));
   size_t * max_group_pos = static_cast < size_t * > (malloc(sizeof(size_t) * (count + 1)));
   size_t group_pos_count;
-  group_indexes_on_subset(nullptr, group_pos, 2, idx_arr, max_group_pos, group_pos_count);
+  group_indexes_on_subset2(nullptr, group_pos, 2, idx_arr, max_group_pos, group_pos_count);
 
   std::vector < std::vector < size_t >> result;
 
@@ -728,104 +728,25 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() 
   return result;
 }
 
-const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes3() const {
-  // Fetch the validity vector and re-use the underyling data for sorting later on
-  auto sorted_data = this->validity_vec();
-
-  // Set up the indices
-  std::vector<size_t> index(this->count);
-  #pragma _NEC vector
-  #pragma _NEC ivdep
-  for (auto i = 0; i < index.size(); i++) index[i] = i;
-
-  // Set up the initial grouping, which is [0, count]
-  std::vector<size_t> grouping {{ 0, static_cast<size_t>(this->count) }};
-
+const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_index_arr0,
+                                                            const size_t  * input_group_delims_arr,
+                                                            const size_t    input_group_delims_len,
+                                                            size_t        * output_index_arr,
+                                                            size_t        * output_group_delims_arr,
+                                                            size_t        & output_group_delims_len) const {
+  // For compatibility purposes, we allow input_index_arr0 to be nullptr.  If it
+  // is indeed nullptr, then we generate the array
+  std::vector<size_t> _input_index(this->count);
+  size_t * input_index_arr;
   {
-    // STEP 1: Separate out the elements by those marked as valid vs invalid
-
-    // Sort DESC by validity bits (valid values go left and invalid values
-    // go right)
-    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, false>(sorted_data, index, grouping);
-
-    // The returned grouping should have either 2 elements (all strings are
-    // valid) or 3 elements (there is a partition separating valid and invalid
-    // elements). Remove the last element if needed so we can focus on sorting
-    // only the valid eleements
-    if (grouping.size() > 2) {
-      grouping.resize(2);
+    if (input_index_arr0 == nullptr) {
+      input_index_arr = _input_index.data();
+      for (auto i = 0; i < _input_index.size(); i++) { input_index_arr[i] = i; }
+    } else {
+      input_index_arr = const_cast<size_t *>(input_index_arr0);
     }
   }
 
-  {
-    // STEP 2: From here on out, we are working only with the subset of the
-    // elements that are valid.  Sort by the element lengths
-
-    // Collect the element lengths into sorted_data
-    #pragma _NEC vector
-    #pragma _NEC ivdep
-    for (auto i = 0; i < grouping.back(); i++) {
-      sorted_data[i] = this->lengths[index[i]];
-    }
-
-    // Sort ASC by element length
-    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
-  }
-
-  {
-    // STEP 3: Iterate over n, where n = max length of a valid element, and sort
-    // ASC by the ith character of each element in each iteration.  The grouping
-    // will be constructed slowly over each iteration
-
-    // Compute the length of the largest valid element
-    auto maxlen = 0;
-    #pragma _NEC vector
-    for (auto i = 0; i < grouping.back(); i++) {
-      auto len = this->lengths[index[i]];
-      if (len > maxlen) {
-        maxlen = len;
-      }
-    }
-
-    // Iterate the sorting over each element and accumulate the new grouping
-    // with each iteration
-    for (auto pos = 0; pos < maxlen; pos++) {
-      // Collect the pos-th character of every valid string into sorted_data
-      #pragma _NEC vector
-      #pragma _NEC ivdep
-      for (auto i = 0; i < grouping.back(); i++) {
-        auto j = index[i];
-        sorted_data[i] = (pos < this->lengths[j]) ? this->data[this->offsets[j] + pos] : -1;
-      }
-
-      // Sort ASC by elem[pos]. using the existing grouping
-      grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
-    }
-  }
-
-  {
-    // STEP 4: Iterate over n, where n = max length of a valid element, and sort
-    grouping.resize(grouping.size() + 1);
-    grouping.back() = this->count;
-  }
-
-  // Construct the groups from the grouping and indices
-  std::vector<std::vector<size_t>> result(grouping.size() - 1);
-  #pragma _NEC vector
-  #pragma _NEC ivdep
-  for (auto i = 1; i < grouping.size(); i++) {
-    result[i - 1] = std::vector<size_t>(&index[grouping[i - 1]], &index[grouping[i]]);
-  }
-
-  return result;
-}
-
-const void nullable_varchar_vector::group_indexes_on_subset2(const size_t  * input_index_arr,
-                                                              const size_t  * input_group_delims_arr,
-                                                              const size_t    input_group_delims_len,
-                                                              size_t        * output_index_arr,
-                                                              size_t        * output_group_delims_arr,
-                                                              size_t        & output_group_delims_len) const {
   // Fetch the full range start and end
   auto range_start = input_group_delims_arr[0];
   auto range_end   = input_group_delims_arr[input_group_delims_len - 1];
@@ -972,7 +893,7 @@ const void nullable_varchar_vector::group_indexes_on_subset2(const size_t  * inp
           // print_vec("chars", chars);
 
           // Sort the range of the size group
-          cyclone::grouping::sort_and_group_multiple2<int32_t, true>(
+          cyclone::grouping::sort_and_group_multiple<int32_t, true>(
             sorted_data,
             size_group_len,
             // Set index_arr to start from subset_start + size_group_start
@@ -996,12 +917,16 @@ const void nullable_varchar_vector::group_indexes_on_subset2(const size_t  * inp
 
         // print_vec("grp_data1", grp_data1, grp_len1);
 
-        // After N iterations of sorting, we have the final grouping within
-        // the size_group.  Append this to the output_group_delims_arr
-        #pragma _NEC vector
-        for (auto i = 1; i < grp_len1; i++) {
-          const auto absolute_offset = subset_start + size_group_start + grp_data1[i];
-          output_group_delims_arr[output_group_delims_len++] = absolute_offset;
+        {
+          // After N iterations of sorting, we have the final grouping within
+          // the size_group.  Append this to the output_group_delims_arr
+          #pragma _NEC vector
+          #pragma _NEC ivdep
+          for (auto i = 1; i < grp_len1; i++) {
+            const auto absolute_offset = subset_start + size_group_start + grp_data1[i];
+            output_group_delims_arr[output_group_delims_len + i - 1] = absolute_offset;
+          }
+          output_group_delims_len += grp_len1 - 1;
         }
 
         // print_vec("output_group_delims_arr", output_group_delims_arr, output_group_delims_len);
@@ -1020,22 +945,21 @@ const void nullable_varchar_vector::group_indexes_on_subset2(const size_t  * inp
   }
 }
 
-const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes2() const {
+const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() const {
   // Short-circuit for simple cases
-  if (count == 0) return {};
-  if (count == 1) return {{ 0 }};
+  if (this->count == 0) return {};
+  if (this->count == 1) return {{ 0 }};
 
+  // Construct the memory buffer args using std::vector for RAII advantage
   size_t input_group_delims[2] = { 0, static_cast<size_t>(this->count) };
-
-  std::vector<size_t> input_index(this->count);
-  for (auto i = 0; i < input_index.size(); i++) { input_index[i] = i; }
-
   std::vector<size_t> output_index(this->count);
   std::vector<size_t> output_groups(this->count + 1);
   size_t output_group_delims_len;
 
-  group_indexes_on_subset2(
-    input_index.data(),
+  // group_indexes() is a special case of group_indexes_on_subset(), where we
+  // are performing sort + grouping on just one subset - the entire data array.
+  group_indexes_on_subset(
+    nullptr,
     input_group_delims,
     2,
     output_index.data(),
@@ -1043,16 +967,10 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes2()
     output_group_delims_len
   );
 
-  // this->select(output_index)->print();
-  // std::cout << output_groups << std::endl;
-
-  std::vector < std::vector < size_t >> result;
+  std::vector<std::vector<size_t>> result;
   #pragma _NEC vector
   for (auto g = 1; g < output_group_delims_len; g++) {
-    // std::cout << "start " << output_index[output_groups[g - 1]] << " end " << output_index[output_groups[g]] << std::endl;
-    result.emplace_back(
-      std::vector<size_t>(&output_index[output_groups[g - 1]], &output_index[output_groups[g]])
-    );
+    result.emplace_back(std::vector<size_t>(&output_index[output_groups[g - 1]], &output_index[output_groups[g]]));
   }
 
   return result;

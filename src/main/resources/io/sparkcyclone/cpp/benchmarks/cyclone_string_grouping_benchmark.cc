@@ -66,11 +66,6 @@ namespace cyclone::benchmarks {
     return groups.size();
   }
 
-  size_t vector_group3(nullable_varchar_vector *input) {
-    auto groups = input->group_indexes3();
-    return groups.size();
-  }
-
   TEST_CASE("String Group-by Implementation Benchmarks") {
     auto *input = create_string_input(3500000, 150);
     auto *input_with_invalids = create_string_input(3500000, 150);
@@ -90,14 +85,6 @@ namespace cyclone::benchmarks {
 
     ankerl::nanobench::Bench().run("vector_group 2 (with validity, some invalid input)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_group2(input_with_invalids));
-    });
-
-    ankerl::nanobench::Bench().run("vector_group 3 (with validity, all valid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group3(input));
-    });
-
-    ankerl::nanobench::Bench().run("vector_group 3 (with validity, some invalid input)", [&]() {
-      ankerl::nanobench::doNotOptimizeAway(vector_group3(input_with_invalids));
     });
   }
 }

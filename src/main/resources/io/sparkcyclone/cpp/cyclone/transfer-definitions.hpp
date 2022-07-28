@@ -305,7 +305,6 @@ struct nullable_varchar_vector {
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
-  const std::vector<std::vector<size_t>> group_indexes3() const;
 
   // Create group index array on a subset of data.
   // iter_order_arr may be null if the regular iteration order is to be used
@@ -316,12 +315,12 @@ struct nullable_varchar_vector {
   // out_group_pos will be in the same format as group_pos and delineate the
   // found groups
   // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(const size_t * iter_order_arr,
-                               const size_t * group_pos,
-                               const size_t group_pos_size,
-                               size_t * idx_arr,
-                               size_t * out_group_pos,
-                               size_t & out_group_pos_size) const;
+  const void group_indexes_on_subset(const size_t * iter_order_arr,
+                                     const size_t * group_pos,
+                                     const size_t group_pos_size,
+                                     size_t * idx_arr,
+                                     size_t * out_group_pos,
+                                     size_t & out_group_pos_size) const;
 
   const void group_indexes_on_subset2(const size_t  * input_index_arr,
                                 const size_t  * input_group_delims_arr,

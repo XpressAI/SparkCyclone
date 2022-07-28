@@ -187,142 +187,54 @@ void test_statement_expressions() {
   std::cout << "================================================================================" << std::endl;
 }
 
-void group_strings(const nullable_varchar_vector *input) {
-  // Fetch the validity vector and re-use the underyling data for sorting later on
-  auto sorted_data = input->validity_vec();
-
-  // Set up the indices
-  std::vector<size_t> index(input->count);
-  #pragma _NEC vector
-  #pragma _NEC ivdep
-  for (auto i = 0; i < index.size(); i++) index[i] = i;
-
-  // Set up the initial grouping, which is [0, count]
-  std::vector<size_t> grouping {{ 0, static_cast<size_t>(input->count) }};
-
-  {
-    // STEP 1: Separate out the elements by those marked as valid vs invalid
-
-    // Sort DESC by validity bits (valid values go left and invalid values
-    // go right)
-    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, false>(sorted_data, index, grouping);
-    std::cout << "grouping: " << grouping << std::endl;
-
-    // The returned grouping should have either 2 elements (all strings are
-    // valid) or 3 elements (there is a partition separating valid and invalid
-    // elements). Remove the last element if needed so we can focus on sorting
-    // only the valid eleements
-    if (grouping.size() > 2) {
-      grouping.resize(2);
-    }
-  }
-
-  {
-    // STEP 2: From here on out, we are working only with the subset of the
-    // elements that are valid.  Sort by the element lengths
-
-    // Collect the element lengths into sorted_data
-    #pragma _NEC vector
-    #pragma _NEC ivdep
-    for (auto i = 0; i < grouping.back(); i++) {
-      sorted_data[i] = input->lengths[index[i]];
-    }
-
-    // Sort ASC by element length
-    grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
-  }
-
-  {
-    // STEP 3: Iterate over n, where n = max length of a valid element, and sort
-    // ASC by the ith character of each element in each iteration.  The grouping
-    // will be constructed slowly over each iteration
-
-    // Compute the length of the largest valid element
-    auto maxlen = 0;
-    #pragma _NEC vector
-    for (auto i = 0; i < grouping.back(); i++) {
-      auto len = input->lengths[index[i]];
-      if (len > maxlen) {
-        maxlen = len;
-      }
-    }
-
-    // Iterate the sorting over each element and accumulate the new grouping
-    // with each iteration
-    for (auto pos = 0; pos < maxlen; pos++) {
-      // Collect the pos-th character of every valid string into sorted_data
-      #pragma _NEC vector
-      #pragma _NEC ivdep
-      for (auto i = 0; i < grouping.back(); i++) {
-        auto j = index[i];
-        sorted_data[i] = (pos < input->lengths[j]) ? input->data[input->offsets[j] + pos] : -1;
-      }
-
-      // Sort ASC by elem[pos]. using the existing grouping
-      grouping = cyclone::grouping::sort_and_group_multiple<int32_t, true>(sorted_data, index, grouping);
-    }
-  }
-
-  {
-    // STEP 4: Iterate over n, where n = max length of a valid element, and sort
-    grouping.resize(grouping.size() + 1);
-    grouping.back() = input->count;
-  }
-
-  std::cout << "index: " << index << std::endl;
-  std::cout << "grouping: " << grouping << std::endl;
-  input->select(index)->print();
-
-  std::vector<std::vector<size_t>> result(grouping.size() - 1);
-  #pragma _NEC vector
-  #pragma _NEC ivdep
-  for (auto i = 1; i < grouping.size(); i++) {
-    result[i - 1] = std::vector<size_t>(&index[grouping[i - 1]], &index[grouping[i]]);
-  }
-  std::cout << "result: " << result << std::endl;
-  std::cout << "result: " << result.size() << std::endl;
-
-  std::cout << "reference: " << input->group_indexes() << std::endl;
-}
-
-void test_grouping() {
+void test_multiple_grouping() {
   std::cout << "================================================================================" << std::endl;
-  std::cout << "GROUPING TEST 1\n" << std::endl;
+  std::cout << "GROUPING TEST\n" << std::endl;
 
-  std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
-  std::vector<size_t>       index(input.size());
-  const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
-  for (auto i = 0; i < index.size(); i++) index[i] = i;
+  std::vector<int32_t>      input1 { 23, 0, 1, 4, 3, -2, 1, 5, 3, 0, 1, 6, 9, 6, 42, -100 };
+  std::vector<size_t>       index1(input1.size());
+  const std::vector<size_t> grouping {{ 1, 6, 11, 14 }};
+  for (auto i = 0; i < index1.size(); i++) index1[i] = i;
 
-  std::cout << "input: " << input << std::endl;
-  std::cout << "index: " << index << std::endl;
+  auto input2 = input1;
+  auto index2 = index1;
+
+  std::cout << "input: " << input1 << std::endl;
+  std::cout << "index: " << index1 << std::endl;
   std::cout << "grouping: " << grouping << std::endl;
 
-  auto new_grouping = cyclone::grouping::sort_and_group_multiple2(input, index, grouping);
+  auto new_grouping1 = cyclone::grouping::sort_and_group_multiple<int32_t, true>(input1, index1, grouping);
+  auto new_grouping2 = cyclone::grouping::sort_and_group_multiple<int32_t, false>(input2, index2, grouping);
 
-  std::cout << "values after grouping: " << input << std::endl;
-  std::cout << "new grouping: " << new_grouping << std::endl;
+  std::cout << std::endl;
+  std::cout << "new values1: " << input1 << std::endl;
+  std::cout << "new index1: " << index1 << std::endl;
+  std::cout << "new grouping1: " << new_grouping1 << std::endl;
+
+  std::cout << std::endl;
+  std::cout << "new values2: " << input2 << std::endl;
+  std::cout << "new index2: " << index1 << std::endl;
+  std::cout << "new grouping2: " << new_grouping2 << std::endl;
   std::cout << "================================================================================" << std::endl;
 }
 
-void test_grouping_desc() {
-  std::cout << "================================================================================" << std::endl;
-  std::cout << "GROUPING TEST 2\n" << std::endl;
+void test_string_grouping() {
+  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+  std::cout << input << std::endl;
+  auto vec1 = nullable_varchar_vector(input);
+  vec1.set_validity(3, 0);
+  vec1.set_validity(10, 0);
 
-  std::vector<int32_t>      input { 0, 1, 1, 1, 1, 1, 2, 3, 0, 1, 6, 9, 6, };
-  std::vector<size_t>       index(input.size());
-  const std::vector<size_t> grouping {{ 0, 5, 10, 13 }};
-  for (auto i = 0; i < index.size(); i++) index[i] = i;
+  auto groups = vec1.group_indexes();
 
-  std::cout << "input: " << input << std::endl;
-  std::cout << "index: " << index << std::endl;
-  std::cout << "grouping: " << grouping << std::endl;
-
-  auto new_grouping = cyclone::grouping::sort_and_group_multiple2<int32_t, false>(input, index, grouping);
-
-  std::cout << "values after grouping: " << input << std::endl;
-  std::cout << "new grouping: " << new_grouping << std::endl;
-  std::cout << "================================================================================" << std::endl;
+  std::cout << groups << std::endl;
+  std::cout << "[ ";
+  for (auto group : groups) {
+    for (auto i : group) {
+      std::cout << input[i] << ", ";
+    }
+  }
+  std::cout << " ]" << std::endl;
 }
 
 int main() {
@@ -333,21 +245,6 @@ int main() {
   // test_lambda();
   // test_statement_expressions();
 
-  // test_grouping();
-  // test_grouping_desc();
-
-  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
-  auto vec1 = nullable_varchar_vector(input);
-  vec1.set_validity(3, 0);
-  vec1.set_validity(10, 0);
-  // vec1.print();
-  // group_strings(&vec1);
-  // std::cout << "\n\n\n\n\n" << std::endl;
-
-  // std::cout << "original" << vec1.group_indexes()  << std::endl;
-  // std::cout << "new" << vec1.group_indexes3()  << std::endl;
-  // std::cout << "new" << vec1.group_indexes2()  << std::endl;
-
-  // std::cout << input << std::endl;
-  vec1.group_indexes2();
+  test_multiple_grouping();
+  test_string_grouping();
 }
