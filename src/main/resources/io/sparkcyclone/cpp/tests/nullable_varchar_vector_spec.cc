@@ -384,6 +384,26 @@ namespace cyclone::tests {
       CHECK(vec1->select(indices)->equivalent_to(vec2));
     }
 
+    // TEST_CASE("group_indexes_on_subset works [2]") {
+    //   auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+    //   auto vec1 = new nullable_varchar_vector(input1);
+    //   vec1->set_validity(3, 0);
+    //   vec1->set_validity(10, 0);
+
+    //   auto input2 = std::vector<std::string> { "APR", "APR", "JAN", "NOV", "SEP", "DEC0", "DEC1", "DEC2", "FEBU", "JANU", "JANU", "MARCG", "MARCH", "OCT", "FEB" };
+    //   auto vec2 = new nullable_varchar_vector(input2);
+    //   vec2->set_validity(13, 0);
+    //   vec2->set_validity(14, 0);
+
+    //   auto groups = vec1->group_indexes();
+    //   std::vector<size_t> indices;
+    //   for (auto group : groups) {
+    //     for (auto i : group) indices.emplace_back(i);
+    //   }
+
+    //   CHECK(vec1->select(indices)->equivalent_to(vec2));
+    // }
+
     TEST_CASE("group_indexes_on_subset short-circuit works") {
       auto *input1 = new nullable_varchar_vector(std::vector<std::string> {"A", "B", "C", "D", "E"});
 

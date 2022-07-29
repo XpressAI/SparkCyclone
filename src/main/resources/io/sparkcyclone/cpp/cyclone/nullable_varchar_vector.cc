@@ -759,16 +759,14 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
     // each subset will contain only one element, so we can apply shortcut.
 
     if (input_group_delims_len > this->count) {
-
       memcpy(&output_index_arr[range_start], &input_index_arr[range_start], sizeof(size_t) * range_size);
       memcpy(output_group_delims_arr, input_group_delims_arr, sizeof(size_t) * input_group_delims_len);
       output_group_delims_len = input_group_delims_len;
-
       return;
     }
   }
 
-  // Initialize the group delims
+  // Initialize the output group delims
   output_group_delims_len = 0;
   output_group_delims_arr[output_group_delims_len++] = input_group_delims_arr[0];
 
@@ -834,11 +832,11 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
 
       // print_vec("sorted_data", sorted_data, cur_valid_count);
 
-      // Sort ASC the valid elements by element length
-      frovedis::radix_sort(&sorted_data[subset_start], &output_index_arr[subset_start], cur_valid_count);
+      // Sort ASC the valid elements by element length, and apply the ordering to output_index_arr starting from the subset offset
+      frovedis::radix_sort(sorted_data, &output_index_arr[subset_start], cur_valid_count);
 
       // Group the valid elements by element length
-      auto size_grouping = frovedis::set_separate(&sorted_data[subset_start], cur_valid_count);
+      auto size_grouping = frovedis::set_separate(sorted_data, cur_valid_count);
       // print_vec("size_grouping", size_grouping);
       // print_vec("output_group_delims_arr", output_group_delims_arr, output_group_delims_len);
 
@@ -860,7 +858,7 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         // std::cout << "len: " << iterations << std::endl;
         // std::vector<size_t> idxs;
         // for (auto i = size_group_start; i < size_group_end; i++) {
-        //   idxs.push_back(output_index_arr[subset_start + i]);
+        //   idxs.emplace_back(output_index_arr[subset_start + i]);
         // }
         // this->select(idxs)->print();
 
@@ -914,7 +912,7 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         }
 
         // print_vec("grp_data1", grp_data1, grp_len1);
-
+        // std::cout << gg << " data[0] " << this->data[0] << std::endl;
         {
           // After N iterations of sorting, we have the final grouping within
           // the size_group.  Append this to the output_group_delims_arr
@@ -938,8 +936,13 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         output_group_delims_arr[output_group_delims_len++] = subset_end;
       }
 
+      // print_vec("output_index_arr after loop", output_group_delims_arr, output_group_delims_len);
       // print_vec("output_index_arr after loop", &output_index_arr[subset_start], subset_size);
+      // std::cout << "data[0] " << this->data[0] << std::endl;
     }
+
+    // std::cout << "data[0] " << this->data[0] << std::endl;
+
   }
 }
 
@@ -951,7 +954,7 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() 
   // Construct the memory buffer args using std::vector for RAII advantage
   size_t input_group_delims[2] = { 0, static_cast<size_t>(this->count) };
   std::vector<size_t> output_index(this->count);
-  std::vector<size_t> output_groups(this->count + 1);
+  std::vector<size_t> output_group_delims(this->count + 1);
   size_t output_group_delims_len;
 
   // group_indexes() is a special case of group_indexes_on_subset(), where we
@@ -961,14 +964,14 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes() 
     input_group_delims,
     2,
     output_index.data(),
-    output_groups.data(),
+    output_group_delims.data(),
     output_group_delims_len
   );
 
   std::vector<std::vector<size_t>> result;
   #pragma _NEC vector
   for (auto g = 1; g < output_group_delims_len; g++) {
-    result.emplace_back(std::vector<size_t>(&output_index[output_groups[g - 1]], &output_index[output_groups[g]]));
+    result.emplace_back(std::vector<size_t>(&output_index[output_group_delims[g - 1]], &output_index[output_group_delims[g]]));
   }
 
   return result;
