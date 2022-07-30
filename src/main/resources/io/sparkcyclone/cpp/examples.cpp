@@ -265,8 +265,8 @@ void test_string_grouping2() {
     output_group_delims_len
   );
 
-  // // Adjust the output
-  // output_group_delims.resize(output_group_delims_len);
+  // Adjust the output
+  output_group_delims.resize(output_group_delims_len);
 
   std::cout << std::endl;
   // vec1->print();
@@ -274,6 +274,8 @@ void test_string_grouping2() {
   std::cout << input_group_delims << std::endl;
   // std::cout << output_group_delims << std::endl;
   vec1->select(output_index)->print();
+
+  std::cout << output_group_delims << std::endl;
 }
 
 int main() {
@@ -285,5 +287,5 @@ int main() {
   // test_statement_expressions();
 
   // test_multiple_grouping();
-  test_string_grouping2();
+  test_string_grouping();
 }

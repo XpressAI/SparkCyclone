@@ -74,11 +74,11 @@ namespace cyclone::grouping {
     Function Arguments:
       sort_data_arr           : The data array whose elements are to be sorted (sort keys).
       sort_data_len           : The length of the data array.
-      index_arr               : An array of indices of the elements (sort values).  This is used for multi-stage sorting.
+      index_arr               : An array of indices of the elements (sort values, to be re-arranged).  This is used for multi-stage sorting.
       input_group_delims_arr  : Indices that denote the ranges to be sorted.  Index values are relative to &sort_data_arr[0].
-      input_group_delims_len  : Length of the input indices.
-      output_group_delims_arr : Combined indices where the values change (to be written after the sort + grouping).  Index values are relative to &sort_data_arr[0].
-      output_group_delims_len : Length of the output indices (to be written after the sort + grouping).  Index values are relative to &sort_data_arr[0].
+      input_group_delims_len  : Length of input_group_delims_arr.
+      output_group_delims_arr : Combined indices where the values change after sort + grouping (pre-allocated and to be written).  Index values are relative to &sort_data_arr[0].
+      output_group_delims_len : Length of output_group_delims_arr (to be written).  Index values are relative to &sort_data_arr[0].
   */
   template <typename T, bool sort_ascending = true>
   inline const void sort_and_group_multiple(T             * sort_data_arr,

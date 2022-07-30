@@ -483,8 +483,9 @@ void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr
         }
       }
 
-      // Set up the data array for the subset
+
       {
+        // Set up the data array for the subset
         #pragma _NEC vector
         for (auto i = 0; i < cur_valid_count; i++) {
           sorted_data[i] = data[idx_arr[start + i]];

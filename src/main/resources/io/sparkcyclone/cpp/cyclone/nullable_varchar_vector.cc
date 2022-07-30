@@ -28,10 +28,6 @@
 #include <iostream>
 #include <cstring>
 
-using namespace cyclone;
-
-
-
 nullable_varchar_vector * nullable_varchar_vector::allocate() {
   // Allocate
   auto *output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
@@ -584,12 +580,12 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
   return from_words(output_words);
 }
 
-const void nullable_varchar_vector::group_indexes_on_subset0(const size_t * iter_order_arr,
-                                                             const size_t * group_pos,
-                                                             const size_t group_pos_size,
-                                                             size_t * idx_arr,
-                                                             size_t * out_group_pos,
-                                                             size_t & out_group_pos_size) const {
+void nullable_varchar_vector::group_indexes_on_subset0(const size_t * iter_order_arr,
+                                                       const size_t * group_pos,
+                                                       const size_t group_pos_size,
+                                                       size_t * idx_arr,
+                                                       size_t * out_group_pos,
+                                                       size_t & out_group_pos_size) const {
   // Shortcut for case when every element would end up in its own group anyway
   if (group_pos_size > count) {
     auto start = group_pos[0];
@@ -727,14 +723,14 @@ const std::vector<std::vector<size_t>> nullable_varchar_vector::group_indexes0()
   return result;
 }
 
-const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_index_arr0,
-                                                            const size_t  * input_group_delims_arr,
-                                                            const size_t    input_group_delims_len,
-                                                            size_t        * output_index_arr,
-                                                            size_t        * output_group_delims_arr,
-                                                            size_t        & output_group_delims_len) const {
+void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_index_arr0,
+                                                      const size_t  * input_group_delims_arr,
+                                                      const size_t    input_group_delims_len,
+                                                      size_t        * output_index_arr,
+                                                      size_t        * output_group_delims_arr,
+                                                      size_t        & output_group_delims_len) const {
   // For compatibility purposes, we allow input_index_arr0 to be nullptr.  If it
-  // is indeed nullptr, then we generate the array
+  // is indeed nullptr, then we generate the index array from 0 to this->count.
   std::vector<size_t> _input_index(this->count);
   size_t * input_index_arr;
   {
@@ -750,14 +746,10 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
   auto range_start = input_group_delims_arr[0];
   auto range_end   = input_group_delims_arr[input_group_delims_len - 1];
   auto range_size  = range_end - range_start;
-  // std::cout << "range_start " << range_start << std::endl;
-  // std::cout << "range_end " << range_end << std::endl;
-  // std::cout << "input_group_delims_len " << input_group_delims_len << std::endl;
 
   {
     // If there are more group positions than elements in the vector, it means
-    // each subset will contain only one element, so we can apply shortcut.
-
+    // that each subset will contain only one element, so we can apply shortcut.
     if (input_group_delims_len > this->count) {
       memcpy(&output_index_arr[range_start], &input_index_arr[range_start], sizeof(size_t) * range_size);
       memcpy(output_group_delims_arr, input_group_delims_arr, sizeof(size_t) * input_group_delims_len);
@@ -814,9 +806,6 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         }
       }
     }
-    // std::cout << "cur_invalid_count " << cur_invalid_count << std::endl;
-    // std::cout << "cur_valid_count " << cur_valid_count << std::endl;
-    // print_vec("output_index_arr", &output_index_arr[subset_start], subset_size);
 
     {
       // STEP 2: From here on out, we are working only with the subset of the
@@ -830,15 +819,12 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         sorted_data[i] = this->lengths[j];
       }
 
-      // print_vec("sorted_data", sorted_data, cur_valid_count);
-
       // Sort ASC the valid elements by element length, and apply the ordering to output_index_arr starting from the subset offset
       frovedis::radix_sort(sorted_data, &output_index_arr[subset_start], cur_valid_count);
 
       // Group the valid elements by element length
       auto size_grouping = frovedis::set_separate(sorted_data, cur_valid_count);
-      // print_vec("size_grouping", size_grouping);
-      // print_vec("output_group_delims_arr", output_group_delims_arr, output_group_delims_len);
+
 
       // STEP 3: Now that we have a by-string-size grouping, we will go through
       // each group and sort iteratively, first by the 1st character of each
@@ -854,13 +840,6 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
         // Determine the number of iterations to sort this size group by the
         // common length of the strings in this group
         auto iterations = this->lengths[output_index_arr[subset_start + size_group_start]];
-
-        // std::cout << "len: " << iterations << std::endl;
-        // std::vector<size_t> idxs;
-        // for (auto i = size_group_start; i < size_group_end; i++) {
-        //   idxs.emplace_back(output_index_arr[subset_start + i]);
-        // }
-        // this->select(idxs)->print();
 
         // Set the initial grouping in the size_group to be [0, size_group_len]
         grp_data1[0] = 0;
@@ -879,12 +858,6 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
             auto j = output_index_arr[subset_start + size_group_start + i];
             sorted_data[i] = this->data[this->offsets[j] + pos];
           }
-
-          // std::vector<char> chars;
-          // for (auto i = 0; i < size_group_len; i++) {
-          //   chars.emplace_back(char(sorted_data[i]));
-          // }
-          // print_vec("chars", chars);
 
           // Sort the range of the size group.  Use grp_data1 and grp_data2
           // alternately as the input and output buffers for this iterative
@@ -911,8 +884,6 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
           grp_len1  = tmpl;
         }
 
-        // print_vec("grp_data1", grp_data1, grp_len1);
-        // std::cout << gg << " data[0] " << this->data[0] << std::endl;
         {
           // After N iterations of sorting, we have the final grouping within
           // the size_group.  Append this to the output_group_delims_arr
@@ -924,9 +895,6 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
           }
           output_group_delims_len += grp_len1 - 1;
         }
-
-        // print_vec("output_group_delims_arr", output_group_delims_arr, output_group_delims_len);
-        // std::cout << "\n" << std::endl;
       }
 
       // After going through all M size_groups, we have finished sorting the
@@ -935,14 +903,7 @@ const void nullable_varchar_vector::group_indexes_on_subset(const size_t  * inpu
       if (cur_invalid_count > 0) {
         output_group_delims_arr[output_group_delims_len++] = subset_end;
       }
-
-      // print_vec("output_index_arr after loop", output_group_delims_arr, output_group_delims_len);
-      // print_vec("output_index_arr after loop", &output_index_arr[subset_start], subset_size);
-      // std::cout << "data[0] " << this->data[0] << std::endl;
     }
-
-    // std::cout << "data[0] " << this->data[0] << std::endl;
-
   }
 }
 

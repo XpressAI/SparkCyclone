@@ -327,7 +327,7 @@ namespace cyclone::tests {
       CHECK(output->equivalent_to(expected));
     }
 
-    TEST_CASE("group_indexes_on_subset works [0]") {
+    TEST_CASE("group_indexes_on_subset works [1]") {
       auto *input1 = new nullable_varchar_vector(std::vector<std::string> {"A", "A", "B", "A", "A", "A", "A", "B", "B", "B", "B", "A", "A", "B", "B" });
       auto *input2 = new nullable_varchar_vector(std::vector<std::string> {"A", "C", "B", "C", "D", "A", "A", "D", "B", "E", "B", "E", "A", "B", "C" });
       auto *input3 = new nullable_varchar_vector(std::vector<std::string> {"G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G", "H", "G" });
@@ -364,7 +364,49 @@ namespace cyclone::tests {
       CHECK(result == expected);
     }
 
-    TEST_CASE("group_indexes_on_subset works [1]") {
+    TEST_CASE("group_indexes_on_subset works [2]") {
+      // Set up input
+      auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+      auto vec1 = new nullable_varchar_vector(input1);
+      vec1->set_validity(7, 0);
+      vec1->set_validity(11, 0);
+      vec1->set_validity(13, 0);
+
+      // Expected output - because the group delims are in [3, 17), index values
+      // at positions [0, 1, 2, 17, 18] are set to 0, so will point to `JAN`
+      auto input2 = std::vector<std::string> { "JAN", "JAN", "JAN", "APR", "FEB", "MARCG", "MARCH", "NOV", "JANU", "SEPT", "SEPT", "MARCG", "SEP", "APR", "NOV", "OCT", "DEC2", "JAN", "JAN" };
+      auto vec2 = new nullable_varchar_vector(input2);
+      vec2->set_validity(7, 0);
+      vec2->set_validity(12, 0);
+      vec2->set_validity(13, 0);
+      auto expected_group_delims = std::vector<size_t> { 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16, 17 };
+
+      // Sort 3 subsets separately
+      auto input_group_delims = std::vector<size_t> { 3, 8, 14, 17 };
+
+      // Set up output
+      std::vector<size_t> output_index(vec1->count);
+      std::vector<size_t> output_group_delims(vec1->count + 1);
+      size_t output_group_delims_len;
+
+      // Group indices
+      vec1->group_indexes_on_subset(
+        nullptr,
+        input_group_delims.data(),
+        input_group_delims.size(),
+        output_index.data(),
+        output_group_delims.data(),
+        output_group_delims_len
+      );
+
+      // Adjust the output
+      output_group_delims.resize(output_group_delims_len);
+
+      CHECK(vec1->select(output_index)->equivalent_to(vec2));
+      CHECK(output_group_delims == expected_group_delims);
+    }
+
+    TEST_CASE("group_indexes works") {
       auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
       auto vec1 = new nullable_varchar_vector(input1);
       vec1->set_validity(3, 0);
@@ -383,26 +425,6 @@ namespace cyclone::tests {
 
       CHECK(vec1->select(indices)->equivalent_to(vec2));
     }
-
-    // TEST_CASE("group_indexes_on_subset works [2]") {
-    //   auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
-    //   auto vec1 = new nullable_varchar_vector(input1);
-    //   vec1->set_validity(3, 0);
-    //   vec1->set_validity(10, 0);
-
-    //   auto input2 = std::vector<std::string> { "APR", "APR", "JAN", "NOV", "SEP", "DEC0", "DEC1", "DEC2", "FEBU", "JANU", "JANU", "MARCG", "MARCH", "OCT", "FEB" };
-    //   auto vec2 = new nullable_varchar_vector(input2);
-    //   vec2->set_validity(13, 0);
-    //   vec2->set_validity(14, 0);
-
-    //   auto groups = vec1->group_indexes();
-    //   std::vector<size_t> indices;
-    //   for (auto group : groups) {
-    //     for (auto i : group) indices.emplace_back(i);
-    //   }
-
-    //   CHECK(vec1->select(indices)->equivalent_to(vec2));
-    // }
 
     TEST_CASE("group_indexes_on_subset short-circuit works") {
       auto *input1 = new nullable_varchar_vector(std::vector<std::string> {"A", "B", "C", "D", "E"});

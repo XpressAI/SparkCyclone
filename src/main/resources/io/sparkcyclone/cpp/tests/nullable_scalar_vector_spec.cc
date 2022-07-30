@@ -258,8 +258,6 @@ namespace cyclone::tests {
       CHECK(grouped[0] == expected_0);
       CHECK(grouped[1] == expected_1);
       CHECK(grouped.size() == 2);
-
-
     }
 
     TEST_CASE_TEMPLATE("group_indexes works with all valid values (3 groups)", T, int32_t, int64_t, float, double){
