@@ -243,176 +243,174 @@ namespace cyclone::tests {
       CHECK(input->eval_in(std::vector<T> { 586, 42 }) == expected1);
       CHECK(input->eval_in(std::vector<T> { 106, 538 }) == expected2);
     }
-  }
 
-  TEST_CASE_TEMPLATE("group_indexes works with all valid values", T, int32_t, int64_t, float, double){
-    std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
-    std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
-    std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
+    TEST_CASE_TEMPLATE("group_indexes works with all valid values", T, int32_t, int64_t, float, double){
+      std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+      std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
+      std::vector<size_t> expected_1 = { 2, 7, 8, 9, 10, 13, 14 };
 
-    const auto *input = new NullableScalarVec(grouping);
-    auto grouped = input->group_indexes();
+      const auto *input = new NullableScalarVec(grouping);
+      auto grouped = input->group_indexes();
 
-    cyclone::print_vec("grouped[0]", grouped[0]);
-    cyclone::print_vec("grouped[1]", grouped[1]);
+      cyclone::print_vec("grouped[0]", grouped[0]);
+      cyclone::print_vec("grouped[1]", grouped[1]);
 
-    CHECK(grouped[0] == expected_0);
-    CHECK(grouped[1] == expected_1);
-    CHECK(grouped.size() == 2);
-
-
-  }
-
-  TEST_CASE_TEMPLATE("group_indexes works with all valid values (3 groups)", T, int32_t, int64_t, float, double){
-    std::vector<T> grouping = { 10, 10, 11, 12, 10, 10, 10, 11, 11, 11, 12, 10, 10, 11, 11 };
-    std::vector<size_t> expected_0 = { 0, 1, 4, 5, 6, 11, 12 };
-    std::vector<size_t> expected_1 = { 2, 7, 8, 9, 13, 14 };
-    std::vector<size_t> expected_2 = { 3, 10 };
-
-    const auto *input = new NullableScalarVec(grouping);
-    auto grouped = input->group_indexes();
-
-    cyclone::print_vec("grouped[0]", grouped[0]);
-    cyclone::print_vec("grouped[1]", grouped[1]);
-    cyclone::print_vec("grouped[2]", grouped[2]);
-
-    CHECK(grouped[0] == expected_0);
-    CHECK(grouped[1] == expected_1);
-    CHECK(grouped[2] == expected_2);
-    CHECK(grouped.size() == 3);
-  }
-
-  TEST_CASE_TEMPLATE("group_indexes works with some invalid values", T, int32_t, int64_t, float, double){
-    std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
-    std::vector<size_t> expected_0 = { 1, 3, 4, 5, 6, 11, 12 };
-    std::vector<size_t> expected_1 = { 7, 8, 9, 10, 13, 14 };
-    std::vector<size_t> expected_2 = { 2, 0 };
-
-    auto *input = new NullableScalarVec(grouping);
-    input->set_validity(0, 0);
-    input->set_validity(2, 0);
-
-    auto grouped = input->group_indexes();
-
-    cyclone::print_vec("grouped[0]", grouped[0]);
-    cyclone::print_vec("grouped[1]", grouped[1]);
-    cyclone::print_vec("grouped[2]", grouped[2]);
-
-    CHECK(grouped[0] == expected_0);
-    CHECK(grouped[1] == expected_1);
-    CHECK(grouped[2] == expected_2);
-    CHECK(grouped.size() == 3);
-  }
-
-  TEST_CASE("group_indexes_on_subset works (with different types)"){
-    std::vector<int64_t> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
-    auto *input1 = new NullableScalarVec(grouping_1);
-
-    //    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14
-    // { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 }
-    // { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
-    //  10,  10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11
-    //   3,   5,  7,  7, 10, 10, 10, 10, 11,  5, 11,  3, 11, 11,  7
-    //
-
-    std::vector<double> grouping_2 = { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
-    auto *input2 = new NullableScalarVec(grouping_2);
-
-    std::vector<int> grouping_3 =    {  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1 };
-    auto *input3 = new NullableScalarVec(grouping_3);
-
-    std::vector<std::vector<size_t>> expected = {{11}, {4}, {1, 3}, {0, 6, 12}, {5}, {9}, {7}, {14}, {2, 8, 10}, {13}};
-
-    size_t count = grouping_1.size();
-    size_t start_group_pos[2] = {0, count};
-    size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-    size_t* b_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-
-    size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
-    size_t* b_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
-
-    size_t a_pos_idxs_size;
-    size_t b_pos_idxs_size;
-
-    input1->group_indexes_on_subset(nullptr, start_group_pos, 2, a_arr, a_pos_idxs, a_pos_idxs_size);
-    std::cout << "Pos Idxs: ";
-    for(auto i = 0; i < a_pos_idxs_size; i++){
-      std::cout << a_pos_idxs[i] << " ";
+      CHECK(grouped[0] == expected_0);
+      CHECK(grouped[1] == expected_1);
+      CHECK(grouped.size() == 2);
     }
-    std::cout << std::endl;
-    std::cout << "Result Array: ";
-    for(auto i = 0; i < count; i++){
-      std::cout << a_arr[i] << " ";
+
+    TEST_CASE_TEMPLATE("group_indexes works with all valid values (3 groups)", T, int32_t, int64_t, float, double){
+      std::vector<T> grouping = { 10, 10, 11, 12, 10, 10, 10, 11, 11, 11, 12, 10, 10, 11, 11 };
+      std::vector<size_t> expected_0 = { 0, 1, 4, 5, 6, 11, 12 };
+      std::vector<size_t> expected_1 = { 2, 7, 8, 9, 13, 14 };
+      std::vector<size_t> expected_2 = { 3, 10 };
+
+      const auto *input = new NullableScalarVec(grouping);
+      auto grouped = input->group_indexes();
+
+      cyclone::print_vec("grouped[0]", grouped[0]);
+      cyclone::print_vec("grouped[1]", grouped[1]);
+      cyclone::print_vec("grouped[2]", grouped[2]);
+
+      CHECK(grouped[0] == expected_0);
+      CHECK(grouped[1] == expected_1);
+      CHECK(grouped[2] == expected_2);
+      CHECK(grouped.size() == 3);
     }
-    std::cout << std::endl;
-    input2->group_indexes_on_subset(a_arr, a_pos_idxs, a_pos_idxs_size, b_arr, b_pos_idxs, b_pos_idxs_size);
-    std::cout << "Pos Idxs: ";
-    for(auto i = 0; i < b_pos_idxs_size; i++){
-      std::cout << b_pos_idxs[i] << " ";
+
+    TEST_CASE_TEMPLATE("group_indexes works with some invalid values", T, int32_t, int64_t, float, double){
+      std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+      std::vector<size_t> expected_0 = { 1, 3, 4, 5, 6, 11, 12 };
+      std::vector<size_t> expected_1 = { 7, 8, 9, 10, 13, 14 };
+      std::vector<size_t> expected_2 = { 2, 0 };
+
+      auto *input = new NullableScalarVec(grouping);
+      input->set_validity(0, 0);
+      input->set_validity(2, 0);
+
+      auto grouped = input->group_indexes();
+
+      cyclone::print_vec("grouped[0]", grouped[0]);
+      cyclone::print_vec("grouped[1]", grouped[1]);
+      cyclone::print_vec("grouped[2]", grouped[2]);
+
+      CHECK(grouped[0] == expected_0);
+      CHECK(grouped[1] == expected_1);
+      CHECK(grouped[2] == expected_2);
+      CHECK(grouped.size() == 3);
     }
-    std::cout << std::endl;
-    std::cout << "Result Array: ";
-    for(auto i = 0; i < count; i++){
-      std::cout << b_arr[i] << " ";
+
+    TEST_CASE("group_indexes_on_subset works (with different types)"){
+      std::vector<int64_t> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
+      auto *input1 = new NullableScalarVec(grouping_1);
+
+      //    0   1   2   3   4   5   6   7   8   9  10  11  12  13  14
+      // { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 }
+      // { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
+      //  10,  10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11
+      //   3,   5,  7,  7, 10, 10, 10, 10, 11,  5, 11,  3, 11, 11,  7
+      //
+
+      std::vector<double> grouping_2 = { 10,  7, 11,  7,  5, 10, 10,  5, 11,  3, 11,  3, 10, 11,  7 };
+      auto *input2 = new NullableScalarVec(grouping_2);
+
+      std::vector<int> grouping_3 =    {  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1,  8,  1 };
+      auto *input3 = new NullableScalarVec(grouping_3);
+
+      std::vector<std::vector<size_t>> expected = {{11}, {4}, {1, 3}, {0, 6, 12}, {5}, {9}, {7}, {14}, {2, 8, 10}, {13}};
+
+      size_t count = grouping_1.size();
+      size_t start_group_pos[2] = {0, count};
+      size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+      size_t* b_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+
+      size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+      size_t* b_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+
+      size_t a_pos_idxs_size;
+      size_t b_pos_idxs_size;
+
+      input1->group_indexes_on_subset(nullptr, start_group_pos, 2, a_arr, a_pos_idxs, a_pos_idxs_size);
+      std::cout << "Pos Idxs: ";
+      for(auto i = 0; i < a_pos_idxs_size; i++){
+        std::cout << a_pos_idxs[i] << " ";
+      }
+      std::cout << std::endl;
+      std::cout << "Result Array: ";
+      for(auto i = 0; i < count; i++){
+        std::cout << a_arr[i] << " ";
+      }
+      std::cout << std::endl;
+      input2->group_indexes_on_subset(a_arr, a_pos_idxs, a_pos_idxs_size, b_arr, b_pos_idxs, b_pos_idxs_size);
+      std::cout << "Pos Idxs: ";
+      for(auto i = 0; i < b_pos_idxs_size; i++){
+        std::cout << b_pos_idxs[i] << " ";
+      }
+      std::cout << std::endl;
+      std::cout << "Result Array: ";
+      for(auto i = 0; i < count; i++){
+        std::cout << b_arr[i] << " ";
+      }
+      std::cout << std::endl;
+      input3->group_indexes_on_subset(b_arr, b_pos_idxs, b_pos_idxs_size, a_arr, a_pos_idxs, a_pos_idxs_size);
+      std::cout << "Pos Idxs: ";
+      for(auto i = 0; i < a_pos_idxs_size; i++){
+        std::cout << a_pos_idxs[i] << " ";
+      }
+      std::cout << std::endl;
+
+      std::cout << "Result Array: ";
+      for(auto i = 0; i < count; i++){
+        std::cout << a_arr[i] << " ";
+      }
+      std::cout << std::endl;
+
+      std::vector<std::vector<size_t>> result;
+      for(auto g = 1; g < a_pos_idxs_size; g++){
+        std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
+        result.push_back(output_group);
+      }
+      cyclone::print_vec("result", result);
+
+      free(a_arr);
+      free(b_arr);
+      free(a_pos_idxs);
+      free(b_pos_idxs);
+
+      CHECK(result == expected);
     }
-    std::cout << std::endl;
-    input3->group_indexes_on_subset(b_arr, b_pos_idxs, b_pos_idxs_size, a_arr, a_pos_idxs, a_pos_idxs_size);
-    std::cout << "Pos Idxs: ";
-    for(auto i = 0; i < a_pos_idxs_size; i++){
-      std::cout << a_pos_idxs[i] << " ";
+
+    TEST_CASE("group_indexes_on_subset short-circuit works"){
+      std::vector<int64_t> grouping_1 = { 1, 2, 3, 4, 5 };
+      auto *input1 = new NullableScalarVec(grouping_1);
+
+      size_t count = grouping_1.size();
+      size_t start_arr[5] = {0, 1, 2, 3, 4};
+      size_t start_group_pos[6] = {0, 1, 2, 3, 4, 5};
+
+      size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
+      size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
+      size_t a_pos_idxs_size;
+
+      input1->group_indexes_on_subset(start_arr, start_group_pos, 6, a_arr, a_pos_idxs, a_pos_idxs_size);
+
+      CHECK(a_pos_idxs_size == 6);
+      CHECK(a_arr[0] == start_arr[0]);
+      CHECK(a_arr[1] == start_arr[1]);
+      CHECK(a_arr[2] == start_arr[2]);
+      CHECK(a_arr[3] == start_arr[3]);
+      CHECK(a_arr[4] == start_arr[4]);
+
+      CHECK(a_pos_idxs[0] == start_group_pos[0]);
+      CHECK(a_pos_idxs[1] == start_group_pos[1]);
+      CHECK(a_pos_idxs[2] == start_group_pos[2]);
+      CHECK(a_pos_idxs[3] == start_group_pos[3]);
+      CHECK(a_pos_idxs[4] == start_group_pos[4]);
+      CHECK(a_pos_idxs[5] == start_group_pos[5]);
+
+      free(a_arr);
+      free(a_pos_idxs);
     }
-    std::cout << std::endl;
-
-    std::cout << "Result Array: ";
-    for(auto i = 0; i < count; i++){
-      std::cout << a_arr[i] << " ";
-    }
-    std::cout << std::endl;
-
-    std::vector<std::vector<size_t>> result;
-    for(auto g = 1; g < a_pos_idxs_size; g++){
-      std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
-      result.push_back(output_group);
-    }
-    cyclone::print_vec("result", result);
-
-    free(a_arr);
-    free(b_arr);
-    free(a_pos_idxs);
-    free(b_pos_idxs);
-
-    CHECK(result == expected);
-  }
-
-  TEST_CASE("group_indexes_on_subset short-circuit works"){
-    std::vector<int64_t> grouping_1 = { 1, 2, 3, 4, 5 };
-    auto *input1 = new NullableScalarVec(grouping_1);
-
-    size_t count = grouping_1.size();
-    size_t start_arr[5] = {0, 1, 2, 3, 4};
-    size_t start_group_pos[6] = {0, 1, 2, 3, 4, 5};
-
-    size_t* a_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-    size_t* a_pos_idxs = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
-    size_t a_pos_idxs_size;
-
-    input1->group_indexes_on_subset(start_arr, start_group_pos, 6, a_arr, a_pos_idxs, a_pos_idxs_size);
-
-    CHECK(a_pos_idxs_size == 6);
-    CHECK(a_arr[0] == start_arr[0]);
-    CHECK(a_arr[1] == start_arr[1]);
-    CHECK(a_arr[2] == start_arr[2]);
-    CHECK(a_arr[3] == start_arr[3]);
-    CHECK(a_arr[4] == start_arr[4]);
-
-    CHECK(a_pos_idxs[0] == start_group_pos[0]);
-    CHECK(a_pos_idxs[1] == start_group_pos[1]);
-    CHECK(a_pos_idxs[2] == start_group_pos[2]);
-    CHECK(a_pos_idxs[3] == start_group_pos[3]);
-    CHECK(a_pos_idxs[4] == start_group_pos[4]);
-    CHECK(a_pos_idxs[5] == start_group_pos[5]);
-
-    free(a_arr);
-    free(a_pos_idxs);
   }
 }

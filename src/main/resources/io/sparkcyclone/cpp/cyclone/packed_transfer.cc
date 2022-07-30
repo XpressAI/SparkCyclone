@@ -17,8 +17,6 @@
  * limitations under the License.
  *
  */
-#pragma once
-
 #include "cyclone/packed_transfer.hpp"
 #include "cyclone/transfer-definitions.hpp"
 #include "cyclone/cyclone_utils.hpp"

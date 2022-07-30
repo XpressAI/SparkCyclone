@@ -156,7 +156,12 @@ struct NullableScalarVec {
   // out_group_pos will be in the same format as group_pos and delineate the
   // found groups
   // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(size_t* iter_order_arr, size_t* group_pos, size_t group_pos_size, size_t* idx_arr, size_t* out_group_pos, size_t &out_group_pos_size) const;
+  void group_indexes_on_subset(const size_t * iter_order_arr,
+                               const size_t * group_pos,
+                               const size_t group_pos_size,
+                               size_t * idx_arr,
+                               size_t * out_group_pos,
+                               size_t & out_group_pos_size) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -301,16 +306,67 @@ struct nullable_varchar_vector {
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
 
-  // Create group index array on a subset of data.
-  // iter_order_arr may be null if the regular iteration order is to be used
-  // group_pos defines the subset(s) to work on. Every subset will be treated
-  // as its own group. It is given as a vector [start, mid-1, mid-2, ..., end].
-  // group_pos_size specifies the number of elements in group_pos
-  // idx_arr will contain a continuous array of indexes
-  // out_group_pos will be in the same format as group_pos and delineate the
-  // found groups
-  // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(size_t* iter_order_arr, size_t* group_pos, size_t group_pos_size, size_t* idx_arr, size_t* out_group_pos, size_t &out_group_pos_size) const;
+  /*
+    Perform sort + grouping on multiple contiguous ranges.
+
+    The sort + group algorithm for varchars is slightly different from that for
+    scalars.  Given a single range in the nullablr_varchar_vector, the algorithm
+    steps are as follows:
+
+      1.  Sort and group by elements marked as valid vs invalid.
+      2.  For the valid-elements group, sort and group by string length.
+      3.  For each of the same-length subgroups, sort and group by the ith
+          character, for i from 0 to N, where N is the string length of all
+          elements in the subgroup.
+
+    Using a example (`#` indicates invalid element):
+      [ JAN, JANU, FEBU, FEB, #FOO, MARCH, MARCG, APR, APR, #BAR, JANU, SEP, OCT, NOV, DEC2, DEC1, DEC0, ]
+
+    After step 1, the invalid elements are grouped to the right (`|` indicates grouping):
+      [ JAN, JANU, FEBU, FEB, MARCH, MARCG, APR, APR, JANU, SEP, OCT, NOV, DEC2, DEC1, DEC0, | #FOO, #BAR, ]
+
+    After step 2, the elements are grouped by string length:
+      [ JAN, FEB, APR, APR, SEP, OCT, NOV, | JANU, FEBU, JANU, DEC2, DEC1, DEC0, | MARCH, MARCG, | #FOO, #BAR, ]
+
+    After step 3a, elements of length 3 are sorted and grouped:
+      [ APR, APR, | FEB, | JAN, | NOV, | OCT, | SEP, | JANU, FEBU, JANU, DEC2, DEC1, DEC0, | MARCH, MARCG, | #FOO, #BAR, ]
+
+    After step 3b, elements of length 4 are sorted and grouped:
+      [ APR, APR, | FEB, | JAN, | NOV, | OCT, | SEP, | DEC0, | DEC1, | DEC2, | FEBU, | JANU, JANU, | MARCH, MARCG, | #FOO, #BAR, ]
+
+    After step 3c, elements of length 5 are sorted and grouped:
+      [ APR, APR, | FEB, | JAN, | NOV, | OCT, | SEP, | DEC0, | DEC1, | DEC2, | FEBU, | JANU, JANU, | MARCG, | MARCH, | #FOO, #BAR, ]
+
+    The delimiters of the groups are given by the indices relative to the input array:
+      [ 0, 2, 3, 4, 5, 6, 7, 8, 9, 19, 12, 13, 14, 15, 17 ]
+
+
+    group_indexes_on_subset() applies the sort + grouping algorithm onto on
+    multiple contiguous ranges of the nullable_varchar_vector.
+
+    Function Arguments:
+      input_index_arr0        : An array of indices of the elements (sort values).  If set to nullptr, the regular iteration order is used.
+      input_group_delims_arr  : Indices that denote the subset ranges to be sorted.  Index values are relative to this->data.
+      input_group_delims_len  : Length of the input indices.
+      output_index_arr        : An array of indices that reflect input_index_arr0 after sort + grouping (pre-allocated and to be written).
+      output_group_delims_arr : Combined indices where the values change after sort + grouping (pre-allocated and to be written).  Index values are relative to this->data.
+      output_group_delims_len : Length of output_group_delims_arr (to be written).  Index values are relative to this->data.
+  */
+  void group_indexes_on_subset(const size_t * input_index_arr0,
+                               const size_t * input_group_delims_arr,
+                               const size_t   input_group_delims_len,
+                               size_t       * output_index_arr,
+                               size_t       * output_group_delims_arr,
+                               size_t       & output_group_delims_len) const;
+
+  void group_indexes_on_subset0(const size_t  * input_index_arr0,
+                                const size_t  * input_group_delims_arr,
+                                const size_t    input_group_delims_len,
+                                size_t        * output_index_arr,
+                                size_t        * output_group_delims_arr,
+                                size_t        & output_group_delims_len) const;
+
+  const std::vector<std::vector<size_t>> group_indexes0() const;
 };
 
 struct non_null_c_bounded_string {

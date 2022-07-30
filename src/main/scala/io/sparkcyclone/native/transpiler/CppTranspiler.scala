@@ -196,7 +196,7 @@ object CppTranspiler {
       ).indented,
       s"}",
       debugPrint("separate_to_groups", debug),
-      s"std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(grouping, grouping_keys);",
+      s"std::vector<std::vector<size_t>> groups = cyclone::grouping::separate_to_groups(grouping, grouping_keys);",
       s"""auto group_count = grouping_keys.size();""",
       s"""*groups_out = ${groupByType.toVeType.cVectorType}::allocate();""",
       s"""groups_out[0]->resize(group_count);""",
