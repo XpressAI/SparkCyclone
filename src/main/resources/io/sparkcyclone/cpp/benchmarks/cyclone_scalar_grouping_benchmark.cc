@@ -19,23 +19,22 @@
  */
 #include "benchmarks/nanobench.h"
 #include "tests/doctest.h"
-#include "frovedis/core/set_operations.hpp"
 #include "cyclone/cyclone.hpp"
-
+#include "frovedis/core/set_operations.hpp"
 
 namespace cyclone::benchmarks {
-  NullableScalarVec<int64_t>* create_input(int vector_size, int group_count){
+  NullableScalarVec<int64_t>* create_scalar_input(int vector_size, int group_count) {
     NullableScalarVec<int64_t>* res = NullableScalarVec<int64_t>::allocate();
     res->resize(vector_size);
     for(auto i = 0; i < vector_size; ++i){
       res->data[i] = i % group_count;
       res->set_validity(i, 1);
     }
-    
+
     return res;
   }
 
-  size_t tuple_group_by(NullableScalarVec<int64_t> *input){
+  size_t tuple_group_by(NullableScalarVec<int64_t> *input) {
     std::vector<std::tuple<int64_t, int>> grouping_vec(input->count);
     std::vector<size_t> sorted_idx(input->count);
 
@@ -66,13 +65,13 @@ namespace cyclone::benchmarks {
     std::vector<size_t> input_keys = input->size_t_data_vec();
 
     std::vector<size_t> keys;
-    std::vector<std::vector<size_t>> groups = cyclone::separate_to_groups(input_keys, keys);
+    const auto groups = cyclone::grouping::separate_to_groups(input_keys, keys);
     return groups.size();
   }
 
 
   size_t vector_group(NullableScalarVec<int64_t> *input){
-    std::vector<std::vector<size_t>> groups = input->group_indexes();
+    const auto groups = input->group_indexes();
     return groups.size();
   }
 
@@ -99,14 +98,15 @@ namespace cyclone::benchmarks {
     return group1_pos_idxs_size;
   }
 
-  TEST_CASE("Benchmarking group by implementations") {
-    NullableScalarVec<int64_t>* input = create_input(3500000, 150);
-    NullableScalarVec<int64_t>* input_with_invalids = create_input(3500000, 150);
+  TEST_CASE("Scalar Group-by Implementation Benchmarks") {
+    auto *input = create_scalar_input(3500000, 150);
+    auto *input_with_invalids = create_scalar_input(3500000, 150);
     input_with_invalids->set_validity(1, 0);
 
     ankerl::nanobench::Bench().run("tuple_group_by", [&]() {
       ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input));
     });
+
     ankerl::nanobench::Bench().run("tuple_group_by (some invalid input)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(tuple_group_by(input_with_invalids));
     });
@@ -126,9 +126,9 @@ namespace cyclone::benchmarks {
     free(input);
     free(input_with_invalids);
 
-    NullableScalarVec<int64_t>* input1 = create_input(3500000,   69);
-    NullableScalarVec<int64_t>* input2 = create_input(3500000,  420);
-    NullableScalarVec<int64_t>* input3 = create_input(3500000, 9001);
+    auto *input1 = create_scalar_input(3500000,   69);
+    auto *input2 = create_scalar_input(3500000,  420);
+    auto *input3 = create_scalar_input(3500000, 9001);
 
     ankerl::nanobench::Bench().run("vector_multi_group (many groups)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_multi_group(input1, input2, input3));
@@ -138,9 +138,9 @@ namespace cyclone::benchmarks {
     free(input2);
     free(input3);
 
-    NullableScalarVec<int64_t>* input4 = create_input(3500000,  25);
-    NullableScalarVec<int64_t>* input5 = create_input(3500000,  75);
-    NullableScalarVec<int64_t>* input6 = create_input(3500000, 150);
+    auto *input4 = create_scalar_input(3500000,  25);
+    auto *input5 = create_scalar_input(3500000,  75);
+    auto *input6 = create_scalar_input(3500000, 150);
 
     ankerl::nanobench::Bench().run("vector_multi_group (150 groups)", [&]() {
       ankerl::nanobench::doNotOptimizeAway(vector_multi_group(input4, input5, input6));

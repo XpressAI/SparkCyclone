@@ -997,8 +997,20 @@ void doNotOptimizeAway(T const& val);
 // see https://github.com/google/benchmark/blob/master/include/benchmark/benchmark.h#L307
 template <typename T>
 void doNotOptimizeAway(T const& val) {
+    /*
+        Replace "r,m" with "r" here to work around the following compilation
+        failure encountered when building nanobench with nc++:
+
+        "./benchmarks/nanobench.h", line 1001: error: multiple alternative constraint
+                is not supported
+            asm volatile("" : : "r,m"(val) : "memory");
+                                ^
+                detected during instantiation of "void
+                            ankerl::nanobench::doNotOptimizeAway(Arg &&) [with
+                            Arg=size_t]" at line ...
+    */
     // NOLINTNEXTLINE(hicpp-no-assembler)
-    asm volatile("" : : "r,m"(val) : "memory");
+    asm volatile("" : : "r"(val) : "memory");
 }
 
 template <typename T>
