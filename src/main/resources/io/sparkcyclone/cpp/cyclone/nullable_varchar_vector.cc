@@ -729,6 +729,15 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
                                                       size_t        * output_index_arr,
                                                       size_t        * output_group_delims_arr,
                                                       size_t        & output_group_delims_len) const {
+  std::cout << "group_indexes_on_subset(): size                     = " << this->count << std::endl;
+  std::cout << "group_indexes_on_subset(): input_index_arr0         = " << input_index_arr0 << std::endl;
+  std::cout << "group_indexes_on_subset(): input_group_delims_arr   = " << input_group_delims_arr << std::endl;
+  std::cout << "group_indexes_on_subset(): input_group_delims_len   = " << input_group_delims_len << std::endl;
+  std::cout << "group_indexes_on_subset(): output_index_arr         = " << output_index_arr << std::endl;
+  std::cout << "group_indexes_on_subset(): output_group_delims_arr  = " << output_group_delims_arr << std::endl;
+  std::cout << "group_indexes_on_subset(): output_group_delims_len  = " << output_group_delims_len << std::endl;
+  std::cout << "START 0" << std::endl;
+
   // For compatibility purposes, we allow input_index_arr0 to be nullptr.  If it
   // is indeed nullptr, then we generate the index array from 0 to this->count.
   std::vector<size_t> _input_index(this->count);
@@ -742,10 +751,14 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
     }
   }
 
+  std::cout << "REACHED 1" << std::endl;
+
   // Fetch the full range start and end
   auto range_start = input_group_delims_arr[0];
   auto range_end   = input_group_delims_arr[input_group_delims_len - 1];
   auto range_size  = range_end - range_start;
+
+  std::cout << "range_size = " << range_size << std::endl;
 
   {
     // If there are more group positions than elements in the vector, it means
@@ -758,6 +771,8 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
     }
   }
 
+  std::cout << "REACHED 2" << std::endl;
+
   // Initialize the output group delims
   output_group_delims_len = 0;
   output_group_delims_arr[output_group_delims_len++] = input_group_delims_arr[0];
@@ -767,8 +782,8 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
   auto sorted_data = sort_buffer.data();
 
   // Initialize temporary buffers using std::vector for RAII cleanup
-  std::vector<size_t> grp_buffer1(range_size);
-  std::vector<size_t> grp_buffer2(range_size);
+  std::vector<size_t> grp_buffer1(range_size + 1);
+  std::vector<size_t> grp_buffer2(range_size + 1);
   auto * grp_data1 = grp_buffer1.data();
   auto * grp_data2 = grp_buffer2.data();
 
@@ -872,6 +887,9 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
             grp_data2,
             grp_len2
           );
+
+          std::cout << "grp_len1 = " << grp_len1 << std::endl;
+          std::cout << "grp_len2 = " << grp_len2 << std::endl;
 
           // Swap grp_data1 and grp_data2
           auto *tmpd = grp_data2;
