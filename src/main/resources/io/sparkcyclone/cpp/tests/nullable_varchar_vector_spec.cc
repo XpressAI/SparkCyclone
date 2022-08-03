@@ -364,7 +364,7 @@ namespace cyclone::tests {
       CHECK(result == expected);
     }
 
-    TEST_CASE("group_indexes_on_subset works [2] (having every element end up in its own group should not cause crash)") {
+    TEST_CASE("group_indexes_on_subset works [2] (grouping the full range and having every element end up in its own group should not cause crash)") {
       // Set up input
       auto input1 = std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
       auto vec1 = new nullable_varchar_vector(input1);
@@ -399,7 +399,7 @@ namespace cyclone::tests {
       CHECK(output_group_delims == expected_group_delims);
     }
 
-    TEST_CASE("group_indexes_on_subset works [3] (some groups have multiple elements)") {
+    TEST_CASE("group_indexes_on_subset works [3] (grouping multiple subsets of a range, where some groups have multiple elements)") {
       // Set up input
       auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
       auto vec1 = new nullable_varchar_vector(input1);

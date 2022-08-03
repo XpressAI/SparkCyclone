@@ -244,6 +244,79 @@ namespace cyclone::tests {
       CHECK(input->eval_in(std::vector<T> { 106, 538 }) == expected2);
     }
 
+    TEST_CASE_TEMPLATE("group_indexes_on_subset works [1] (grouping the full range and having every element end up in its own group should not cause crash)", T, int32_t, int64_t, float, double) {
+      // Set up input
+      auto vec1 = new NullableScalarVec(std::vector<T> { 3, 9, 12, 1, 2, 10, 4, 5, 11, 6, 8, 7 });
+
+      // Expected output - because the group delims are in [3, 17), index values
+      // at positions [0, 1, 2, 17, 18] are set to 0, so will point to `JAN`
+      auto vec2 = new NullableScalarVec(std::vector<T> { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 });
+      auto expected_group_delims = std::vector<size_t> { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+
+      auto input_group_delims = std::vector<size_t> { 0, 12 };
+
+      // Set up output
+      std::vector<size_t> output_index(vec1->count);
+      std::vector<size_t> output_group_delims(vec1->count + 1);
+      size_t output_group_delims_len;
+
+      // Group indices
+      vec1->group_indexes_on_subset(
+        nullptr,
+        input_group_delims.data(),
+        input_group_delims.size(),
+        output_index.data(),
+        output_group_delims.data(),
+        output_group_delims_len
+      );
+
+      // Adjust the output
+      output_group_delims.resize(output_group_delims_len);
+
+      CHECK(vec1->select(output_index)->equals(vec2));
+      CHECK(output_group_delims == expected_group_delims);
+    }
+
+    TEST_CASE_TEMPLATE("group_indexes_on_subset works [2] (grouping multiple subsets of a range, where some groups have multiple elements)", T, int32_t, int64_t, float, double) {
+      // Set up input
+      auto vec1 = new NullableScalarVec(std::vector<T> { 77, 1, 2, 2, 3, 3, 4, 11, 3, 9, 9, 4, 1, 9, 10, 11, 12, 42, -8 });
+      vec1->set_validity(7, 0);
+      vec1->set_validity(11, 0);
+      vec1->set_validity(13, 0);
+
+      // Expected output - because the group delims are in [3, 17), index values
+      // at positions [0, 1, 2, 17, 18] are set to 0, so will point to `JAN`
+      auto vec2 = new NullableScalarVec(std::vector<T> {  77, 77, 77, 2, 3, 3, 4, 11, 1, 3, 9, 9, 9, 4, 10, 11, 12, 77, 77, });
+      vec2->set_validity(7, 0);
+      vec2->set_validity(12, 0);
+      vec2->set_validity(13, 0);
+      auto expected_group_delims = std::vector<size_t> { 3, 4, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17 };
+
+      // Sort 3 subsets separately
+      auto input_group_delims = std::vector<size_t> { 3, 8, 14, 17 };
+
+      // Set up output
+      std::vector<size_t> output_index(vec1->count);
+      std::vector<size_t> output_group_delims(vec1->count + 1);
+      size_t output_group_delims_len;
+
+      // Group indices
+      vec1->group_indexes_on_subset(
+        nullptr,
+        input_group_delims.data(),
+        input_group_delims.size(),
+        output_index.data(),
+        output_group_delims.data(),
+        output_group_delims_len
+      );
+
+      // Adjust the output
+      output_group_delims.resize(output_group_delims_len);
+
+      CHECK(vec1->select(output_index)->equals(vec2));
+      CHECK(output_group_delims == expected_group_delims);
+    }
+
     TEST_CASE_TEMPLATE("group_indexes works with all valid values", T, int32_t, int64_t, float, double){
       std::vector<T> grouping = { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
       std::vector<size_t> expected_0 = { 0, 1, 3, 4, 5, 6, 11, 12 };
@@ -301,7 +374,7 @@ namespace cyclone::tests {
       CHECK(grouped.size() == 3);
     }
 
-    TEST_CASE("group_indexes_on_subset works (with different types)"){
+    TEST_CASE("group_indexes_on_subset works (with different types)") {
       std::vector<int64_t> grouping_1 =   { 10, 10, 11, 10, 10, 10, 10, 11, 11, 11, 11, 10, 10, 11, 11 };
       auto *input1 = new NullableScalarVec(grouping_1);
 

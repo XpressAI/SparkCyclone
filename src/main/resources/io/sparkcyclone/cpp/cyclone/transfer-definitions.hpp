@@ -147,15 +147,55 @@ struct NullableScalarVec {
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
 
-  // Create group index array on a subset of data.
-  // iter_order_arr may be null if the regular iteration order is to be used
-  // group_pos defines the subset(s) to work on. Every subset will be treated
-  // as its own group. It is given as a vector [start, mid-1, mid-2, ..., end].
-  // group_pos_size specifies the number of elements in group_pos
-  // idx_arr will contain a continuous array of indexes
-  // out_group_pos will be in the same format as group_pos and delineate the
-  // found groups
-  // out_group_pos_size will contain the number of elements in out_group_group_pos
+  /*
+    Perform sort + grouping on multiple contiguous ranges.
+
+    Given a single range in the nullablr_scalar_vector, the algorithm
+    steps for sort + group are as follows:
+
+      1.  Sort and group by elements marked as valid vs invalid.
+      1.  For the valid elements group, run a stable sort on the array of elements
+          using [[frovedis::radix_sort]].
+      2.  With the elements now in order, compute the indexes on the array where
+          the values change using [[frovedis::set_separate]].  For example,
+          in the sorted array [ 0, 0, 3, 5 ], the values change at array indices
+          0, 2, 3, and 4.  These indices form the bounds of the groups.
+
+    Using the following example (`#` indicates invalid element):
+      [ 3, 1, 2, 2, 3, 3, 4, #11, 3, 9, 9, #4, 1, #9, 10, 11, 12, 42, -8, ]
+
+    After step 1, the invalid elements are grouped to the right (`|` indicates grouping):
+      [ 3, 1, 2, 2, 3, 3, 4, 3, 9, 9, 1, 10, 11, 12, 42, -8, | #9, #4, #11, ]
+
+    After step 2, the valid elements are sorted:
+        [ -8, 1, 1, 2, 2, 3, 3, 3, 3, 4, 9, 9, 10, 11, 12, 42, | #9, #4, #11, ]
+
+    After step 3, sorted elements are now grouped:
+      [ -8, | 1, 1, | 2, 2, | 3, 3, 3, 3, | 4, | 9, 9, | 10, | 11, | 12, | 42, | #9, #4, #11, ]
+
+    The delimiters of the groups are given by the indices relative to the input array:
+      [ 0, 1, 3, 5, 9, 10, 12, 13, 14, 15, 16, 19 ]
+
+    group_indexes_on_subset() applies the sort + grouping algorithm onto on
+    multiple contiguous ranges of the nullable_varchar_vector.
+
+    Function Arguments:
+      input_index_arr0        : An array of indices of the elements (sort values).
+                                If set to nullptr, the regular iteration order is used.
+      input_group_delims_arr  : Indices that denote the subset ranges to be sorted.
+                                Index values are relative to `this->data`.
+      input_group_delims_len  : Length of the input indices.
+      output_index_arr        : An array of indices that reflect input_index_arr0
+                                after sort + grouping (pre-allocated and to be written).
+      output_group_delims_arr : Combined indices where the values change after
+                                sort + grouping (pre-allocated and to be written).
+                                Index values are relative to `this->data`.  The
+                                pre-allocated size should be at least `range_size + 1`
+                                where `range_size` refers to the distance from the
+                                0th to last delimiter in input_group_delims_arr.
+      output_group_delims_len : Length of output_group_delims_arr (to be written).
+                                Index values are relative to `this->data`.
+  */
   void group_indexes_on_subset(const size_t * input_index_arr0,
                                const size_t * input_group_delims_arr,
                                const size_t   input_group_delims_len,
@@ -319,7 +359,7 @@ struct nullable_varchar_vector {
           character, for i from 0 to N, where N is the string length of all
           elements in the subgroup.
 
-    Using a example (`#` indicates invalid element):
+    Using the following example (`#` indicates invalid element):
       [ JAN, JANU, FEBU, FEB, #FOO, MARCH, MARCG, APR, APR, #BAR, JANU, SEP, OCT, NOV, DEC2, DEC1, DEC0, ]
 
     After step 1, the invalid elements are grouped to the right (`|` indicates grouping):
@@ -355,7 +395,7 @@ struct nullable_varchar_vector {
                                 sort + grouping (pre-allocated and to be written).
                                 Index values are relative to `this->data`.  The
                                 pre-allocated size should be at least `range_size + 1`
-                                where `range_size` refers to the range from the
+                                where `range_size` refers to the distance from the
                                 0th to last delimiter in input_group_delims_arr.
       output_group_delims_len : Length of output_group_delims_arr (to be written).
                                 Index values are relative to `this->data`.
