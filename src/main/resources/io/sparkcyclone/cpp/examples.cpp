@@ -278,6 +278,43 @@ void test_string_grouping2() {
   std::cout << output_group_delims << std::endl;
 }
 
+void foo() {
+      // Set up input
+      auto input1 = std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+      auto vec1 = new nullable_varchar_vector(input1);
+
+      // Expected output - because the group delims are in [3, 17), index values
+      // at positions [0, 1, 2, 17, 18] are set to 0, so will point to `JAN`
+      auto input2 = std::vector<std::string> { "APR", "AUG", "DEC" , "FEB", "JAN", "JUL", "JUN", "MAR", "MAY", "NOV", "OCT", "SEP" };
+      auto vec2 = new nullable_varchar_vector(input2);
+      auto expected_group_delims = std::vector<size_t> { 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 15, 16, 17 };
+
+      auto input_group_delims = std::vector<size_t> { 0, 12 };
+
+      // Set up output
+      std::vector<size_t> output_index(vec1->count);
+      std::vector<size_t> output_group_delims(vec1->count + 1);
+      size_t output_group_delims_len;
+
+      // Group indices
+      vec1->group_indexes_on_subset(
+        nullptr,
+        input_group_delims.data(),
+        input_group_delims.size(),
+        output_index.data(),
+        output_group_delims.data(),
+        output_group_delims_len
+      );
+
+      // Adjust the output
+      output_group_delims.resize(output_group_delims_len);
+
+      // CHECK(vec1->select(output_index)->equivalent_to(vec2));
+      // CHECK(output_group_delims == expected_group_delims);
+      std::cout << "output_group_delims: " << output_group_delims << std::endl;
+}
+
+
 int main() {
   // projection_test();
   // filter_test();
@@ -287,5 +324,6 @@ int main() {
   // test_statement_expressions();
 
   // test_multiple_grouping();
-  test_string_grouping();
+  // test_string_grouping();
+  foo();
 }

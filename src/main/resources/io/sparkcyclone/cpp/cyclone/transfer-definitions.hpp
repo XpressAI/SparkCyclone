@@ -156,12 +156,12 @@ struct NullableScalarVec {
   // out_group_pos will be in the same format as group_pos and delineate the
   // found groups
   // out_group_pos_size will contain the number of elements in out_group_group_pos
-  void group_indexes_on_subset(const size_t * iter_order_arr,
-                               const size_t * group_pos,
-                               const size_t group_pos_size,
-                               size_t * idx_arr,
-                               size_t * out_group_pos,
-                               size_t & out_group_pos_size) const;
+  void group_indexes_on_subset(const size_t * input_index_arr0,
+                               const size_t * input_group_delims_arr,
+                               const size_t   input_group_delims_len,
+                               size_t       * output_index_arr,
+                               size_t       * output_group_delims_arr,
+                               size_t       & output_group_delims_len) const;
 };
 
 // Explicitly instantiate struct template for int32_t
@@ -340,17 +340,25 @@ struct nullable_varchar_vector {
     The delimiters of the groups are given by the indices relative to the input array:
       [ 0, 2, 3, 4, 5, 6, 7, 8, 9, 19, 12, 13, 14, 15, 17 ]
 
-
     group_indexes_on_subset() applies the sort + grouping algorithm onto on
     multiple contiguous ranges of the nullable_varchar_vector.
 
     Function Arguments:
-      input_index_arr0        : An array of indices of the elements (sort values).  If set to nullptr, the regular iteration order is used.
-      input_group_delims_arr  : Indices that denote the subset ranges to be sorted.  Index values are relative to this->data.
+      input_index_arr0        : An array of indices of the elements (sort values).
+                                If set to nullptr, the regular iteration order is used.
+      input_group_delims_arr  : Indices that denote the subset ranges to be sorted.
+                                Index values are relative to `this->data`.
       input_group_delims_len  : Length of the input indices.
-      output_index_arr        : An array of indices that reflect input_index_arr0 after sort + grouping (pre-allocated and to be written).
-      output_group_delims_arr : Combined indices where the values change after sort + grouping (pre-allocated and to be written).  Index values are relative to this->data.
-      output_group_delims_len : Length of output_group_delims_arr (to be written).  Index values are relative to this->data.
+      output_index_arr        : An array of indices that reflect input_index_arr0
+                                after sort + grouping (pre-allocated and to be written).
+      output_group_delims_arr : Combined indices where the values change after
+                                sort + grouping (pre-allocated and to be written).
+                                Index values are relative to `this->data`.  The
+                                pre-allocated size should be at least `range_size + 1`
+                                where `range_size` refers to the range from the
+                                0th to last delimiter in input_group_delims_arr.
+      output_group_delims_len : Length of output_group_delims_arr (to be written).
+                                Index values are relative to `this->data`.
   */
   void group_indexes_on_subset(const size_t * input_index_arr0,
                                const size_t * input_group_delims_arr,
