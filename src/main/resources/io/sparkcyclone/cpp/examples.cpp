@@ -218,34 +218,13 @@ void test_multiple_grouping() {
   std::cout << "================================================================================" << std::endl;
 }
 
-void test_string_grouping() {
-  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
-  std::cout << input << std::endl;
-  auto vec1 = nullable_varchar_vector(input);
-  vec1.set_validity(3, 0);
-  vec1.set_validity(10, 0);
-
-  auto groups = vec1.group_indexes();
-
-  std::cout << groups << std::endl;
-  std::cout << "[ ";
-  for (auto group : groups) {
-    for (auto i : group) {
-      std::cout << input[i] << ", ";
-    }
-  }
-  std::cout << " ]" << std::endl;
-}
-
-void test_string_grouping2() {
-  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
-  std::cout << input << std::endl;
-  auto vec1 = new nullable_varchar_vector(input);
+void test_scalar_grouping() {
+  auto input = std::vector<int32_t> { 77, 1, 2, 2, 3, 3, 4, 11, 3, 9, 9, 4, 1, 9, 10, 11, 12, 42, -8 };
+  auto vec1 = new NullableScalarVec<int32_t>(input);
   vec1->set_validity(7, 0);
   vec1->set_validity(11, 0);
   vec1->set_validity(13, 0);
 
-  vec1->print();
 
   // Sort 3 subsets separately
   auto input_group_delims = std::vector<size_t> { 3, 8, 14, 17 };
@@ -268,13 +247,44 @@ void test_string_grouping2() {
   // Adjust the output
   output_group_delims.resize(output_group_delims_len);
 
-  std::cout << std::endl;
-  // vec1->print();
-  // std::cout << "data = " << vec1->data[0] << std::endl;
+  std::cout << input << std::endl;
   std::cout << input_group_delims << std::endl;
-  // std::cout << output_group_delims << std::endl;
+  vec1->print();
   vec1->select(output_index)->print();
+  std::cout << output_group_delims << std::endl;
+}
+void test_varchar_grouping() {
+  auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+  auto vec1 = new nullable_varchar_vector(input);
+  vec1->set_validity(7, 0);
+  vec1->set_validity(11, 0);
+  vec1->set_validity(13, 0);
 
+  // Sort 3 subsets separately
+  auto input_group_delims = std::vector<size_t> { 3, 8, 14, 17 };
+
+  // Set up output
+  std::vector<size_t> output_index(vec1->count);
+  std::vector<size_t> output_group_delims(vec1->count + 1);
+  size_t output_group_delims_len;
+
+  // Group indices
+  vec1->group_indexes_on_subset(
+    nullptr,
+    input_group_delims.data(),
+    input_group_delims.size(),
+    output_index.data(),
+    output_group_delims.data(),
+    output_group_delims_len
+  );
+
+  // Adjust the output
+  output_group_delims.resize(output_group_delims_len);
+
+  std::cout << input << std::endl;
+  std::cout << input_group_delims << std::endl;
+  vec1->print();
+  vec1->select(output_index)->print();
   std::cout << output_group_delims << std::endl;
 }
 
@@ -287,5 +297,6 @@ int main() {
   // test_statement_expressions();
 
   // test_multiple_grouping();
-  test_string_grouping();
+  test_scalar_grouping();
+  test_varchar_grouping();
 }

@@ -766,9 +766,11 @@ void nullable_varchar_vector::group_indexes_on_subset(const size_t  * input_inde
   std::vector<int32_t> sort_buffer(range_size);
   auto sorted_data = sort_buffer.data();
 
-  // Initialize temporary buffers using std::vector for RAII cleanup
-  std::vector<size_t> grp_buffer1(range_size);
-  std::vector<size_t> grp_buffer2(range_size);
+  // Initialize temporary buffers using std::vector for RAII cleanup.  This
+  // buffer needs to be range_size + 1 to account for the case where the function
+  // is given only one subset as input and every element is its own group.
+  std::vector<size_t> grp_buffer1(range_size + 1);
+  std::vector<size_t> grp_buffer2(range_size + 1);
   auto * grp_data1 = grp_buffer1.data();
   auto * grp_data2 = grp_buffer2.data();
 

@@ -364,7 +364,42 @@ namespace cyclone::tests {
       CHECK(result == expected);
     }
 
-    TEST_CASE("group_indexes_on_subset works [2]") {
+    TEST_CASE("group_indexes_on_subset works [2] (grouping the full range and having every element end up in its own group should not cause crash)") {
+      // Set up input
+      auto input1 = std::vector<std::string> { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" };
+      auto vec1 = new nullable_varchar_vector(input1);
+
+      // Expected output - because the group delims are in [3, 17), index values
+      // at positions [0, 1, 2, 17, 18] are set to 0, so will point to `JAN`
+      auto input2 = std::vector<std::string> { "APR", "AUG", "DEC" , "FEB", "JAN", "JUL", "JUN", "MAR", "MAY", "NOV", "OCT", "SEP" };
+      auto vec2 = new nullable_varchar_vector(input2);
+      auto expected_group_delims = std::vector<size_t> { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+
+      auto input_group_delims = std::vector<size_t> { 0, 12 };
+
+      // Set up output
+      std::vector<size_t> output_index(vec1->count);
+      std::vector<size_t> output_group_delims(vec1->count + 1);
+      size_t output_group_delims_len;
+
+      // Group indices
+      vec1->group_indexes_on_subset(
+        nullptr,
+        input_group_delims.data(),
+        input_group_delims.size(),
+        output_index.data(),
+        output_group_delims.data(),
+        output_group_delims_len
+      );
+
+      // Adjust the output
+      output_group_delims.resize(output_group_delims_len);
+
+      CHECK(vec1->select(output_index)->equivalent_to(vec2));
+      CHECK(output_group_delims == expected_group_delims);
+    }
+
+    TEST_CASE("group_indexes_on_subset works [3] (grouping multiple subsets of a range, where some groups have multiple elements)") {
       // Set up input
       auto input1 = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
       auto vec1 = new nullable_varchar_vector(input1);

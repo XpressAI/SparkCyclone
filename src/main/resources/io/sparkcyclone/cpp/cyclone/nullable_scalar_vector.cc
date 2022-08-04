@@ -388,33 +388,33 @@ const std::vector<size_t> NullableScalarVec<T>::eval_in(const std::vector<T> &el
 }
 
 template<typename T>
-void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr,
-                                                   const size_t * group_pos,
-                                                   const size_t group_pos_size,
-                                                   size_t * idx_arr,
-                                                   size_t * out_group_pos,
-                                                   size_t & out_group_pos_size) const {
+void NullableScalarVec<T>::group_indexes_on_subset(const size_t * input_index_arr,
+                                                   const size_t * input_group_delims_arr,
+                                                   const size_t   input_group_delims_len,
+                                                   size_t       * output_index_arr,
+                                                   size_t       * output_group_delims_arr,
+                                                   size_t       & output_group_delims_len) const {
   // If there are more group positions than elements in the vector, it means
   // each subset will contain just one element, so we can apply shortcut.
-  if (group_pos_size > count) {
-    auto start = group_pos[0];
-    auto end = group_pos[group_pos_size - 1];
+  if (input_group_delims_len > count) {
+    auto start = input_group_delims_arr[0];
+    auto end = input_group_delims_arr[input_group_delims_len - 1];
 
     // If iteration order array is not given, generate start.to(end)
-    if (iter_order_arr == nullptr) {
+    if (input_index_arr == nullptr) {
       #pragma _NEC vector
       #pragma _NEC ivdep
       for (auto i = start; i < end; i++) {
-        idx_arr[i] = i;
+        output_index_arr[i] = i;
       }
     } else {
       // Else just copy the index array to the output
-      memcpy(&idx_arr[start], &iter_order_arr[start], sizeof(size_t) * (end - start));
+      memcpy(&output_index_arr[start], &input_index_arr[start], sizeof(size_t) * (end - start));
     }
 
     // Copy the group positions to output
-    memcpy(out_group_pos, group_pos, sizeof(size_t) * group_pos_size);
-    out_group_pos_size = group_pos_size;
+    memcpy(output_group_delims_arr, input_group_delims_arr, sizeof(size_t) * input_group_delims_len);
+    output_group_delims_len = input_group_delims_len;
     return;
   }
 
@@ -423,32 +423,32 @@ void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr
   // so that we only need to allocate and free once.
   size_t largest_group_size = 0;
   #pragma _NEC vector
-  for (auto g = 1; g < group_pos_size; g++) {
-    auto element_count = group_pos[g] - group_pos[g - 1];
+  for (auto g = 1; g < input_group_delims_len; g++) {
+    auto element_count = input_group_delims_arr[g] - input_group_delims_arr[g - 1];
     if (largest_group_size < element_count) largest_group_size = element_count;
   }
   T * sorted_data = static_cast<T *>(malloc(sizeof(T) * largest_group_size));
 
   // Initialize the output groups
-  out_group_pos_size = 0;
-  out_group_pos[out_group_pos_size++] = group_pos[0];
+  output_group_delims_len = 0;
+  output_group_delims_arr[output_group_delims_len++] = input_group_delims_arr[0];
 
   // Iterate over all subsets
   #pragma _NEC vector
-  for (auto g = 1; g < group_pos_size; g++) {
-    auto start = group_pos[g - 1];
-    auto end = group_pos[g];
+  for (auto g = 1; g < input_group_delims_len; g++) {
+    auto start = input_group_delims_arr[g - 1];
+    auto end = input_group_delims_arr[g];
     auto element_count = end - start;
 
     // If there is only one element in the current subset, then we're done with
     // its grouping
     if (element_count == 1) {
-      if (iter_order_arr == nullptr) {
-        idx_arr[start] = start;
+      if (input_index_arr == nullptr) {
+        output_index_arr[start] = start;
       } else {
-        idx_arr[start] = iter_order_arr[start];
+        output_index_arr[start] = input_index_arr[start];
       }
-      out_group_pos[out_group_pos_size++] = end;
+      output_group_delims_arr[output_group_delims_len++] = end;
 
     } else {
       // Hold the count of valid and invalid elements in the subset
@@ -458,14 +458,14 @@ void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr
       // Shift indices of all valid and invalid elements to the left and ight of
       // the subset, respectively
       {
-        if (iter_order_arr == nullptr) {
+        if (input_index_arr == nullptr) {
           #pragma _NEC vector
           #pragma _NEC ivdep
           for (auto i = start; i < end; i++) {
             if (get_validity(i)) {
-              idx_arr[start + cur_valid_count++] = i;
+              output_index_arr[start + cur_valid_count++] = i;
             } else {
-              idx_arr[end - (++cur_invalid_count)] = i;
+              output_index_arr[end - (++cur_invalid_count)] = i;
             }
           }
 
@@ -473,11 +473,11 @@ void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr
           #pragma _NEC vector
           #pragma _NEC ivdep
           for (auto i = start; i < end; i++) {
-            auto j = iter_order_arr[i];
+            auto j = input_index_arr[i];
             if (get_validity(j)) {
-              idx_arr[start + cur_valid_count++] = j;
+              output_index_arr[start + cur_valid_count++] = j;
             } else {
-              idx_arr[end - (++cur_invalid_count)] = j;
+              output_index_arr[end - (++cur_invalid_count)] = j;
             }
           }
         }
@@ -488,36 +488,36 @@ void NullableScalarVec<T>::group_indexes_on_subset(const size_t * iter_order_arr
         // Set up the data array for the subset
         #pragma _NEC vector
         for (auto i = 0; i < cur_valid_count; i++) {
-          sorted_data[i] = data[idx_arr[start + i]];
+          sorted_data[i] = data[output_index_arr[start + i]];
         }
       }
 
       // Grouping data using Frovedis involves sorting, followed by set_separate
       // to figure out the indices in the sorted array where the element changes
       // value.
-      frovedis::radix_sort(sorted_data, &idx_arr[start], cur_valid_count);
-      std::vector <size_t> group_pos_idxs = frovedis::set_separate(sorted_data, cur_valid_count);
+      frovedis::radix_sort(sorted_data, &output_index_arr[start], cur_valid_count);
+      std::vector <size_t> input_group_delims_arr_idxs = frovedis::set_separate(sorted_data, cur_valid_count);
 
-      auto group_pos_idxs_arr = group_pos_idxs.data();
-      auto out_group_idx = out_group_pos_size;
+      auto input_group_delims_arr_idxs_arr = input_group_delims_arr_idxs.data();
+      auto out_group_idx = output_group_delims_len;
 
       // Copy the subset's grouping indices to the output
       #pragma _NEC vector
-      for (auto i = 1; i < group_pos_idxs.size(); i++) {
+      for (auto i = 1; i < input_group_delims_arr_idxs.size(); i++) {
         // We are skipping the first entry here, because it will already be
         // included in the result, either as the very first value, or because
         // it was specified as the last value from a previous iteration.
-        auto offset_idx = group_pos_idxs_arr[i] + start;
-        out_group_pos[out_group_idx++] = offset_idx;
+        auto offset_idx = input_group_delims_arr_idxs_arr[i] + start;
+        output_group_delims_arr[out_group_idx++] = offset_idx;
       }
 
-      out_group_pos_size = out_group_idx;
+      output_group_delims_len = out_group_idx;
 
       // The last group index will be based on the last valid group
       // to account for the invalid group, if it exists, we need to
       // add the last possible index of this subset, too
       if (cur_invalid_count > 0) {
-        out_group_pos[out_group_pos_size++] = end;
+        output_group_delims_arr[output_group_delims_len++] = end;
       }
     }
   }
@@ -531,24 +531,28 @@ const std::vector<std::vector<size_t>> NullableScalarVec<T>::group_indexes() con
   if (count == 0) return {};
   if (count == 1) return {{ 0 }};
 
-  // group_indexes is a special case of group_indexes_on_subset, where we are
-  // performing grouping on just one subset, which is the entire data array.
-  size_t group_pos[2] = {0, static_cast<size_t>(count)};
-  size_t* idx_arr = static_cast<size_t *>(malloc(sizeof(size_t) * count));
-  size_t* max_group_pos = static_cast<size_t *>(malloc(sizeof(size_t) * (count + 1)));
-  size_t group_pos_count;
-  group_indexes_on_subset(nullptr, group_pos, 2, idx_arr, max_group_pos, group_pos_count);
+  // Construct the memory buffer args using std::vector for RAII advantage
+  size_t input_group_delims[2] = { 0, static_cast<size_t>(this->count) };
+  std::vector<size_t> output_index(this->count);
+  std::vector<size_t> output_group_delims(this->count + 1);
+  size_t output_group_delims_len;
+
+  // group_indexes() is a special case of group_indexes_on_subset(), where we
+  // are performing sort + grouping on just one subset - the entire data array.
+  group_indexes_on_subset(
+    nullptr,
+    input_group_delims,
+    2,
+    output_index.data(),
+    output_group_delims.data(),
+    output_group_delims_len
+  );
 
   std::vector<std::vector<size_t>> result;
-
   #pragma _NEC vector
-  for (auto g = 1; g < group_pos_count; g++) {
-    std::vector<size_t> output_group(&idx_arr[max_group_pos[g - 1]], &idx_arr[max_group_pos[g]]);
-    result.push_back(output_group);
+  for (auto g = 1; g < output_group_delims_len; g++) {
+    result.emplace_back(std::vector<size_t>(&output_index[output_group_delims[g - 1]], &output_index[output_group_delims[g]]));
   }
-
-  free(idx_arr);
-  free(max_group_pos);
 
   return result;
 }
