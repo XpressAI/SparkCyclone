@@ -1,127 +1,104 @@
 # Spark Cyclone
 
-- For the plug-in development: [SBT.md](SBT.md).
-- For the JavaCPP layer around AVEO, see: [https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload](https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload).
+Spark Cyclone is an [Apache Spark](https://spark.apache.org/) plug-in that
+accelerates the performance of Spark by using the
+[SX-Aurora TSUBASA "Vector Engine" (VE)](https://www.nec.com/en/global/solutions/hpc/sx/vector_engine.html).
+The plugin enables Spark users to accelerate their existing jobs by generating
+optimized C++ code and executing it on the VE, with minimal or no effort.
 
-## Usage of the plugin
+Spark Cyclone currently offers three pathways to accelerate Spark on the VE:
+[Spark SQL](https://spark.apache.org/sql/),
+[RDD](https://spark.apache.org/docs/latest/rdd-programming-guide.html), and
+[MLlib](https://spark.apache.org/mllib/).  The plugin leverages Spark SQL's
+extensibility to rewrite SQL queries on the fly and executes dynamically-generated
+C++ code with no user code changes necessary.  For more direct control, the
+plugin's VERDD API API provides Scala macros that can be used to transpile normal
+Scala code into C++ and thus execute common RDD operations such as `map()` on the
+VE.  Finally, CycloneML is a fork of MLLib that uses Spark Cyclone to accelerate
+many of the ML algorithms with either the VE or CPU.
 
-Assuming you've deployed the plugin jar file into `/opt/cyclone//`:
+<https://sparkcyclone.io/>
+
+
+## Plugin Usage
+
+Integrating the Spark Cyclone plugin into an existing Spark job is very straightforward.
+The following is the minimum set of flags that need to be added to an existing
+Spark job configuration:
 
 ```
 $ $SPARK_HOME/bin/spark-submit \
-    --name YourScript \
+    --name YourSparkJobName \
     --master yarn \
     --deploy-mode cluster \
-    --num-executors=8 --executor-cores=1 --executor-memory=8G \ # specify 1 executor per VE core
-    --conf spark.executor.extraClassPath=/opt/cyclone//spark-cyclone-sql-plugin.jar \
-    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \
-    --jars /opt/cyclone//spark-cyclone-sql-plugin.jar \
-    --conf spark.executor.resource.ve.amount=1 \                # specify the number of VEs to use.
-    --conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin
-    --conf spark.cyclone.kernel.directory=/opt/cyclone//ccache \ # Place to cache compiled kernels.
-    your_script.py
-
+    --num-executors=8 --executor-cores=1 --executor-memory=8G \                                 # Specify 1 executor per VE core
+    --jars /path/to/spark-cyclone-sql-plugin.jar \                                              # Add the Spark Cyclone plugin JAR
+    --conf spark.executor.extraClassPath=/path/to/spark-cyclone-sql-plugin.jar \                # Add Spark Cyclone libraries to the classpath
+    --conf spark.plugins=io.sparkcyclone.plugin.AuroraSqlPlugin \                               # Specify the plugin's main class
+    --conf spark.executor.resource.ve.amount=1 \                                                # Specify the number of VEs to use
+    --conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin \ # Specify the class used to discover VE resources
+    --conf spark.cyclone.kernel.directory=/path/to/kernel/directory \                           # Specify a directory where the plugin builds and caches C++ kernels
+    YourSparkJob.py
 ```
 
-## NCC arguments
+### Configuration
 
-A good set of NCC defaults is set up, however if further overriding is needed, it can be done with the following Spark
-config:
+Please refer to the [Plugin Configuration Guide](docs/PluginConfiguration.md)
+for an overview of the configuration options available to Spark Cyclone.
 
-```
---conf spark.cyclone.ncc.path=/opt/nec/ve/bin/ncc
---conf spark.cyclone.ncc.debug=true
---conf spark.cyclone.ncc.o=3
---conf spark.cyclone.ncc.openmp=false
---conf spark.cyclone.ncc.extra-argument.0=-X
---conf spark.cyclone.ncc.extra-argument.1=-Y
-```
 
-For safety, if an argument key is not recognized, it will fail to launch.
+## Plugin Development
 
-## Clustering / resource support
+### System Setup
 
-A variety of options are available some are necessary for Spark.
+While parts of the codebase can be developed on a standard `x86` machine running
+Linux or MacOS, building and testing the plugin requires a system that has VEs
+properly installed and set up - please refer to the
+[VE Documentation](https://www.hpc.nec/documents/) for more information on this.
+The following guides contain all the necessary setup and installation steps:
 
-## Assinging resources
+* [SX-Aurora TSUBASA Installation Guide](https://www.hpc.nec/documents/guide/pdfs/InstallationGuide_E.pdf)
+* [SX-Aurora TSUBASA Setup Guide](https://www.hpc.nec/documents/guide/pdfs/SetupGuide_E.pdf)
 
-You must specify vector engines to be used in executors.  There is no need to assign Vector Engines to the driver.
+In particular, the system should have the following software ready after setup:
 
-```
---conf spark.executor.resource.ve.amount=1
-```
+* [VEOS](https://github.com/veos-sxarr-NEC/veos)
+* [AVEO](https://sxauroratsubasa.sakura.ne.jp/documents/veos/en/aveo/index.html)
+* [NEC C Compiler (NCC)](https://www.nec.com/en/global/solutions/hpc/sx/tools.html)
 
-If using cluster-local mode also specify:
+### JDK
 
-```
---conf spark.worker.resource.ve.amount=1
-```
+This project uses **Java 11**, and Zulu OpenJDK is the preferred JDK.  Users can
+switch to the specific JDK every time they work with this repository by installing
+[SDKMAN](https://sdkman.io/usage) and running the following command in the project
+root directory:
 
-Specify this discovery pluging for detecting resources automatically
-
-```
---conf spark.resources.discoveryPlugin=io.sparkcyclone.plugin.DiscoverVectorEnginesPlugin
+```sh
+sdk env
 ```
 
-Alternatively you can use a script if you want/need more control over which VE is assigned.
+### Spark + Hadoop
 
-```
---conf spark.executor.resource.ve.discoveryScript=/opt/spark/getVEsResources.sh
-```
+The plugin has been built and tested against **Spark v3.3.0** and **Hadoop v3.3.+**,
+respectively.  Instructions for installing and configuring Spark for Hadoop can
+be found [here](https://www.linode.com/docs/guides/install-configure-run-spark-on-top-of-hadoop-yarn-cluster/).
 
-## Compilation lifecycle
+### Build and Run
 
-The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.
-Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
-you can optimize the compilation time by specifying a directory to cache kernels using the following config.
+Spark Cyclone is built using [sbt](https://www.scala-sbt.org/).  To build the
+plugin, simply run:
 
-### Specify a directory to compile and cache kernels
-
-If a suitable kernel exists in the directory, the Spark Cyclone plugin will use it and not compile a new one from
-scratch.
-
-```
---conf spark.cyclone.kernel.directory=/path/to/compilation/dir
+```sh
+sbt assembly
 ```
 
-## Batching
+The assembled fat JAR will be found in `target/`.
 
-This is to batch ColumnarBatch together, to allow for larger input sizes into the VE. This may however use more on-heap
-and off-heap memory.
+### Prerequisite Guides
 
-```
---conf spark.cyclone.sql.batch-batches=3
-```
+* Internal Development:
+  * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
 
-Default is 0, which is just to pass ColumnarBatch directly in.
-
-## Pre-shuffling/hashing
-
-This will try to pre-shuffle the data so that we only need to call the VE in one stage for aggregations. It might be
-more performant due to avoiding a coalesce/shuffle afterwards.
-
-```
---conf spark.cyclone.sql.preshuffle-partitions=8
-```
-
-## Configuration options
-
-Note, _default specified in the `=`_
-
-```
---conf spark.cyclone.sql.aggregate-on-ve=true
---conf spark.cyclone.sql.sort-on-ve=false
---conf spark.cyclone.sql.project-on-ve=true
---conf spark.cyclone.sql.filter-on-ve=true
---conf spark.cyclone.sql.exchange-on-ve=true
---conf spark.cyclone.sql.pass-through-project=false
---conf spark.cyclone.sql.fail-fast=false
---conf spark.cyclone.sql.join-on-ve=false
---conf spark.cyclone.sql.amplify-batches=true
---conf spark.cyclone.ve.columnBatchSize=<spark col batch size>
---conf spark.cyclone.ve.targetBatchSizeMb=64
-```
-
-## Benchmarking
-
-- [tpcbench-run/README.md](tpcbench-run/README.md)
+* External Dependencies:
+  * [Frovedis Library](https://github.com/frovedis/frovedis)
+  * [JavaCPP Layer Around AVEO](https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload)
