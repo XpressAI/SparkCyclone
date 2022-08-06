@@ -1,5 +1,7 @@
 # Spark Cyclone
 
+[Spark Cyclone Homepage](https://sparkcyclone.io/)
+
 Spark Cyclone is an [Apache Spark](https://spark.apache.org/) plug-in that
 accelerates the performance of Spark by using the
 [SX-Aurora TSUBASA "Vector Engine" (VE)](https://www.nec.com/en/global/solutions/hpc/sx/vector_engine.html).
@@ -7,17 +9,17 @@ The plugin enables Spark users to accelerate their existing jobs by generating
 optimized C++ code and executing it on the VE, with minimal or no effort.
 
 Spark Cyclone currently offers three pathways to accelerate Spark on the VE:
-[Spark SQL](https://spark.apache.org/sql/),
-[RDD](https://spark.apache.org/docs/latest/rdd-programming-guide.html), and
-[MLlib](https://spark.apache.org/mllib/).  The plugin leverages Spark SQL's
-extensibility to rewrite SQL queries on the fly and executes dynamically-generated
-C++ code with no user code changes necessary.  For more direct control, the
-plugin's VERDD API API provides Scala macros that can be used to transpile normal
-Scala code into C++ and thus execute common RDD operations such as `map()` on the
-VE.  Finally, CycloneML is a fork of MLLib that uses Spark Cyclone to accelerate
-many of the ML algorithms with either the VE or CPU.
 
-<https://sparkcyclone.io/>
+* [Spark SQL](https://spark.apache.org/sql/): The plugin leverages Spark SQL's
+  extensibility to rewrite SQL queries on the fly and executes dynamically-generated
+  C++ code with no user code changes necessary.
+* [RDD](https://spark.apache.org/docs/latest/rdd-programming-guide.html): For
+  more direct control, the plugin's VERDD API API provides Scala macros that can
+  be used to transpile normal Scala code into C++ and thus execute common RDD
+  operations such as `map()` on the VE.
+* [MLlib](https://spark.apache.org/mllib/):  [CycloneML](https://github.com/XpressAI/CycloneML)
+  is a fork of MLLib that uses Spark Cyclone to accelerate many of the ML algorithms
+  using either the VE or CPU.
 
 
 ## Plugin Usage
@@ -96,8 +98,15 @@ The assembled fat JAR will be found in `target/`.
 
 ### Prerequisite Guides
 
+* Usage:
+  * [Plugin Configuration](docs/PluginConfiguration.md)
+
 * Internal Development:
   * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
+  * [Testing and Continuous Integration](docs/TestingAndCI.md)
+  * [Program Flow](docs/ProgramFlow.md)
+  * [Expression Evaluation](docs/ExpressionEvaluation.md)
+  * [Expression Evaluation](docs/ExpressionEvaluation.md)
 
 * External Dependencies:
   * [Frovedis Library](https://github.com/frovedis/frovedis)

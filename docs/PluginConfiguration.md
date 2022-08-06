@@ -1,6 +1,7 @@
 # Spark Cyclone Configuration Options
 
-The default options are generally specified after the `=` in the examples below.
+The default options are generally specified after the `=` in the examples below
+unless otherwise noted.
 
 
 ## Logging Options
@@ -70,9 +71,7 @@ following:
 --conf spark.worker.resource.ve.amount=1
 ```
 
-To limit the number of cores
-
-Each VE has 8 physical cores available. The following can be specified to limit
+Each VE has 8 physical cores available and by default, all 8 are used. To limit
 the number of cores assigned per VE process:
 
 ```sh
@@ -80,10 +79,10 @@ the number of cores assigned per VE process:
 ```
 
 However, as of time of writing, AVEO or (JavaCPP's wrapper thereof) appear to
-support only a 1:1 mapping between a VE process and a physical VE (attempting to
-spin up a second VE process on a given node will fail after hanging).  This means
-that `spark.executor.resource.ve.amount` should be set to the same  value as
-`--num-executors` to avoid VE resource starvation as the job is running.
+support only a **1:1** mapping between a VE process and a physical VE (attempting
+to spin up a second VE process on a given node will fail after hanging).  This
+means that `spark.executor.resource.ve.amount` should be set to the same  value
+as `--num-executors` to avoid VE resource starvation as the job is running.
 
 In addition, it is recommended that the number of CPU cores assigned per executor
 should be set such that `num-executors x executor-cores` is roughly 90% of all
@@ -91,12 +90,14 @@ CPU cores available in the system.  Using a machine with 2 physical VEs and 48
 CPU cores as an example, the following configuration is recommended:
 
 ```sh
---num-executors=2 --executor-cores=20 --executor-memory=8G \
---conf spark.executor.resource.ve.amount=2 \
+--num-executors=2
+--executor-cores=20
+--executor-memory=8G
+--conf spark.executor.resource.ve.amount=2
 ```
 
 Here, there will be 2 executors, each running 20 CPU threads, where group of 20
-threads will be sharing a VE process with 8 VE threads.
+threads will be sharing a VE process managing 8 VE thread contexts.
 
 ## Spark SQL Options
 
