@@ -1,10 +1,10 @@
-# Building and Running Spark Cyclone
+# Building the Spark Cyclone Plugin
 
 ## Software Setup
 
 ### JDK
 
-The project uses **Java 11**, and Zulu OpenJDK is the preferred JDK.  Users can
+The project uses **Java 11**, and Zulu OpenJDK is a preferred JDK.  Users can
 switch to the specific JDK every time they work with this repository by installing
 [SDKMAN](https://sdkman.io/usage) and running the following command in the project
 root directory:
@@ -23,7 +23,8 @@ download `sbt` by following the instructions [here](https://www.scala-sbt.org/1.
 The plugin is built and tested against **Spark v3.3.0** and **Hadoop v3.3.+**,
 respectively.  The instructions for setting up a Hadoop and Spark installation
 on a machine with VEs attached can be found on the
-[project website](https://sparkcyclone.io/docs/spark-sql/getting-started/hadoop-and-spark-installation-guide).
+project website, [here]](https://sparkcyclone.io/docs/spark-sql/getting-started/hadoop-and-spark-installation-guide)
+and [here](https://sparkcyclone.io/docs/spark-sql/getting-started/spark-cyclone-setup).
 
 In addition, instructions for configuring a local (custom) installation of Spark
 with an established Hadoop cluster can be found
@@ -52,24 +53,24 @@ For cluster-mode/detection tests that run on the `VectorEngine` scope, make sure
 that `$SPARK_HOME/work` is writable:
 
 ```sh
-mkdir -p /opt/spark/work && chmod -R 777 /opt/spark/work
+$ mkdir -p /opt/spark/work && chmod -R 777 /opt/spark/work
 ```
 
 #### SSH
 
 Instructions can be found [here](https://docs.rackspace.com/blog/speeding-up-ssh-session-creation/)
 to lower the latency of SSH connections, which is likely needed in the case of
-software development involving expensive VEs (in general, a 40% decrease latency
-can be observed).
+software development involving VEs in a remote server(in general, a 40% decrease
+latency can be observed).
 
 
 ## Building and Running
 
-### Building the PLugin JAR
+### Building the Plugin JAR
 
 To build the plugin, simply run in the `sbt` console:
 
-```sh
+```sbt
 show assembly
 ```
 
@@ -78,9 +79,12 @@ The location of the assembled fat JAR will be displayed.
 
 ### Deploying the JAR
 
-```
-> deploy
-> deployExamples
+A shortcut is provided in the `sbt` console to copy the built plugin JAR to a
+pre-determined directory in the filesystem:
+
+```sbt
+// Copy the JAR to /opt/cyclone/${USER}/
+deploy
 ```
 
 ## Testing the Plugin

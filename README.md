@@ -1,7 +1,5 @@
 # Spark Cyclone
 
-[Spark Cyclone Homepage](https://sparkcyclone.io/)
-
 Spark Cyclone is an [Apache Spark](https://spark.apache.org/) plug-in that
 accelerates the performance of Spark by using the
 [SX-Aurora TSUBASA "Vector Engine" (VE)](https://www.nec.com/en/global/solutions/hpc/sx/vector_engine.html).
@@ -21,6 +19,7 @@ Spark Cyclone currently offers three pathways to accelerate Spark on the VE:
   is a fork of MLlib that uses Spark Cyclone to accelerate many of the ML algorithms
   using either the VE or CPU.
 
+[Spark Cyclone Homepage](https://sparkcyclone.io/)
 
 ## Plugin Usage
 
@@ -45,7 +44,7 @@ $ $SPARK_HOME/bin/spark-submit \
 
 ### Configuration
 
-Please refer to the [Plugin Configuration Guide](docs/PluginConfiguration.md)
+Please refer to the [Plugin Configuration](docs/PluginConfiguration.md) guide
 for an overview of the configuration options available to Spark Cyclone.
 
 
@@ -64,33 +63,36 @@ The following guides contain all the necessary setup and installation steps:
 
 In particular, the system should have the following software ready after setup:
 
-* [VEOS](https://github.com/veos-sxarr-NEC/veos)
-* [AVEO](https://sxauroratsubasa.sakura.ne.jp/documents/veos/en/aveo/index.html)
-* [NEC C Compiler (NCC)](https://www.nec.com/en/global/solutions/hpc/sx/tools.html)
+* [VEOS](https://github.com/veos-sxarr-NEC/veos), the set of daemons and commands
+  providing operating system functionality to VE programs
+* [AVEO](https://sxauroratsubasa.sakura.ne.jp/documents/veos/en/aveo/index.html),
+  the offloading framework for running code on the VE
+* [NCC](https://www.nec.com/en/global/solutions/hpc/sx/tools.html), NEC's C
+  compiler for building code to VE target
 
-### Build and Run
+### Developmeent Guide
 
-Spark Cyclone is built using [sbt](https://www.scala-sbt.org/).  To build the
-plugin, simply run:
-
-```sh
-sbt assembly
-```
-
-The assembled fat JAR will be found in `target/`.
-
-### Prerequisite Guides
+The following pages cover all aspects of Spark Cyclone development:
 
 * Usage:
   * [Plugin Configuration](docs/PluginConfiguration.md)
-
-* Internal Development:
-  * [Building and Running](docs/BuildingAndRunning.md)
+  * [VERDD API](https://sparkcyclone.io/docs/ve-rdd/ve-rdd-configuration)
+  * [CycloneML with Spark Cyclone](https://sparkcyclone.io/docs/ml-lib/mllib-configuration)
+* Development:
+  * [Building the Plugin](docs/BuildingThePlugin.md)
   * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
   * [Testing and Continuous Integration](docs/TestingAndCI.md)
+  * [Data Types](docs/DataTypes.md)
   * [Program Flow](docs/ProgramFlow.md)
+  * [SQL Planning](docs/SqlPlanning.md)
   * [Expression Evaluation](docs/ExpressionEvaluation.md)
-
 * External Dependencies:
   * [Frovedis Library](https://github.com/frovedis/frovedis)
   * [JavaCPP Layer Around AVEO](https://github.com/bytedeco/javacpp-presets/tree/aurora/veoffload)
+
+
+## License
+
+Spark Cyclone is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
+
+For additional information, please see the LICENSE and NOTICE files.

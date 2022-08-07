@@ -19,8 +19,6 @@
  */
 #pragma once
 
-#ifndef VE_TD_DEFS
-
 #include "cyclone/cyclone_function_view.hpp"
 #include "frovedis/text/words.hpp"
 #include <stddef.h>
@@ -416,11 +414,3 @@ struct nullable_varchar_vector {
 
   const std::vector<std::vector<size_t>> group_indexes0() const;
 };
-
-struct non_null_c_bounded_string {
-  char      *data   = nullptr;
-  int32_t   length  = 0;
-};
-
-#define VE_TD_DEFS 1
-#endif

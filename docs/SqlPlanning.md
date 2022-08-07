@@ -1,4 +1,4 @@
-# Cyclone Spark Plans
+# Spark Cyclone SQL Planning
 
 Spark's plans are rewritten into Cyclone plans in `VeRewriteStrategy`. There are 2 kinds of plans:
 
