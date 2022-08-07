@@ -123,7 +123,7 @@ executed on the CPU:
 
 Data is transferred into the VE via VE column batches, and the size of these
 batches will affect the efficiency of the data transfer.  The following
-configurations are used to tune the VE column batch sizes.
+configurations are used to tune the VE column batch sizes:
 
 ```sh
 --conf spark.cyclone.ve.columnBatchSize=128000  # The target number of rows in the VE column batch
@@ -142,6 +142,16 @@ optimal performance:
 
 Please see the [Spark Internals Book](https://jaceklaskowski.gitbooks.io/mastering-spark-sql/content/spark-sql-properties.html)
 For more tuning options.
+
+### [EXPERIMENTAL] Batch Caching
+
+Spark SQL by default uses `org.apache.spark.sql.execution.columnar.DefaultCachedBatchSerializer`
+to cache column batches when executing queries.  The following configuration can
+be set to use the alternative cache serializer that comes with the plugin:
+
+```sh
+--conf spark.sql.cache.serializer=io.sparkcyclone.cache.OffHeapCacheSerializer
+```
 
 
 ## C++ Kernel Compilation Options

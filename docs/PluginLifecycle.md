@@ -1,4 +1,4 @@
-# Spark Cyclone Plugin Program Flow
+# Spark Cyclone Plugin Lifecycle
 
 The general flow is as such:
 

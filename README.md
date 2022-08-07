@@ -70,7 +70,7 @@ In particular, the system should have the following software ready after setup:
 * [NCC](https://www.nec.com/en/global/solutions/hpc/sx/tools.html), NEC's C
   compiler for building code to VE target
 
-### Developmeent Guide
+### Development Guide
 
 The following pages cover all aspects of Spark Cyclone development:
 
@@ -83,7 +83,8 @@ The following pages cover all aspects of Spark Cyclone development:
   * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
   * [Testing and Continuous Integration](docs/TestingAndCI.md)
   * [Data Types](docs/DataTypes.md)
-  * [Program Flow](docs/ProgramFlow.md)
+  * [Plugin Lifecycle](docs/PluginLifecycle.md)
+  * [JVM-VE Interface](docs/JVMVEInterface.md)
   * [SQL Planning](docs/SqlPlanning.md)
   * [Expression Evaluation](docs/ExpressionEvaluation.md)
 * External Dependencies:
