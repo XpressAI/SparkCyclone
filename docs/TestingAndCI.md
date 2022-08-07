@@ -16,7 +16,7 @@ for more information.
 ### JVM Tests
 
 Unit and functional test suites are available that exercise the VE-independent
-JVM-level code in the plugin.  To run these tests in the `sbt` console:
+JVM-level code in the plugin.  To run these tests in `sbt`:
 
 ```sbt
 // Run all JVM tests
@@ -32,7 +32,7 @@ VE unit and functional test suites are defined in the `VectorEngine` `sbt` scope
 and test the interation between the JVM and Spark with the VE itself.  They are
 annotated with the `io.sparkcyclone.annotations.VectorEngineTest` annotation, and
 as the name implies, they require a VE and `ncc` to be present on the system to
-run properly.  To run these tests:
+run properly.  To run these tests in `sbt`:
 
 ```sbt
 // Run all VE tests
@@ -65,7 +65,7 @@ $ make
 $ ./dbgen
 ```
 
-To run the `TPC` tests:
+To run the `TPC` tests in `sbt`:
 
 ```sbt
 // [OPTIONAL] Output verbose details, like plan tree information
@@ -118,7 +118,7 @@ $ cd .. && /opt/hadoop/bin/hdfs dfs -put dbgen dbgen10
 ```
 
 Assuming a YARN cluster is accessible, the job can be built and submitted for
-execution as follows
+execution as follows:
 
 ```sh
 # From the `tests/tpchbench` directory

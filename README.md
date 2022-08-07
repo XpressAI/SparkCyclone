@@ -12,13 +12,13 @@ Spark Cyclone currently offers three pathways to accelerate Spark on the VE:
 
 * [Spark SQL](https://spark.apache.org/sql/): The plugin leverages Spark SQL's
   extensibility to rewrite SQL queries on the fly and executes dynamically-generated
-  C++ code with no user code changes necessary.
+  C++ code on the VE with no user code changes necessary.
 * [RDD](https://spark.apache.org/docs/latest/rdd-programming-guide.html): For
   more direct control, the plugin's VERDD API API provides Scala macros that can
   be used to transpile normal Scala code into C++ and thus execute common RDD
   operations such as `map()` on the VE.
 * [MLlib](https://spark.apache.org/mllib/):  [CycloneML](https://github.com/XpressAI/CycloneML)
-  is a fork of MLLib that uses Spark Cyclone to accelerate many of the ML algorithms
+  is a fork of MLlib that uses Spark Cyclone to accelerate many of the ML algorithms
   using either the VE or CPU.
 
 
@@ -68,23 +68,6 @@ In particular, the system should have the following software ready after setup:
 * [AVEO](https://sxauroratsubasa.sakura.ne.jp/documents/veos/en/aveo/index.html)
 * [NEC C Compiler (NCC)](https://www.nec.com/en/global/solutions/hpc/sx/tools.html)
 
-### JDK
-
-This project uses **Java 11**, and Zulu OpenJDK is the preferred JDK.  Users can
-switch to the specific JDK every time they work with this repository by installing
-[SDKMAN](https://sdkman.io/usage) and running the following command in the project
-root directory:
-
-```sh
-sdk env
-```
-
-### Spark + Hadoop
-
-The plugin has been built and tested against **Spark v3.3.0** and **Hadoop v3.3.+**,
-respectively.  Instructions for installing and configuring Spark for Hadoop can
-be found [here](https://www.linode.com/docs/guides/install-configure-run-spark-on-top-of-hadoop-yarn-cluster/).
-
 ### Build and Run
 
 Spark Cyclone is built using [sbt](https://www.scala-sbt.org/).  To build the
@@ -102,10 +85,10 @@ The assembled fat JAR will be found in `target/`.
   * [Plugin Configuration](docs/PluginConfiguration.md)
 
 * Internal Development:
+  * [Building and Running](docs/BuildingAndRunning.md)
   * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
   * [Testing and Continuous Integration](docs/TestingAndCI.md)
   * [Program Flow](docs/ProgramFlow.md)
-  * [Expression Evaluation](docs/ExpressionEvaluation.md)
   * [Expression Evaluation](docs/ExpressionEvaluation.md)
 
 * External Dependencies:
