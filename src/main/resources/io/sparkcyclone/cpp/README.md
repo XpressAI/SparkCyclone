@@ -4,23 +4,23 @@ The Cyclone C++ library is linked to by the Spark Cyclone plugin as it generates
 C++ code to perform Spark SQL queries on the Vector Engine.  The library contains
 the following:
 
-* A subset of the [Frovedis](https://github.com/frovedis/frovedis) library that
-  contains vectorizable data structures and algorithms that are used by Spark
-  Cyclone as part of query execution.
+* A subset of the [Frovedis](https://github.com/frovedis/frovedis) library, a
+  high-performance middleware for data analytics that contains vectorizable data
+  structures and algorithms that are used by Spark Cyclone as part of query
+  execution.
 * A definition of data structures used for transferring Arrow data in Spark over
   to C++.
 * A collection of common functions that are to be called by Spark Cyclone-generated
   C++ code.
 
-This library has been written so that it can be built standalone.  This allows
-for the following:
+This library has been written so that it can be built standalone (on both VE and
+`x86` platform).  This allows for the following:
 
 * Experiment with the Frovedis API and algorithm optimizations as needed.
 * Test and benchmark the C++ code on its own before integrating it into the Spark
   Cyclone plugin's code generation.
 * Reduce the complexity of C++ code generation from the Spark Cyclone plugin,
   which for all intents and purposes is not unit-testable.
-
 
 
 ## Library Development

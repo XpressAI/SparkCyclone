@@ -1,4 +1,4 @@
-# Flow
+# Spark Cyclone Plugin Lifecycle
 
 The general flow is as such:
 
@@ -12,3 +12,10 @@ The general flow is as such:
    calls `SupportsVeColBatch#executeVeColumnar` of its child plan, and its child plan does the same. During this
    calling, `VeProcess` of the executor is summoned. Data is freed at the earlist possible opportunity or at Task
    completion.
+
+## Compilation lifecycle
+
+The Spark Cyclone plugin will translate your Spark SQL queries into a C++ kernel to execute them on the Vector Engine.
+Compilation can take anywhere from a few seconds to a couple minutes.  While insignificant if your queries take hours
+you can optimize the compilation time by specifying a directory to cache kernels using the following config.
+

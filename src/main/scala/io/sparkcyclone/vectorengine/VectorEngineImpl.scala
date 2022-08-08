@@ -5,12 +5,11 @@ import io.sparkcyclone.data.vector._
 import io.sparkcyclone.data.transfer.TransferDescriptor
 import io.sparkcyclone.native.code.CVector
 import io.sparkcyclone.util.CallContext
-import com.typesafe.scalalogging.LazyLogging
-import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
-
-import java.time.Duration
 import scala.reflect.ClassTag
 import scala.util.Try
+import java.time.Duration
+import com.typesafe.scalalogging.LazyLogging
+import org.bytedeco.javacpp.{BytePointer, IntPointer, LongPointer, PointerScope}
 
 class VectorEngineImpl(val process: VeProcess,
                        val metrics: MetricRegistry)
