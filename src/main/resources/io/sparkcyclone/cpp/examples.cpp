@@ -29,6 +29,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <thread>
 
 using namespace cyclone;
 
@@ -297,6 +298,12 @@ int main() {
   // test_statement_expressions();
 
   // test_multiple_grouping();
-  test_scalar_grouping();
-  test_varchar_grouping();
+  // test_scalar_grouping();
+  // test_varchar_grouping();
+  auto start = cyclone::time::now();
+  std::cout << cyclone::time::utc() << std::endl;
+
+  auto duration = cyclone::time::nanos_since(start);
+  std::cout << duration << " ns" << std::endl;
+  std::cout << std::this_thread::get_id() << std::endl;
 }

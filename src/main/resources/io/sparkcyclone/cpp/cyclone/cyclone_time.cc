@@ -17,31 +17,17 @@
  * limitations under the License.
  *
  */
-#pragma once
-
-/*
-  This is the single main header to be included by code that uses the Cyclone
-  C++ Library.
-*/
-
-#include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_function_view.hpp"
-#include "cyclone/cyclone_grouping.hpp"
-#include "cyclone/cyclone_sort.hpp"
 #include "cyclone/cyclone_time.hpp"
-#include "cyclone/cyclone_utils.hpp"
-#include "cyclone/packed_transfer.hpp"
-#include "cyclone/tuple_hash.hpp"
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
+#include <chrono>
+#include <ctime>
+#include <string>
 
-void debug_words(frovedis::words &in);
-
-/*
-#ifdef __ve__
-
-extern "C" int attach_vh_shm(char *path, int32_t id, size_t size_mb, void **out_p, uint64_t *out_data_vehva);
-extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva);
-
-#endif
-*/
+std::string cyclone::time::utc() {
+  auto now = std::chrono::system_clock::now();
+  auto seconds = std::chrono::system_clock::to_time_t(now);
+  auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count() % 1000000000;
+  char utc[32];
+  strftime(utc, 32, "%F %T", gmtime(&seconds));
+  snprintf(strchr(utc, 0), 32 - strlen(utc), ".%09lldZ", ns);
+  return utc;
+}

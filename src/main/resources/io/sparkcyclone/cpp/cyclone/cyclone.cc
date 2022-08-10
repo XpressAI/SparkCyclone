@@ -39,16 +39,6 @@
 #include "cyclone/cyclone.hpp"
 #include "cyclone/transfer-definitions.hpp"
 
-std::string utcnanotime() {
-    auto now = std::chrono::system_clock::now();
-    auto seconds = std::chrono::system_clock::to_time_t(now);
-    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count() % 1000000000;
-    char utc[32];
-    strftime(utc, 32, "%FT%T", gmtime(&seconds));
-    snprintf(strchr(utc, 0), 32 - strlen(utc), ".%09lldZ", ns);
-    return utc;
-}
-
 void debug_words(frovedis::words &in) {
     std::cout << "words char count: " << in.chars.size() << std::endl;
     std::cout << "words starts count: " << in.starts.size() << std::endl;

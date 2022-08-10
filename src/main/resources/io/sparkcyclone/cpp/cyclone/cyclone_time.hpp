@@ -19,29 +19,18 @@
  */
 #pragma once
 
-/*
-  This is the single main header to be included by code that uses the Cyclone
-  C++ Library.
-*/
+#include <chrono>
+#include <vector>
 
-#include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_function_view.hpp"
-#include "cyclone/cyclone_grouping.hpp"
-#include "cyclone/cyclone_sort.hpp"
-#include "cyclone/cyclone_time.hpp"
-#include "cyclone/cyclone_utils.hpp"
-#include "cyclone/packed_transfer.hpp"
-#include "cyclone/tuple_hash.hpp"
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
+namespace cyclone::time {
+  std::string utc();
 
-void debug_words(frovedis::words &in);
+  inline decltype(auto) now() {
+    return std::chrono::high_resolution_clock::now();
+  }
 
-/*
-#ifdef __ve__
-
-extern "C" int attach_vh_shm(char *path, int32_t id, size_t size_mb, void **out_p, uint64_t *out_data_vehva);
-extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva);
-
-#endif
-*/
+  template<typename T>
+  inline int64_t nanos_since(const std::chrono::time_point<T> &start) {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(now() - start).count();
+  }
+}
