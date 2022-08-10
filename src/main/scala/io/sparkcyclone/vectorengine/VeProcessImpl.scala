@@ -232,7 +232,7 @@ final case class WrappingVeo private (val node: Int,
         throw new IllegalArgumentException(s"[${handle.address}] Attempted to register allocation @ ${address} (${size} bytes) but it is already registered with a different size (${allocation.size} bytes)!")
 
       case None =>
-        logger.debug(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
+        logger.trace(s"[${handle.address}] Registering externally-created VE memory allocation of ${size} bytes @ ${address}")
 
         // Record metrics
         allocSizesHistogram.update(size)
@@ -250,7 +250,7 @@ final case class WrappingVeo private (val node: Int,
 
     heapRecords.get(address) match {
       case Some(allocation) =>
-        logger.debug(s"[${handle.address}] Unregistering VE memory allocation tracked by ${getClass.getSimpleName} (${allocation.size} bytes @ ${allocation.address})")
+        logger.trace(s"[${handle.address}] Unregistering tracked VE memory allocation of ${allocation.size} bytes @ ${allocation.address}")
         heapRecords.remove(address)
 
       case None =>
@@ -298,7 +298,7 @@ final case class WrappingVeo private (val node: Int,
 
         heapRecords.get(address) match {
           case Some(allocation) =>
-            logger.debug(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
+            logger.trace(s"[${handle.address}] Deallocating pointer @ ${address} (${allocation.size} bytes)")
             Seq(address)
 
           case None if unsafe =>
@@ -375,9 +375,10 @@ final case class WrappingVeo private (val node: Int,
     withVeoThread { tcontext =>
       requireValidBufferForPut(buffer)
       require(destination > 0L, s"[${handle.address}][${tcontext.address}] Invalid VE memory address for put: ${destination}")
+      val timestamp = System.nanoTime
       val id = veo.veo_async_write_mem(tcontext, destination, buffer, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"[${handle.address}][${tcontext.address}] veo_async_write_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext.address)
+      VeAsyncReqId(id, "putAsync", timestamp, tcontext.address)
     }
   }
 
@@ -389,9 +390,10 @@ final case class WrappingVeo private (val node: Int,
     withVeoThread { tcontext =>
       requireValidBufferForGet(buffer)
       require(source > 0L, s"[${handle.address}][${tcontext.address}] Invalid VE memory address for get: ${source}")
+      val timestamp = System.nanoTime
       val id = veo.veo_async_read_mem(tcontext, buffer, source, buffer.nbytes)
       require(id != veo.VEO_REQUEST_ID_INVALID, s"[${handle.address}][${tcontext.address}] veo_async_read_mem failed and returned ${id}")
-      VeAsyncReqId(id, tcontext.address)
+      VeAsyncReqId(id, "getAsync", timestamp, tcontext.address)
     }
   }
 
@@ -556,7 +558,7 @@ final case class WrappingVeo private (val node: Int,
       syncFnCallTimer.update(Duration.ofNanos(duration))
 
       logger.debug(
-        s"[${handle.address}] Finished call to '${func.name}': ${syncFnCalls} VeSeconds: (${syncFnCallDurations / 1e9} s)"
+        s"[${handle.address}] [${syncFnCalls} / ${syncFnCallDurations / 1e9} s] Finished call to '${func.name}': ${duration / 1e9} s"
       )
 
       result
@@ -567,13 +569,14 @@ final case class WrappingVeo private (val node: Int,
     withVeoThread { tcontext =>
       logger.debug(s"[${handle.address}][${tcontext.address}] Making VE async call '${func.name}' with veo_args @ ${stack.args.address}")
 
+      val timestamp = System.nanoTime
       val id = veo.veo_call_async(tcontext, func.address, stack.args)
       require(
         id != veo.VEO_REQUEST_ID_INVALID,
         s"[${handle.address}][${tcontext.address}] VE async call failed for function '${func.name}' (library at: ${func.lib.path})"
       )
 
-      VeAsyncReqId(id, tcontext.address)
+      VeAsyncReqId(id, func.name, timestamp, tcontext.address)
     }
   }
 
