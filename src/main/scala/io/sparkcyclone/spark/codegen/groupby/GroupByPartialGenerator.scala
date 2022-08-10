@@ -142,10 +142,11 @@ final case class GroupByPartialGenerator(
     CodeLines.from(
       s"std::vector<size_t> ${BatchCountsId}(${nBuckets});",
       s"std::vector<size_t> ${BatchGroupPositionsId}(${groupingCodeGenerator.groupsCountOutName});",
-      s"std::vector<std::vector<size_t>> batch_group_indexes;",
+      s"std::vector<std::vector<size_t>> batch_group_indexes(${nBuckets});",
       CodeLines.scoped("Compute the value counts for each batch") {
         CodeLines.from(
           "#pragma _NEC vector",
+          "#pragma _NEC ivdep",
           CodeLines.forLoop("b", s"${nBuckets}") {
             CodeLines.from(
               s"size_t count = 0;",
@@ -160,9 +161,13 @@ final case class GroupByPartialGenerator(
               },
               // Assign to the counts table
               s"${BatchCountsId}[b] = count;",
-              s"std::vector<size_t> groups_indexes(count);",
-              s"batch_group_indexes.push_back(groups_indexes);"
             )
+          },
+          "",
+          "#pragma _NEC vector",
+          "#pragma _NEC ivdep",
+          CodeLines.forLoop("b", s"${nBuckets}") {
+            s"batch_group_indexes[b].resize(${BatchCountsId}[b]);"
           },
           "",
           CodeLines.forLoop("b", s"${nBuckets}") {
@@ -233,6 +238,9 @@ final case class GroupByPartialGenerator(
 
       CodeLines.from(
         "#pragma _NEC vector",
+        "#pragma cdir nodep",
+        "#pragma _NEC ivdep",
+        "#pragma _NEC vovertake",
         CodeLines.forLoop("b", s"${nBuckets}") {
             initVars2.map(_.forEach)
         },

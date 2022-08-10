@@ -106,12 +106,22 @@ struct NullableScalarVec {
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
                            const int32_t validity) {
-    set_valid_bit(validityBuffer, idx, validity);
+    // set_valid_bit(validityBuffer, idx, validity);
+    auto byte = idx / 64;
+    auto bit_index = idx % 64;
+    if (validity) {
+      validityBuffer[byte] |= (1UL << bit_index);
+    } else {
+      validityBuffer[byte] &= ~(1UL << bit_index);
+    }
   }
 
   // Fetch the validity value of the vector at the given index
   inline uint32_t get_validity(const size_t idx) const {
-    return get_valid_bit(validityBuffer, idx);
+    // return get_valid_bit(validityBuffer, idx);
+    auto byte = idx / 64;
+    auto bit_index = idx % 64;
+    return (validityBuffer[byte] >> bit_index) & 1;
   }
 
   // Return the validity buffer as a std::vector
@@ -299,12 +309,22 @@ struct nullable_varchar_vector {
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
                            const int32_t validity) {
-    set_valid_bit(validityBuffer, idx, validity);
+    // set_valid_bit(validityBuffer, idx, validity);
+    auto byte = idx / 64;
+    auto bit_index = idx % 64;
+    if (validity) {
+      validityBuffer[byte] |= (1UL << bit_index);
+    } else {
+      validityBuffer[byte] &= ~(1UL << bit_index);
+    }
   }
 
   // Fetch the validity value of the vector at the given index
   inline uint32_t get_validity(const size_t idx) const {
-    return get_valid_bit(validityBuffer, idx);
+    // return get_valid_bit(validityBuffer, idx);
+    auto byte = idx / 64;
+    auto bit_index = idx % 64;
+    return (validityBuffer[byte] >> bit_index) & 1;
   }
 
   // Return the validity buffer as a std::vector
