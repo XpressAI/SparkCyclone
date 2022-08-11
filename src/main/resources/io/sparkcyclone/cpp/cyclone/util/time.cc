@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  */
-#include "cyclone/cyclone_time.hpp"
+#include "cyclone/util/time.hpp"
 #include <chrono>
 #include <ctime>
 #include <string>

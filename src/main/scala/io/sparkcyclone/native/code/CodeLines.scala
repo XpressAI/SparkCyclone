@@ -51,7 +51,7 @@ object CodeLines {
       sub,
       "",
       s"const auto duration_${token} = cyclone::time::nanos_since(timestamp_${token});",
-      s"""std::cout << "[" << cyclone::time::utc() << "][" << __FILE__ << ":" << __LINE__ << "][${label}] Measured time: " << duration_${token} << " ns" << std::endl;"""
+      s"""cyclone::log::info << "[${label}] Measured time: " << duration_${token} / 1e9 << " s" << std::endl;"""
     )
   }
 

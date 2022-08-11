@@ -29,7 +29,6 @@
 #include <string>
 #include <tuple>
 #include <vector>
-#include <thread>
 
 using namespace cyclone;
 
@@ -305,5 +304,11 @@ int main() {
 
   auto duration = cyclone::time::nanos_since(start);
   std::cout << duration << " ns" << std::endl;
-  std::cout << std::this_thread::get_id() << std::endl;
+
+  cyclone::log::trace << "trace message" << std::endl;
+  cyclone::log::debug << "debug message" << std::endl;
+  cyclone::log::info << "info message" << std::endl;
+  cyclone::log::warn << "warn message" << std::endl;
+  cyclone::log::error << "error message" << std::endl;
+  cyclone::log::fatal << "fatal message" << std::endl;
 }
