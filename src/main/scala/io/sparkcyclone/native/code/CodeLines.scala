@@ -45,13 +45,12 @@ object CodeLines {
   def measureTime(label: String)(sub: => CodeLines): CodeLines = {
     val token = scala.util.Random.nextInt.abs
     CodeLines.from(
-      s"// Measure time: ${label}",
+      s"// START MEASURE TIME: ${label}",
       s"const auto timestamp_${token} = cyclone::time::now();",
-      "",
       sub,
+      s"""cyclone::log::info << "[${label}] Measured time: " << cyclone::time::nanos_since(timestamp_${token}) / 1e9 << " s" << std::endl;""",
+      s"// END MEASURE TIME: ${label}",
       "",
-      s"const auto duration_${token} = cyclone::time::nanos_since(timestamp_${token});",
-      s"""cyclone::log::info << "[${label}] Measured time: " << duration_${token} / 1e9 << " s" << std::endl;"""
     )
   }
 
