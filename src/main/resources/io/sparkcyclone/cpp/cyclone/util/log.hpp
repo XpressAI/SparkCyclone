@@ -19,19 +19,21 @@
  */
 #pragma once
 
+#include "cyclone/util/io.hpp"
+#include "cyclone/util/time.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
 #include <thread>
-#include "cyclone/util/io.hpp"
-#include "cyclone/util/time.hpp"
+#include <pthread.h>
+#include <unistd.h>
 
 namespace cyclone::log {
   /*
     Define enum with string values mapping using X macros:
       https://stackoverflow.com/questions/11714325/how-to-get-enum-item-name-from-its-value
   */
-  #define LOG_LEVELS   \
+  #define LOG_LEVELS  \
   X(TRACE,  "TRACE")  \
   X(DEBUG,  "DEBUG")  \
   X(INFO,   "INFO")   \
@@ -94,8 +96,10 @@ namespace cyclone::log {
       std::lock_guard<std::mutex> lock(log_mutex);
       std::cout << "["
         << cyclone::time::utc() << "] ["
-        << std::this_thread::get_id() << "] ["
-        << LogLevelName[level] << "] ["
+        << getpid() <<  "] ["
+        << cyclone::io::format("%d", pthread_self()) << "] ["
+        << pthread_self() << "] ["
+        << cyclone::io::format("%5s", LogLevelName[level]) << "] ["
         << file << ":"
         << line << "] "
         << cyclone::io::format(fmt, args...)
@@ -103,16 +107,17 @@ namespace cyclone::log {
     }
   }
 
-  #define trace(fmt, ...)  log(cyclone::log::LogLevel::TRACE,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-  #define debug(fmt, ...)  log(cyclone::log::LogLevel::DEBUG,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+  #define trace(fmt, ...) log(cyclone::log::LogLevel::TRACE,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+  #define debug(fmt, ...) log(cyclone::log::LogLevel::DEBUG,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
   #define info(fmt, ...)  log(cyclone::log::LogLevel::INFO,   __FILE__, __LINE__, fmt, ##__VA_ARGS__)
   #define warn(fmt, ...)  log(cyclone::log::LogLevel::WARN,   __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-  #define error(fmt, ...)  log(cyclone::log::LogLevel::ERROR,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-  #define fatal(fmt, ...)  log(cyclone::log::LogLevel::FATAL,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+  #define error(fmt, ...) log(cyclone::log::LogLevel::ERROR,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+  #define fatal(fmt, ...) log(cyclone::log::LogLevel::FATAL,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
   inline std::ostream& slog(const LogLevel level, const char *file, const int32_t line) {
     return ((level < log_level()) ? null_stream : std::cout) << "["
       << cyclone::time::utc() << "] ["
+      << getpid() <<  "] ["
       << std::this_thread::get_id() << "] ["
       << LogLevelName[level] << "] ["
       << file << ":"

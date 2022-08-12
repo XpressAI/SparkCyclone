@@ -48,7 +48,7 @@ object CodeLines {
       s"// START MEASURE TIME: ${label}",
       s"const auto timestamp_${token} = cyclone::time::now();",
       sub,
-      s"""cyclone::log::info("[${label}] Measured time: %f s", cyclone::time::nanos_since(timestamp_${token}) / 1.0e9);""",
+      s"""cyclone::log::info("[${label}] Measured time: %fs", cyclone::time::nanos_since(timestamp_${token}) / 1.0e9);""",
       s"// END MEASURE TIME: ${label}",
       "",
     )
