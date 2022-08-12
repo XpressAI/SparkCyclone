@@ -288,6 +288,11 @@ void test_varchar_grouping() {
   std::cout << output_group_delims << std::endl;
 }
 
+
+void foo(const std::string_view &input) {
+  std::cout << "inside foo " << input << "\n";
+}
+
 int main() {
   // projection_test();
   // filter_test();
@@ -305,10 +310,28 @@ int main() {
   auto duration = cyclone::time::nanos_since(start);
   std::cout << duration << " ns" << std::endl;
 
-  cyclone::log::trace << "trace message" << std::endl;
-  cyclone::log::debug << "debug message" << std::endl;
-  cyclone::log::info << "info message" << std::endl;
-  cyclone::log::warn << "warn message" << std::endl;
-  cyclone::log::error << "error message" << std::endl;
-  cyclone::log::fatal << "fatal message" << std::endl;
+  cyclone::log::strace << "trace message" << std::endl;
+  cyclone::log::sdebug << "debug message" << std::endl;
+  cyclone::log::sinfo << "info message" << std::endl;
+  cyclone::log::swarn << "warn message" << std::endl;
+  cyclone::log::serror << "error message" << std::endl;
+  cyclone::log::sfatal << "fatal message" << std::endl;
+
+  int i = 3;
+  float f = 5.f;
+  char* s0 = "hello";
+  std::string s1 = "world";
+
+
+  cyclone::log::trace("trace message");
+  cyclone::log::debug("debug message");
+  cyclone::log::info("i=%d, f=%f, s=%s %s", i, f, s0, s1);
+  cyclone::log::warn("warn message");
+  cyclone::log::error("error message");
+  cyclone::log::fatal("fatal message");
+
+  auto output = cyclone::io::format("i=%d, f=%f, s=%s %s", i, f, s0, s1);
+  auto expected = std::string("i=3, f=5.000000, s=hello world");
+  foo(cyclone::io::format("i=%d, f=%f, s=%s %s", i, f, s0, s1));
+  std::cout << (output == expected) << "\n";
 }

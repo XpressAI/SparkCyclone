@@ -28,6 +28,7 @@
 #include "cyclone/cyclone_function_view.hpp"
 #include "cyclone/cyclone_grouping.hpp"
 #include "cyclone/cyclone_sort.hpp"
+#include "cyclone/util/io.hpp"
 #include "cyclone/util/log.hpp"
 #include "cyclone/util/time.hpp"
 #include "cyclone/cyclone_utils.hpp"

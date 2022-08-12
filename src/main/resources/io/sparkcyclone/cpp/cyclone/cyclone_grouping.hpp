@@ -81,13 +81,13 @@ namespace cyclone::grouping {
       output_group_delims_len : Length of output_group_delims_arr (to be written).  Index values are relative to &sort_data_arr[0].
   */
   template <typename T, bool sort_ascending = true>
-  inline const void sort_and_group_multiple(T             * sort_data_arr,
-                                            const size_t    sort_data_len,
-                                            size_t        * index_arr,
-                                            const size_t  * input_group_delims_arr,
-                                            const size_t    input_group_delims_len,
-                                            size_t        * output_group_delims_arr,
-                                            size_t        & output_group_delims_len) {
+  inline void sort_and_group_multiple(T             * sort_data_arr,
+                                      const size_t    sort_data_len,
+                                      size_t        * index_arr,
+                                      const size_t  * input_group_delims_arr,
+                                      const size_t    input_group_delims_len,
+                                      size_t        * output_group_delims_arr,
+                                      size_t        & output_group_delims_len) {
     // If there are more group delimiters than elements in the range, then that
     // means that each subset will contain just one element
     if (input_group_delims_len > sort_data_len) {

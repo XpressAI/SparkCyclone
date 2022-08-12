@@ -65,9 +65,9 @@ final case class GroupingCodeGenerator(
 
             CodeLines.measureTime(s"${key}->group_indexes_on_subset") {
               CodeLines.from(
-                s"""cyclone::log::info << "${key}->count: " << ${key}->count << std::endl;""",
+                s"""cyclone::log::info("${key}->count: %d", ${key}->count);""",
                 s"${key}->group_indexes_on_subset($iterArrIn, $groupIn, $groupSizeIn, $iterArrOut, $groupOut, $groupSizeOut);",
-                s"""cyclone::log::info << "${key} num groups: " << ${groupSizeOut} << std::endl;""",
+                s"""cyclone::log::info("${key} num groups: %d", ${groupSizeOut});""",
               )
             }
           },
