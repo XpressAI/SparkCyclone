@@ -580,6 +580,38 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
   return from_words(output_words);
 }
 
+int32_t nullable_varchar_vector::max_len() const {
+  auto current_max = 0;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i) && lengths[i] > current_max) {
+      current_max = lengths[i];
+    }
+  }
+  return current_max;
+}
+
+int32_t nullable_varchar_vector::min_len() const {
+  auto current_min = INT_MAX;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i) && lengths[i] < current_min) {
+      current_min = lengths[i];
+    }
+  }
+  return current_min;
+}
+
+int32_t nullable_varchar_vector::avg_len() const {
+  auto sum = 0;
+  auto cnt = 0;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i)) {
+      sum += lengths[i];
+      cnt++;
+    }
+  }
+  return sum / cnt;
+}
+
 void nullable_varchar_vector::group_indexes_on_subset0(const size_t * iter_order_arr,
                                                        const size_t * group_pos,
                                                        const size_t group_pos_size,

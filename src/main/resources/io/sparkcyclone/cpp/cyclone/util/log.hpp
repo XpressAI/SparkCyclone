@@ -90,19 +90,17 @@ namespace cyclone::log {
 
   template<typename ... T>
   inline void log(const LogLevel level, const char *file, const int32_t line, const std::string &fmt, T const & ...args) {
-    log_mutex.lock();
-
-    // Write log messages to either stderr or null
-    ((level < log_level()) ? null_stream : std::cout) << "["
-      << cyclone::time::utc() << "] ["
-      << std::this_thread::get_id() << "] ["
-      << LogLevelName[level] << "] ["
-      << file << ":"
-      << line << "] "
-      << cyclone::io::format(fmt, args...)
-      << std::endl;
-
-    log_mutex.unlock();
+    if (level >= log_level()) {
+      std::lock_guard<std::mutex> lock(log_mutex);
+      std::cout << "["
+        << cyclone::time::utc() << "] ["
+        << std::this_thread::get_id() << "] ["
+        << LogLevelName[level] << "] ["
+        << file << ":"
+        << line << "] "
+        << cyclone::io::format(fmt, args...)
+        << std::endl;
+    }
   }
 
   #define trace(fmt, ...)  log(cyclone::log::LogLevel::TRACE,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)

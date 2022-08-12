@@ -322,7 +322,6 @@ int main() {
   char* s0 = "hello";
   std::string s1 = "world";
 
-
   cyclone::log::trace("trace message");
   cyclone::log::debug("debug message");
   cyclone::log::info("i=%d, f=%f, s=%s %s", i, f, s0, s1);

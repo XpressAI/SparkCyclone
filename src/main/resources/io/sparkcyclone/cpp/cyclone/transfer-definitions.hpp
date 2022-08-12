@@ -152,6 +152,10 @@ struct NullableScalarVec {
   // Return a bitmask that is the value of evaluating an IN expression
   const std::vector<size_t> eval_in(const std::vector<T> &elements) const;
 
+  inline int32_t max_len() const { return -1; };
+  inline int32_t min_len() const { return -1; };
+  inline int32_t avg_len() const { return -1; };
+
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
 
@@ -360,6 +364,10 @@ struct nullable_varchar_vector {
 
   // Return a bitmask that is the value of evaluating an IN expression
   const std::vector<size_t> eval_in(const std::vector<std::string> &elements) const;
+
+  int32_t max_len() const;
+  int32_t min_len() const;
+  int32_t avg_len() const;
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
