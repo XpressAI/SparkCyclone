@@ -35,7 +35,7 @@ nullable_varchar_vector * nullable_varchar_vector::allocate() {
   return new (output) nullable_varchar_vector;
 }
 
-nullable_varchar_vector * nullable_varchar_vector::constant(const size_t size, const std::string &value) {
+nullable_varchar_vector * nullable_varchar_vector::constant(const size_t size, const std::string_view &value) {
   // Allocate
   auto *output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
   // Initialize
@@ -91,7 +91,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
   }
 }
 
-nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::string &value) {
+nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::string_view &value) {
   // Initialize count
   count = size;
 
@@ -538,7 +538,7 @@ const std::vector<size_t> nullable_varchar_vector::eval_in(const std::vector<std
 }
 
 nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size_t count,
-                                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                                      const cyclone::func::function_view<bool(size_t)> &condition,
                                                                       const std::string &trueval,
                                                                       const std::string &falseval) {
   // Create int vectors for both the true and false cases

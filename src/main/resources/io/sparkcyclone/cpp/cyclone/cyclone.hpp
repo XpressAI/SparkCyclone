@@ -25,9 +25,9 @@
 */
 
 #include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_function_view.hpp"
 #include "cyclone/cyclone_grouping.hpp"
 #include "cyclone/cyclone_sort.hpp"
+#include "cyclone/util/func.hpp"
 #include "cyclone/util/io.hpp"
 #include "cyclone/util/log.hpp"
 #include "cyclone/util/time.hpp"
@@ -36,8 +36,6 @@
 #include "cyclone/tuple_hash.hpp"
 #include "frovedis/text/dict.hpp"
 #include "frovedis/text/words.hpp"
-
-void debug_words(frovedis::words &in);
 
 /*
 #ifdef __ve__

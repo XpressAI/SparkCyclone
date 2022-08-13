@@ -65,12 +65,12 @@ final case class GroupingCodeGenerator(
 
             CodeLines.measureTime(s"${key}->group_indexes_on_subset") {
               CodeLines.from(
-                s"""cyclone::log::info("${key}->count: %d", ${key}->count);""",
-                s"""cyclone::log::info("${key}->min_len: %d", ${key}->min_len());""",
-                s"""cyclone::log::info("${key}->max_len: %d", ${key}->max_len());""",
-                s"""cyclone::log::info("${key}->avg_len: %d", ${key}->avg_len());""",
+                s"""cyclone::log::debug("${key}->count: %d", ${key}->count);""",
+                s"""cyclone::log::debug("${key}->min_len: %d", ${key}->min_len());""",
+                s"""cyclone::log::debug("${key}->max_len: %d", ${key}->max_len());""",
+                s"""cyclone::log::debug("${key}->avg_len: %d", ${key}->avg_len());""",
                 s"${key}->group_indexes_on_subset($iterArrIn, $groupIn, $groupSizeIn, $iterArrOut, $groupOut, $groupSizeOut);",
-                s"""cyclone::log::info("${key} num groups: %d", ${groupSizeOut});""",
+                s"""cyclone::log::debug("${key} num groups: %d", ${groupSizeOut});""",
               )
             }
           },

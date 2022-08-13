@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "cyclone/cyclone_function_view.hpp"
+#include "cyclone/util/func.hpp"
 #include "frovedis/text/words.hpp"
 #include <stddef.h>
 #include <stdint.h>
@@ -106,22 +106,12 @@ struct NullableScalarVec {
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
                            const int32_t validity) {
-    // set_valid_bit(validityBuffer, idx, validity);
-    auto byte = idx / 64;
-    auto bit_index = idx % 64;
-    if (validity) {
-      validityBuffer[byte] |= (1UL << bit_index);
-    } else {
-      validityBuffer[byte] &= ~(1UL << bit_index);
-    }
+    set_valid_bit(validityBuffer, idx, validity);
   }
 
   // Fetch the validity value of the vector at the given index
   inline uint32_t get_validity(const size_t idx) const {
-    // return get_valid_bit(validityBuffer, idx);
-    auto byte = idx / 64;
-    auto bit_index = idx % 64;
-    return (validityBuffer[byte] >> bit_index) & 1;
+    return get_valid_bit(validityBuffer, idx);
   }
 
   // Return the validity buffer as a std::vector
@@ -247,7 +237,7 @@ struct nullable_varchar_vector {
   static nullable_varchar_vector * allocate();
 
   // Construct a C-allocated nullable_varchar_vector to represent a vector of N copies of the same value
-  static nullable_varchar_vector * constant(const size_t size, const std::string &value);
+  static nullable_varchar_vector * constant(const size_t size, const std::string_view &value);
 
   // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
@@ -257,7 +247,7 @@ struct nullable_varchar_vector {
                                          const size_t batches);
 
   static nullable_varchar_vector * from_binary_choice(const size_t count,
-                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                      const cyclone::func::function_view<bool(size_t)> &condition,
                                                       const std::string &trueval,
                                                       const std::string &falseval);
 
@@ -268,7 +258,7 @@ struct nullable_varchar_vector {
   nullable_varchar_vector(const std::vector<std::string> &src);
 
   // Construct a vector of N copies of the same value
-  nullable_varchar_vector(const size_t size, const std::string &value);
+  nullable_varchar_vector(const size_t size, const std::string_view &value);
 
   // Construct from a given frovedis::words
   nullable_varchar_vector(const frovedis::words &src);
@@ -313,22 +303,12 @@ struct nullable_varchar_vector {
   // Set the validity value of the vector at the given index
   inline void set_validity(const size_t idx,
                            const int32_t validity) {
-    // set_valid_bit(validityBuffer, idx, validity);
-    auto byte = idx / 64;
-    auto bit_index = idx % 64;
-    if (validity) {
-      validityBuffer[byte] |= (1UL << bit_index);
-    } else {
-      validityBuffer[byte] &= ~(1UL << bit_index);
-    }
+    set_valid_bit(validityBuffer, idx, validity);
   }
 
   // Fetch the validity value of the vector at the given index
   inline uint32_t get_validity(const size_t idx) const {
-    // return get_valid_bit(validityBuffer, idx);
-    auto byte = idx / 64;
-    auto bit_index = idx % 64;
-    return (validityBuffer[byte] >> bit_index) & 1;
+    return get_valid_bit(validityBuffer, idx);
   }
 
   // Return the validity buffer as a std::vector

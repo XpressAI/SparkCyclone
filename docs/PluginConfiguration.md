@@ -6,17 +6,24 @@ unless otherwise noted.
 
 ## Logging Options
 
-### Set Logging Level
+### Setting the Logging Level
 
-To enable logs for the plugin, the following lines need to be added to
-`$SPARK_HOME/conf/log4j2.properties`:
+To enable logs for the plugin (JVM side), the following lines need to be added
+to `$SPARK_HOME/conf/log4j2.properties`:
 
 ```sh
 logger.sparkcyclone.name = io.sparkcyclone
 logger.sparkcyclone.level = TRACE
 ```
 
-In addition, AVEO logs can be enabled by adding the following Spark
+The logging verbosity for the C++ side can be set with the following Spark
+configuration flag (defaults to `INFO`):
+
+```sh
+--conf spark.executorEnv.LIBCYCLONE_LOG_LEVEL=DEBUG
+```
+
+In addition, AVEO trace logs can be enabled by adding the following Spark
 configuration flag:
 
 ```sh

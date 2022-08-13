@@ -24,7 +24,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <mutex>
-#include <thread>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -56,7 +55,7 @@ namespace cyclone::log {
   // Fetch the log level from the system environment
   static inline LogLevel log_level() {
     static LogLevel level = ({
-      const char* level_p = std::getenv("CYCLONE_LOG_LEVEL");
+      const char* level_p = std::getenv("LIBCYCLONE_LOG_LEVEL");
       const auto  level_s = level_p ? std::string(level_p) : "";
 
       // Set log level to INFO by default
@@ -91,17 +90,11 @@ namespace cyclone::log {
   static std::mutex log_mutex;
 
   template<typename ... T>
-  inline void log(const LogLevel level, const char *file, const int32_t line, const std::string &fmt, T const & ...args) {
+  inline void log(const LogLevel level, const char *file, const int32_t line, const std::string_view &fmt, T const & ...args) {
     if (level >= log_level()) {
       std::lock_guard<std::mutex> lock(log_mutex);
-      std::cout << "["
-        << cyclone::time::utc() << "] ["
-        << getpid() <<  "] ["
-        << cyclone::io::format("%d", pthread_self()) << "] ["
-        << pthread_self() << "] ["
-        << cyclone::io::format("%5s", LogLevelName[level]) << "] ["
-        << file << ":"
-        << line << "] "
+      std::cout
+        << cyclone::io::format("[%s] [%10d] [%10d] [%5s] [%s:%d] ", cyclone::time::utc(), getpid(), pthread_self(), LogLevelName[level], file, line)
         << cyclone::io::format(fmt, args...)
         << std::endl;
     }
@@ -115,13 +108,8 @@ namespace cyclone::log {
   #define fatal(fmt, ...) log(cyclone::log::LogLevel::FATAL,  __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
   inline std::ostream& slog(const LogLevel level, const char *file, const int32_t line) {
-    return ((level < log_level()) ? null_stream : std::cout) << "["
-      << cyclone::time::utc() << "] ["
-      << getpid() <<  "] ["
-      << std::this_thread::get_id() << "] ["
-      << LogLevelName[level] << "] ["
-      << file << ":"
-      << line << "] ";
+    return ((level < log_level()) ? null_stream : std::cout)
+      << cyclone::io::format("[%s] [%10d] [%10d] [%5s] [%s:%d] ", cyclone::time::utc(), getpid(), pthread_self(), LogLevelName[level], file, line);
   }
 
   #define strace slog(cyclone::log::LogLevel::TRACE,  __FILE__, __LINE__)

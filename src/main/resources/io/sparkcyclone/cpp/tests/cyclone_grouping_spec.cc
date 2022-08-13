@@ -48,10 +48,10 @@ namespace cyclone::tests {
       std::vector<size_t> keys;
       std::vector<std::vector<size_t>> groups = cyclone::grouping::separate_to_groups(grouping, keys);
 
-      cyclone::print_vec("groups[0]", groups[0]);
-      cyclone::print_vec("expect_0:", expected_0);
-      cyclone::print_vec("groups[1]", groups[1]);
-      cyclone::print_vec("expect_1:", expected_1);
+      cyclone::io::print_vec("groups[0]", groups[0]);
+      cyclone::io::print_vec("expect_0:", expected_0);
+      cyclone::io::print_vec("groups[1]", groups[1]);
+      cyclone::io::print_vec("expect_1:", expected_1);
 
       CHECK(groups[0] == expected_0);
       CHECK(groups[1] == expected_1);
@@ -66,10 +66,10 @@ namespace cyclone::tests {
       std::vector<size_t> keys;
       std::vector<std::vector<size_t>> groups = cyclone::grouping::separate_to_groups(grouping, keys);
 
-      cyclone::print_vec("groups[0]", groups[0]);
-      cyclone::print_vec("expect_0:", expected_0);
-      cyclone::print_vec("groups[1]", groups[1]);
-      cyclone::print_vec("expect_1:", expected_1);
+      cyclone::io::print_vec("groups[0]", groups[0]);
+      cyclone::io::print_vec("expect_0:", expected_0);
+      cyclone::io::print_vec("groups[1]", groups[1]);
+      cyclone::io::print_vec("expect_1:", expected_1);
 
       CHECK(groups[0] == expected_0);
       CHECK(groups[1] == expected_1);

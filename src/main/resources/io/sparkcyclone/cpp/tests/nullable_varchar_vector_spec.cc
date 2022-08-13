@@ -354,7 +354,7 @@ namespace cyclone::tests {
         std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
         result.push_back(output_group);
       }
-      cyclone::print_vec("result", result);
+      cyclone::io::print_vec("result", result);
 
       free(a_arr);
       free(b_arr);

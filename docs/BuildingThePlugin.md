@@ -68,7 +68,7 @@ latency can be observed).
 
 ### `sbt Options
 
-The `sbt` should be launched with large amount of heap memory available:
+The `sbt` console should be launched with large amount of heap memory available:
 
 ```sh
 SBT_OPTS="-Xmx16g" sbt

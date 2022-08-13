@@ -253,6 +253,7 @@ void test_scalar_grouping() {
   vec1->select(output_index)->print();
   std::cout << output_group_delims << std::endl;
 }
+
 void test_varchar_grouping() {
   auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
   auto vec1 = new nullable_varchar_vector(input);
@@ -288,10 +289,34 @@ void test_varchar_grouping() {
   std::cout << output_group_delims << std::endl;
 }
 
-
-void foo(const std::string_view &input) {
-  std::cout << "inside foo " << input << "\n";
+template<typename T>
+inline int32_t array_cmp(T *X, T *Y, size_t len) {
+  while (*X) {
+    if (*X != *Y) break;
+    X++;
+    Y++;
+  }
+  return *X - *Y;
 }
+
+// void test_varchar_grouping2() {
+//   auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
+//   auto vec1 = new nullable_varchar_vector(input);
+
+//   std::vector<size_t> index(vec1->count);
+//   for (auto i = 0; i < index.size(); i++) { index[i] = i; }
+
+//   std::vector<size_t> sorted_data(vec1->count);
+//   for (auto i = 0; i < sorted_data.size(); i++) {
+//     sorted_data[i] = vec1->lengths[i];
+//   }
+//   frovedis::radix_sort(&sorted_data[0], &index[0], vec1->count);
+//   auto group_indices = frovedis::set_separate(&sorted_data[0], vec1->count);
+
+//   for (auto i = 1; i < group_indices.size(); i++) {
+
+//   }
+// }
 
 int main() {
   // projection_test();
@@ -306,31 +331,4 @@ int main() {
   // test_varchar_grouping();
   auto start = cyclone::time::now();
   std::cout << cyclone::time::utc() << std::endl;
-
-  auto duration = cyclone::time::nanos_since(start);
-  std::cout << duration << " ns" << std::endl;
-
-  cyclone::log::strace << "trace message" << std::endl;
-  cyclone::log::sdebug << "debug message" << std::endl;
-  cyclone::log::sinfo << "info message" << std::endl;
-  cyclone::log::swarn << "warn message" << std::endl;
-  cyclone::log::serror << "error message" << std::endl;
-  cyclone::log::sfatal << "fatal message" << std::endl;
-
-  int i = 3;
-  float f = 5.f;
-  char* s0 = "hello";
-  std::string s1 = "world";
-
-  cyclone::log::trace("trace message");
-  cyclone::log::debug("debug message");
-  cyclone::log::info("i=%d, f=%f, s=%s %s", i, f, s0, s1);
-  cyclone::log::warn("warn message");
-  cyclone::log::error("error message");
-  cyclone::log::fatal("fatal message");
-
-  auto output = cyclone::io::format("i=%d, f=%f, s=%s %s", i, f, s0, s1);
-  auto expected = std::string("i=3, f=5.000000, s=hello world");
-  foo(cyclone::io::format("i=%d, f=%f, s=%s %s", i, f, s0, s1));
-  std::cout << (output == expected) << "\n";
 }

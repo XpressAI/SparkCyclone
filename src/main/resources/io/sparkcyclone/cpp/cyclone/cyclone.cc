@@ -17,47 +17,6 @@
  * limitations under the License.
  *
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <math.h>
-#include <string>
-#include <limits>
-#include <iostream>
-#include <vector>
-#include <chrono>
-#include <ctime>
-#include <algorithm>
-#include "frovedis/core/utility.hpp"
-#include "frovedis/text/dict.hpp"
-#include "frovedis/text/words.hpp"
-#include "frovedis/text/char_int_conv.hpp"
-#include "frovedis/text/parsefloat.hpp"
-#include "frovedis/text/parsedatetime.hpp"
-#include "frovedis/text/datetime_utility.hpp"
-#include "cyclone/cyclone.hpp"
-#include "cyclone/transfer-definitions.hpp"
-
-void debug_words(frovedis::words &in) {
-    std::cout << "words char count: " << in.chars.size() << std::endl;
-    std::cout << "words starts count: " << in.starts.size() << std::endl;
-    std::cout << "words lens count: " << in.lens.size() << std::endl;
-    std::cout << "First word starts at: " << in.starts[0] << " length: " << in.lens[0] << " '";
-
-    size_t start = in.starts[0];
-    for (int i = 0; i < std::min((long)in.lens[0], 64L); i++) {
-        std::cout << (char)in.chars[start + i];
-    }
-    std::cout << "'" << std::endl;
-
-    std::cout << "Last word " << in.starts.size() - 1 << " starts at: " << in.starts[in.starts.size() -1] << " length[" << in.lens.size() - 1 << "]: " << in.lens[in.lens.size() - 1] << " '";
-    start = in.starts[in.starts.size() - 1];
-    for (int i = 0; i < std::min((long)in.lens[in.lens.size() - 1], 64L); i++) {
-        std::cout << (char)in.chars[start + i];
-    }
-    std::cout << "'" << std::endl;
-}
 
 /*
 #ifdef __ve__
