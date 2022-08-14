@@ -55,9 +55,9 @@ final case class GroupByPartialGenerator(
         s"${v.veType.cVectorType} *${v.name} = ${v.name}_m[0];"
       },
       allocateOutputBatchPointers,
-      CodeLines.measureTime("Perform Grouping") { performGrouping(count = s"${inputs.head.name}->count") },
-      CodeLines.measureTime("Compute Placements Per Group") { computeBatchPlacementsPerGroup },
-      CodeLines.measureTime("Compute Batch Sizes") { countBatchSizes },
+      performGrouping(count = s"${inputs.head.name}->count"),
+      computeBatchPlacementsPerGroup,
+      countBatchSizes,
       allocateActualBatches,
       stringVectorComputations.map(_.computeVector),
       computeGroupingKeysPerGroup,
