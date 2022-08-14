@@ -111,7 +111,7 @@ $ cd dbgen/
 $ ./dbgen -s 10
 
 # Switch the user to normal mode if needed
-$ /opt/hadoop/bin/hdfs dfsadmin -safemode leave
+$ su hadoop -- /opt/hadoop/bin/hdfs dfsadmin -safemode leave
 
 # Upload the directory with the generated tables into `hdfs`
 $ cd .. && /opt/hadoop/bin/hdfs dfs -put dbgen dbgen10
@@ -126,6 +126,9 @@ $ sbt assembly
 
 # Submit the TPC (VE) job (specify hdfs://~/dbgen10/ as the dataset)
 $ ./run_ve.sh --dbgen=dbgen10
+
+# Submit the TPC (VE) job to run only query 13
+$ ./run_cpu.sh --dbgen=dbgen10 --select=13
 
 # Submit the TPC (vanilla) job (without the plugin)
 $ ./run_cpu.sh --dbgen=dbgen10

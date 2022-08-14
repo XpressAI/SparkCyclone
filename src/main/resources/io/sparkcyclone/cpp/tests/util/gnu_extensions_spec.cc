@@ -17,7 +17,6 @@
  * limitations under the License.
  *
  */
-#include "cyclone/example.hpp"
 #include "tests/doctest.h"
 #include <iostream>
 

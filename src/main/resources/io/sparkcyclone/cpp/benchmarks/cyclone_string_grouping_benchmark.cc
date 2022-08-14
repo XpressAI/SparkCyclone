@@ -30,13 +30,10 @@ namespace cyclone::benchmarks {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
 
-    std::string tmp;
-    tmp.reserve(len);
-
+    std::string tmp(len, 0);
     for (auto i = 0; i < len; ++i) {
       tmp[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
     }
-
     return tmp;
   }
 
@@ -44,7 +41,7 @@ namespace cyclone::benchmarks {
     // Generate the groups
     std::vector<std::string> groups(group_count);
     for (auto i = 0; i < groups.size(); i++) {
-      groups[i] = random_string(rand() % 190 + 10);
+      groups[i] = random_string(rand() % 90 + 30);
     }
 
     // Generate the input
@@ -53,22 +50,23 @@ namespace cyclone::benchmarks {
       input[i] = groups[i % group_count];
     }
 
-    return new nullable_varchar_vector(input);
+    auto *tmp = new nullable_varchar_vector(input);
+    return tmp;
   }
 
-  size_t vector_group0(nullable_varchar_vector *input) {
+  size_t vector_group0(const nullable_varchar_vector *input) {
     auto groups = input->group_indexes0();
     return groups.size();
   }
 
-  size_t vector_group1(nullable_varchar_vector *input) {
+  size_t vector_group1(const nullable_varchar_vector *input) {
     auto groups = input->group_indexes();
     return groups.size();
   }
 
   TEST_CASE("String Group-by Implementation Benchmarks") {
-    auto *input = create_string_input(3500000, 150);
-    auto *input_with_invalids = create_string_input(3500000, 150);
+    const auto *input = create_string_input(45000, 15000);
+    auto *input_with_invalids = create_string_input(45000, 15000);
     input_with_invalids->set_validity(1, 0);
 
     ankerl::nanobench::Bench().run("vector_group 0 (with validity, all valid input)", [&]() {

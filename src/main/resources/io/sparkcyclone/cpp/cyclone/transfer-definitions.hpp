@@ -19,7 +19,7 @@
  */
 #pragma once
 
-#include "cyclone/cyclone_function_view.hpp"
+#include "cyclone/util/func.hpp"
 #include "frovedis/text/words.hpp"
 #include <stddef.h>
 #include <stdint.h>
@@ -142,6 +142,10 @@ struct NullableScalarVec {
   // Return a bitmask that is the value of evaluating an IN expression
   const std::vector<size_t> eval_in(const std::vector<T> &elements) const;
 
+  inline int32_t max_len() const { return -1; };
+  inline int32_t min_len() const { return -1; };
+  inline int32_t avg_len() const { return -1; };
+
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;
 
@@ -233,7 +237,7 @@ struct nullable_varchar_vector {
   static nullable_varchar_vector * allocate();
 
   // Construct a C-allocated nullable_varchar_vector to represent a vector of N copies of the same value
-  static nullable_varchar_vector * constant(const size_t size, const std::string &value);
+  static nullable_varchar_vector * constant(const size_t size, const std::string_view &value);
 
   // Construct a C-allocated nullable_varchar_vector from frovedis::words (order is preserved)
   static nullable_varchar_vector * from_words(const frovedis::words &src);
@@ -243,7 +247,7 @@ struct nullable_varchar_vector {
                                          const size_t batches);
 
   static nullable_varchar_vector * from_binary_choice(const size_t count,
-                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                      const cyclone::func::function_view<bool(size_t)> &condition,
                                                       const std::string &trueval,
                                                       const std::string &falseval);
 
@@ -254,7 +258,7 @@ struct nullable_varchar_vector {
   nullable_varchar_vector(const std::vector<std::string> &src);
 
   // Construct a vector of N copies of the same value
-  nullable_varchar_vector(const size_t size, const std::string &value);
+  nullable_varchar_vector(const size_t size, const std::string_view &value);
 
   // Construct from a given frovedis::words
   nullable_varchar_vector(const frovedis::words &src);
@@ -340,6 +344,10 @@ struct nullable_varchar_vector {
 
   // Return a bitmask that is the value of evaluating an IN expression
   const std::vector<size_t> eval_in(const std::vector<std::string> &elements) const;
+
+  int32_t max_len() const;
+  int32_t min_len() const;
+  int32_t avg_len() const;
 
   // Return groups of indexes for elements of the same value
   const std::vector<std::vector<size_t>> group_indexes() const;

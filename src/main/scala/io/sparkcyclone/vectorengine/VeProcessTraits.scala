@@ -47,7 +47,7 @@ final case class U64Arg(value: Long) extends CallStackArgument
 
 final case class BuffArg(intent: VeArgIntent, buffer: Pointer) extends CallStackArgument
 
-final case class VeAsyncReqId private[vectorengine] (value: Long, context: Long)
+final case class VeAsyncReqId private[vectorengine] (value: Long, funcName: String, timestamp: Long, context: Long)
 
 trait VeProcess {
   def node: Int

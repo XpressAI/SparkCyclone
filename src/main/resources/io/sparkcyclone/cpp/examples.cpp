@@ -253,6 +253,7 @@ void test_scalar_grouping() {
   vec1->select(output_index)->print();
   std::cout << output_group_delims << std::endl;
 }
+
 void test_varchar_grouping() {
   auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
   auto vec1 = new nullable_varchar_vector(input);
@@ -288,6 +289,16 @@ void test_varchar_grouping() {
   std::cout << output_group_delims << std::endl;
 }
 
+template<typename T>
+inline int32_t array_cmp(T *X, T *Y, size_t len) {
+  while (*X) {
+    if (*X != *Y) break;
+    X++;
+    Y++;
+  }
+  return *X - *Y;
+}
+
 int main() {
   // projection_test();
   // filter_test();
@@ -297,6 +308,6 @@ int main() {
   // test_statement_expressions();
 
   // test_multiple_grouping();
-  test_scalar_grouping();
+  // test_scalar_grouping();
   test_varchar_grouping();
 }

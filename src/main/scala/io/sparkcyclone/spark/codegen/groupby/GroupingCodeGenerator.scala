@@ -63,9 +63,17 @@ final case class GroupingCodeGenerator(
                 ("b_idx_out", "b_group_out", "b_group_size_out", "a_idx_out", "a_group_out", "a_group_size_out")
             }
 
-            CodeLines.from(
-            s"${key}->group_indexes_on_subset($iterArrIn, $groupIn, $groupSizeIn, $iterArrOut, $groupOut, $groupSizeOut);",
-          )},
+            CodeLines.measureTime(s"${key}->group_indexes_on_subset") {
+              CodeLines.from(
+                s"""cyclone::log::debug("${key}->count: %d", ${key}->count);""",
+                s"""cyclone::log::debug("${key}->min_len: %d", ${key}->min_len());""",
+                s"""cyclone::log::debug("${key}->max_len: %d", ${key}->max_len());""",
+                s"""cyclone::log::debug("${key}->avg_len: %d", ${key}->avg_len());""",
+                s"${key}->group_indexes_on_subset($iterArrIn, $groupIn, $groupSizeIn, $iterArrOut, $groupOut, $groupSizeOut);",
+                s"""cyclone::log::debug("${key} num groups: %d", ${groupSizeOut});""",
+              )
+            }
+          },
           if(elems.size % 2 == 1){
             CodeLines.from(
               "free(b_idx_out);",

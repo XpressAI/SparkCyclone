@@ -66,6 +66,14 @@ latency can be observed).
 
 ## Building and Running
 
+### `sbt Options
+
+The `sbt` console should be launched with large amount of heap memory available:
+
+```sh
+SBT_OPTS="-Xmx16g" sbt
+```
+
 ### Building the Plugin JAR
 
 To build the plugin, simply run in the `sbt` console:

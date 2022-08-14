@@ -170,23 +170,4 @@ object GenericJoiner {
         )
       }
     )
-
-  def printVec: CodeLines = CodeLines.from(
-    """#ifdef DEBUG""",
-    """template<typename T>""",
-    """void print_vec(char *name, std::vector<T> a) {""",
-    CodeLines
-      .from(
-        """std::cout << name << " = [";""",
-        """char *comma = "";""",
-        """for (int i = 0; i < a.size(); i++) {""",
-        """std::cout << comma << a[i];""",
-        """comma = ",";""",
-        """}""",
-        """std::cout << "]" << std::endl;"""
-      )
-      .indented,
-    """}""",
-    """#endif"""
-  )
 }

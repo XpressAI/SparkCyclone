@@ -2,6 +2,7 @@ package io.sparkcyclone.native.code
 
 import io.sparkcyclone.util.CallContext
 import scala.annotation.tailrec
+import scala.util.Random
 
 object CodeLines {
   def parse(source: String): CodeLines = {
@@ -39,6 +40,18 @@ object CodeLines {
 
   def scoped(label: String)(sub: => CodeLines): CodeLines = {
     CodeLines.from(s"{ // CODE BLOCK: ${label}", "", sub.indented, "}", "")
+  }
+
+  def measureTime(label: String)(sub: => CodeLines): CodeLines = {
+    val token = scala.util.Random.nextInt.abs
+    CodeLines.from(
+      s"// START MEASURE TIME: ${label}",
+      s"const auto timestamp_${token} = cyclone::time::now();",
+      sub,
+      s"""cyclone::log::info("[${label}] Measured time: %fs", cyclone::time::nanos_since(timestamp_${token}) / 1.0e9);""",
+      s"// END MEASURE TIME: ${label}",
+      "",
+    )
   }
 
   implicit def toCodeLines1(code: String): CodeLines = CodeLines(Seq(code))

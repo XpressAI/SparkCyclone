@@ -325,8 +325,8 @@ namespace cyclone::tests {
       const auto *input = new NullableScalarVec(grouping);
       auto grouped = input->group_indexes();
 
-      cyclone::print_vec("grouped[0]", grouped[0]);
-      cyclone::print_vec("grouped[1]", grouped[1]);
+      cyclone::io::print_vec("grouped[0]", grouped[0]);
+      cyclone::io::print_vec("grouped[1]", grouped[1]);
 
       CHECK(grouped[0] == expected_0);
       CHECK(grouped[1] == expected_1);
@@ -342,9 +342,9 @@ namespace cyclone::tests {
       const auto *input = new NullableScalarVec(grouping);
       auto grouped = input->group_indexes();
 
-      cyclone::print_vec("grouped[0]", grouped[0]);
-      cyclone::print_vec("grouped[1]", grouped[1]);
-      cyclone::print_vec("grouped[2]", grouped[2]);
+      cyclone::io::print_vec("grouped[0]", grouped[0]);
+      cyclone::io::print_vec("grouped[1]", grouped[1]);
+      cyclone::io::print_vec("grouped[2]", grouped[2]);
 
       CHECK(grouped[0] == expected_0);
       CHECK(grouped[1] == expected_1);
@@ -364,9 +364,9 @@ namespace cyclone::tests {
 
       auto grouped = input->group_indexes();
 
-      cyclone::print_vec("grouped[0]", grouped[0]);
-      cyclone::print_vec("grouped[1]", grouped[1]);
-      cyclone::print_vec("grouped[2]", grouped[2]);
+      cyclone::io::print_vec("grouped[0]", grouped[0]);
+      cyclone::io::print_vec("grouped[1]", grouped[1]);
+      cyclone::io::print_vec("grouped[2]", grouped[2]);
 
       CHECK(grouped[0] == expected_0);
       CHECK(grouped[1] == expected_1);
@@ -444,7 +444,7 @@ namespace cyclone::tests {
         std::vector<size_t> output_group(&a_arr[a_pos_idxs[g - 1]], &a_arr[a_pos_idxs[g]]);
         result.push_back(output_group);
       }
-      cyclone::print_vec("result", result);
+      cyclone::io::print_vec("result", result);
 
       free(a_arr);
       free(b_arr);

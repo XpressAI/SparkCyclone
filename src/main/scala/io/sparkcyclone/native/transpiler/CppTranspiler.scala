@@ -206,7 +206,7 @@ object CppTranspiler {
           "groups_out[0]->set_validity(i, 1);"
         )
       },
-      s"""// cyclone::print_vec("grouping_keys", grouping_keys);""",
+      s"""// cyclone::io::print_vec("grouping_keys", grouping_keys);""",
       mark("malloc(group_count)"),
       signature.outputs.map{ output => CodeLines.from(
         s"*${output.name} = static_cast<${output.veType.cVectorType} **>(malloc(sizeof(nullptr) * group_count));",

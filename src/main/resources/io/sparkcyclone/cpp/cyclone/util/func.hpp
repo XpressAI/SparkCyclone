@@ -22,7 +22,7 @@
 #include <functional>
 #include <type_traits>
 
-namespace cyclone {
+namespace cyclone::func {
   namespace {
     template <typename...>
     using void_t = void;

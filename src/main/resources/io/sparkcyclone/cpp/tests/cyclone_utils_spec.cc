@@ -19,23 +19,12 @@
  */
 #include "cyclone/cyclone.hpp"
 #include "tests/doctest.h"
-#include <tuple>
 
 namespace cyclone::tests {
   TEST_CASE("bitmask_to_matching_ids() works") {
     std::vector<size_t> bitmask = { 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1 };
     std::vector<size_t> expected = { 2, 7, 8, 9, 10, 13, 14 };
     CHECK(cyclone::bitmask_to_matching_ids(bitmask) == expected);
-  }
-
-  TEST_CASE("std::vector print works") {
-    std::vector<size_t> vec = { 2, 7, 8, 9, 10, 13, 14 };
-    std::cout << vec << std::endl;
-  }
-
-  TEST_CASE("std::tuple print works") {
-    auto tup = std::make_tuple(5, "Hello", -0.1);
-    std::cout << tup << std::endl;
   }
 
   TEST_CASE("joining works on fully matched pairs") {
@@ -49,10 +38,10 @@ namespace cyclone::tests {
 
     cyclone::equi_join_indices(left, right, out_left, out_right);
 
-    cyclone::print_vec("out_left", out_left);
-    cyclone::print_vec("exp_left", expected_left);
-    cyclone::print_vec("out_right", out_right);
-    cyclone::print_vec("exp_right", expected_right);
+    cyclone::io::print_vec("out_left", out_left);
+    cyclone::io::print_vec("exp_left", expected_left);
+    cyclone::io::print_vec("out_right", out_right);
+    cyclone::io::print_vec("exp_right", expected_right);
 
     CHECK(out_left.size() == left.size());
     CHECK(out_right.size() == right.size());
@@ -71,10 +60,10 @@ namespace cyclone::tests {
 
     cyclone::equi_join_indices(left, right, out_left, out_right);
 
-    cyclone::print_vec("out_left", out_left);
-    cyclone::print_vec("exp_left", expected_left);
-    cyclone::print_vec("out_right", out_right);
-    cyclone::print_vec("exp_right", expected_right);
+    cyclone::io::print_vec("out_left", out_left);
+    cyclone::io::print_vec("exp_left", expected_left);
+    cyclone::io::print_vec("out_right", out_right);
+    cyclone::io::print_vec("exp_right", expected_right);
 
     CHECK(out_left.size() == 2);
     CHECK(out_right.size() == 2);

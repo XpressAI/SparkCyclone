@@ -79,56 +79,6 @@ namespace cyclone {
     frovedis::equi_join(left, left_idxs, right, right_idxs, matchingLeft, matchingRight);
   }
 
-  // Print out a std::tuple to ostream
-  template<typename Ch, typename Tr, typename... Ts>
-  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
-                   std::tuple<Ts...> const &tup) {
-    std::basic_stringstream<Ch, Tr> tmp;
-    tmp << "(";
-    // Based on: https://stackoverflow.com/questions/6245735/pretty-print-stdtuple
-    std::apply(
-      [&tmp] (auto&&... args) { ((tmp << args << ", "), ...); },
-      tup
-    );
-    tmp.seekp(-2, tmp.cur);
-    tmp << ")";
-    return stream << tmp.str();
-  }
-
-  // Print out a std::vector to ostream
-  // Define this AFTER defining operator<< for std::tuple
-  // so that we can print std::vector<std::tuple<Ts...>>
-  template<typename Ch, typename Tr, typename T>
-  auto& operator<<(std::basic_ostream<Ch, Tr> &stream,
-                   std::vector<T> const &vec) {
-    std::basic_stringstream<Ch, Tr> tmp;
-    if (vec.size() > 0) {
-      tmp << "[ ";
-      for (const auto &elem : vec) {
-        tmp << elem << ", ";
-      }
-      tmp.seekp(-2, tmp.cur);
-      tmp << " ]";
-    } else {
-      tmp << "[ ]";
-    }
-    return stream << tmp.str();
-  }
-
-  template<typename T>
-  void print_vec(const std::string &name, const std::vector<T> &vec) {
-    std::cout << name <<  " = " << vec << std::endl;
-  }
-
-  template<typename T>
-  void print_vec(const std::string &name, const T * array, const size_t len) {
-    std::cout << name <<  " = [ ";
-    for (auto i = 0; i < len; i++) {
-      std::cout << array[i] << ", ";
-    }
-    std::cout << "]" << std::endl;
-  }
-
   /**
    * Append two bitsets using uint64_t as the container type.
    *

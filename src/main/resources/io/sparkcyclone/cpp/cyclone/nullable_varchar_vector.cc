@@ -35,7 +35,7 @@ nullable_varchar_vector * nullable_varchar_vector::allocate() {
   return new (output) nullable_varchar_vector;
 }
 
-nullable_varchar_vector * nullable_varchar_vector::constant(const size_t size, const std::string &value) {
+nullable_varchar_vector * nullable_varchar_vector::constant(const size_t size, const std::string_view &value) {
   // Allocate
   auto *output = static_cast<nullable_varchar_vector *>(malloc(sizeof(nullable_varchar_vector)));
   // Initialize
@@ -91,7 +91,7 @@ nullable_varchar_vector::nullable_varchar_vector(const std::vector<std::string> 
   }
 }
 
-nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::string &value) {
+nullable_varchar_vector::nullable_varchar_vector(const size_t size, const std::string_view &value) {
   // Initialize count
   count = size;
 
@@ -538,7 +538,7 @@ const std::vector<size_t> nullable_varchar_vector::eval_in(const std::vector<std
 }
 
 nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size_t count,
-                                                                      const cyclone::function_view<bool(size_t)> &condition,
+                                                                      const cyclone::func::function_view<bool(size_t)> &condition,
                                                                       const std::string &trueval,
                                                                       const std::string &falseval) {
   // Create int vectors for both the true and false cases
@@ -578,6 +578,38 @@ nullable_varchar_vector * nullable_varchar_vector::from_binary_choice(const size
 
   // Convert to nullable_varchar_vector
   return from_words(output_words);
+}
+
+int32_t nullable_varchar_vector::max_len() const {
+  auto current_max = 0;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i) && lengths[i] > current_max) {
+      current_max = lengths[i];
+    }
+  }
+  return current_max;
+}
+
+int32_t nullable_varchar_vector::min_len() const {
+  auto current_min = INT_MAX;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i) && lengths[i] < current_min) {
+      current_min = lengths[i];
+    }
+  }
+  return current_min;
+}
+
+int32_t nullable_varchar_vector::avg_len() const {
+  auto sum = 0;
+  auto cnt = 0;
+  for (auto i = 0; i < count; i++) {
+    if (get_validity(i)) {
+      sum += lengths[i];
+      cnt++;
+    }
+  }
+  return sum / cnt;
 }
 
 void nullable_varchar_vector::group_indexes_on_subset0(const size_t * iter_order_arr,

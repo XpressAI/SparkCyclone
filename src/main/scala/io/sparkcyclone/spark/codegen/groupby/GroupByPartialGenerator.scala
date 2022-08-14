@@ -55,9 +55,9 @@ final case class GroupByPartialGenerator(
         s"${v.veType.cVectorType} *${v.name} = ${v.name}_m[0];"
       },
       allocateOutputBatchPointers,
-      performGrouping(count = s"${inputs.head.name}->count"),
-      computeBatchPlacementsPerGroup,
-      countBatchSizes,
+      CodeLines.measureTime("Perform Grouping") { performGrouping(count = s"${inputs.head.name}->count") },
+      CodeLines.measureTime("Compute Placements Per Group") { computeBatchPlacementsPerGroup },
+      CodeLines.measureTime("Compute Batch Sizes") { countBatchSizes },
       allocateActualBatches,
       stringVectorComputations.map(_.computeVector),
       computeGroupingKeysPerGroup,
@@ -142,10 +142,11 @@ final case class GroupByPartialGenerator(
     CodeLines.from(
       s"std::vector<size_t> ${BatchCountsId}(${nBuckets});",
       s"std::vector<size_t> ${BatchGroupPositionsId}(${groupingCodeGenerator.groupsCountOutName});",
-      s"std::vector<std::vector<size_t>> batch_group_indexes;",
+      s"std::vector<std::vector<size_t>> batch_group_indexes(${nBuckets});",
       CodeLines.scoped("Compute the value counts for each batch") {
         CodeLines.from(
           "#pragma _NEC vector",
+          "#pragma _NEC ivdep",
           CodeLines.forLoop("b", s"${nBuckets}") {
             CodeLines.from(
               s"size_t count = 0;",
@@ -160,9 +161,13 @@ final case class GroupByPartialGenerator(
               },
               // Assign to the counts table
               s"${BatchCountsId}[b] = count;",
-              s"std::vector<size_t> groups_indexes(count);",
-              s"batch_group_indexes.push_back(groups_indexes);"
             )
+          },
+          "",
+          "#pragma _NEC vector",
+          "#pragma _NEC ivdep",
+          CodeLines.forLoop("b", s"${nBuckets}") {
+            s"batch_group_indexes[b].resize(${BatchCountsId}[b]);"
           },
           "",
           CodeLines.forLoop("b", s"${nBuckets}") {
