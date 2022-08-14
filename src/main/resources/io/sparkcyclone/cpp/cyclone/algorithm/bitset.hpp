@@ -33,7 +33,7 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-namespace cyclone {
+namespace cyclone::bitset {
   inline const std::vector<size_t> bitmask_to_matching_ids(const std::vector<size_t> &mask) {
     // Count the number of 1-bits
     size_t m_count = 0;
@@ -56,27 +56,6 @@ namespace cyclone {
     }
 
     return output;
-  }
-
-  inline void equi_join_indices(std::vector<size_t> &left,
-                                std::vector<size_t> &right,
-                                std::vector<size_t> &matchingLeft,
-                                std::vector<size_t> &matchingRight) {
-    size_t left_len = left.size();
-    size_t right_len = right.size();
-
-    std::vector<size_t> left_idxs(left_len);
-    std::vector<size_t> right_idxs(right_len);
-
-    for (auto i = 0; i < left_len; i++) {
-      left_idxs[i] = i;
-    }
-
-    for (auto i = 0; i < right_len; i++) {
-      right_idxs[i] = i;
-    }
-
-    frovedis::equi_join(left, left_idxs, right, right_idxs, matchingLeft, matchingRight);
   }
 
   /**

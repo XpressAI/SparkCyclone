@@ -42,7 +42,7 @@ namespace cyclone::benchmarks {
       grouping_vec[i] = std::tuple<int64_t, int>(input->data[i], input->get_validity(i));
     }
 
-    sorted_idx = cyclone::sort_tuples(grouping_vec, std::array<int, 2>{{ 1, 1 }});
+    sorted_idx = cyclone::sort::sort_tuples(grouping_vec, std::array<int, 2>{{ 1, 1 }});
 
     for (auto j = 0; j < input->count; j++) {
       auto i = sorted_idx[j];

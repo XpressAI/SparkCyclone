@@ -52,7 +52,7 @@ case class SimpleEquiJoinFunction(
     "std::vector<size_t> right_idxs;",
     s"std::vector<size_t> left_keys = ${leftKey.name}_all->size_t_data_vec();",
     s"std::vector<size_t> right_keys = ${rightKey.name}_all->size_t_data_vec();",
-    s"cyclone::equi_join_indices(left_keys, right_keys, left_idxs, right_idxs);",
+    s"cyclone::join::equi_join_indices(left_keys, right_keys, left_idxs, right_idxs);",
     selectIntoOutputs(leftOutputs.zip(leftInputs), "left_idxs"),
     selectIntoOutputs(rightOutputs.zip(rightInputs.tail), "right_idxs"),
     inputs.map{ input =>

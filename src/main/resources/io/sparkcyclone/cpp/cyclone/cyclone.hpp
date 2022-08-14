@@ -25,13 +25,14 @@
 */
 
 #include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_grouping.hpp"
-#include "cyclone/cyclone_sort.hpp"
+#include "cyclone/algorithm/bitset.hpp"
+#include "cyclone/algorithm/grouping.hpp"
+#include "cyclone/algorithm/join.hpp"
+#include "cyclone/algorithm/sort.hpp"
 #include "cyclone/util/func.hpp"
 #include "cyclone/util/io.hpp"
 #include "cyclone/util/log.hpp"
 #include "cyclone/util/time.hpp"
-#include "cyclone/cyclone_utils.hpp"
 #include "cyclone/packed_transfer.hpp"
 #include "cyclone/tuple_hash.hpp"
 #include "frovedis/text/dict.hpp"

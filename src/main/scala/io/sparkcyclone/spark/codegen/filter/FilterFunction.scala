@@ -80,7 +80,7 @@ final case class FilterFunction(name: String,
               },
               "",
               "// Compute the matching_ids from the bitmask",
-              s"matching_ids = cyclone::bitmask_to_matching_ids(${FilterFunction.BitMaskId});"
+              s"matching_ids = cyclone::bitset::bitmask_to_matching_ids(${FilterFunction.BitMaskId});"
             )
           }
         )

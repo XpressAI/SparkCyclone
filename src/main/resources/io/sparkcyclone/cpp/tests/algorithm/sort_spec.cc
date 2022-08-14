@@ -23,30 +23,30 @@
 #include <vector>
 
 namespace cyclone::tests {
-  const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
-    std::make_tuple(0, 7.29214f,    3ll, 9.850428l),
-    std::make_tuple(0, 5.1007037f,  2ll, 2.1967127l),
-    std::make_tuple(1, 2.106764f,   2ll, 2.029292l),
-    std::make_tuple(0, 7.29214f,    3ll, 1.6248848l),
-    std::make_tuple(2, 4.0789514f,  3ll, 5.4606824l),
-    std::make_tuple(2, 2.1760006f,  6ll, 7.483787l),
-    std::make_tuple(1, 4.6863422f,  3ll, 1.2526741l),
-    std::make_tuple(1, 7.768214f,   6ll, 5.3003526l),
-    std::make_tuple(2, 7.5028214f,  2ll, 9.859546l),
-    std::make_tuple(2, 3.648821f,   1ll, 3.5679564l),
-    std::make_tuple(1, 3.7641335f,  5ll, 0.024474824l),
-    std::make_tuple(2, 8.525803f,   7ll, 3.0891323l),
-    std::make_tuple(1, 2.5747693f,  4ll, 7.011116l),
-    std::make_tuple(2, 0.57439226f, 5ll, 7.136852l),
-    std::make_tuple(0, 2.5966463f,  2ll, 9.806966l),
-    std::make_tuple(0, 6.291629f,   0ll, 5.715928l),
-    std::make_tuple(1, 0.5641213f,  4ll, 0.5068447l),
-    std::make_tuple(0, 9.341458f,   4ll, 4.637736l),
-    std::make_tuple(0, 7.292144f,   3ll, 2.9226866l),
-    std::make_tuple(0, 7.5230184f,  6ll, 2.865592l)
-  };
+  TEST_SUITE("cyclone::sort") {
+    const std::vector<std::tuple<int32_t, float, int64_t, double>> elements {
+      std::make_tuple(0, 7.29214f,    3ll, 9.850428l),
+      std::make_tuple(0, 5.1007037f,  2ll, 2.1967127l),
+      std::make_tuple(1, 2.106764f,   2ll, 2.029292l),
+      std::make_tuple(0, 7.29214f,    3ll, 1.6248848l),
+      std::make_tuple(2, 4.0789514f,  3ll, 5.4606824l),
+      std::make_tuple(2, 2.1760006f,  6ll, 7.483787l),
+      std::make_tuple(1, 4.6863422f,  3ll, 1.2526741l),
+      std::make_tuple(1, 7.768214f,   6ll, 5.3003526l),
+      std::make_tuple(2, 7.5028214f,  2ll, 9.859546l),
+      std::make_tuple(2, 3.648821f,   1ll, 3.5679564l),
+      std::make_tuple(1, 3.7641335f,  5ll, 0.024474824l),
+      std::make_tuple(2, 8.525803f,   7ll, 3.0891323l),
+      std::make_tuple(1, 2.5747693f,  4ll, 7.011116l),
+      std::make_tuple(2, 0.57439226f, 5ll, 7.136852l),
+      std::make_tuple(0, 2.5966463f,  2ll, 9.806966l),
+      std::make_tuple(0, 6.291629f,   0ll, 5.715928l),
+      std::make_tuple(1, 0.5641213f,  4ll, 0.5068447l),
+      std::make_tuple(0, 9.341458f,   4ll, 4.637736l),
+      std::make_tuple(0, 7.292144f,   3ll, 2.9226866l),
+      std::make_tuple(0, 7.5230184f,  6ll, 2.865592l)
+    };
 
-  TEST_SUITE("Cyclone Sort Routines") {
     TEST_CASE("Sorting std::vector<std::tuple<Ts...>> works") {
       // Manually sort the tuples by the N-1th, N-2th, ... 0th elements
       std::vector<size_t> expected(elements.size());
@@ -86,9 +86,9 @@ namespace cyclone::tests {
       }
 
       // Perform the same sorting using template function generation
-      const auto sorted_indices1 = cyclone::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
+      const auto sorted_indices1 = cyclone::sort::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
       // Perform a different sorting, where the 0th elementh is sorted in DESC order
-      const auto sorted_indices2 = cyclone::sort_tuples(elements, std::array<int, 4> {{ 0, 1, 1, 1 }});
+      const auto sorted_indices2 = cyclone::sort::sort_tuples(elements, std::array<int, 4> {{ 0, 1, 1, 1 }});
 
       CHECK(sorted_indices1 == expected);
       CHECK(sorted_indices2 != expected);
@@ -108,9 +108,9 @@ namespace cyclone::tests {
         column4[i] = x4;
       }
 
-      const auto expected = cyclone::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
+      const auto expected = cyclone::sort::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
 
-      const auto sorted_indices = cyclone::sort_columns(
+      const auto sorted_indices = cyclone::sort::sort_columns(
         elements.size(),
         std::make_tuple(1, column1.data()),
         std::make_tuple(1, column2.data()),
@@ -134,7 +134,7 @@ namespace cyclone::tests {
         }
       }
 
-      const auto sorted_indices = cyclone::sort_tuples(elements, std::array<int, 0> {{ }});
+      const auto sorted_indices = cyclone::sort::sort_tuples(elements, std::array<int, 0> {{ }});
       CHECK(sorted_indices == expected);
     }
   }

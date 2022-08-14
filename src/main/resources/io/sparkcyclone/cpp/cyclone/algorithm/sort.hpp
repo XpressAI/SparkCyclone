@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace cyclone {
+namespace cyclone::sort {
   namespace {
     template <std::size_t I, typename... Ts>
     inline void sort_ith_element(const std::vector<std::tuple<Ts...>> &elements,

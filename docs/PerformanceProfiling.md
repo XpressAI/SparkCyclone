@@ -54,7 +54,7 @@ $ su hadoop -- /opt/hadoop/bin/hdfs dfsadmin -safemode leave
 
 ### Plugin Configuration
 
-Copy the [JFR configuration file](../src/main/resources/profiling/settings.jfc)
+Copy the [JFR settings file](../src/main/resources/profiling/settings.jfc)
 into a location that can be referenced by the Spark job.  In the Spark job
 configuration, add the following two lines:
 
