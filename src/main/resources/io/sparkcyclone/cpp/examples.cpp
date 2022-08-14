@@ -299,25 +299,6 @@ inline int32_t array_cmp(T *X, T *Y, size_t len) {
   return *X - *Y;
 }
 
-// void test_varchar_grouping2() {
-//   auto input = std::vector<std::string> { "JAN", "JANU", "FEBU", "FEB", "MARCH", "MARCG", "APR", "NOV", "MARCG", "SEPT", "SEPT", "APR", "JANU", "SEP", "OCT", "NOV", "DEC2", "DEC1", "DEC0" };
-//   auto vec1 = new nullable_varchar_vector(input);
-
-//   std::vector<size_t> index(vec1->count);
-//   for (auto i = 0; i < index.size(); i++) { index[i] = i; }
-
-//   std::vector<size_t> sorted_data(vec1->count);
-//   for (auto i = 0; i < sorted_data.size(); i++) {
-//     sorted_data[i] = vec1->lengths[i];
-//   }
-//   frovedis::radix_sort(&sorted_data[0], &index[0], vec1->count);
-//   auto group_indices = frovedis::set_separate(&sorted_data[0], vec1->count);
-
-//   for (auto i = 1; i < group_indices.size(); i++) {
-
-//   }
-// }
-
 int main() {
   // projection_test();
   // filter_test();
@@ -328,7 +309,5 @@ int main() {
 
   // test_multiple_grouping();
   // test_scalar_grouping();
-  // test_varchar_grouping();
-  auto start = cyclone::time::now();
-  std::cout << cyclone::time::utc() << std::endl;
+  test_varchar_grouping();
 }

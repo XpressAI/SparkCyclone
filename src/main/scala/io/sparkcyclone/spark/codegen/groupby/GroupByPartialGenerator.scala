@@ -238,9 +238,6 @@ final case class GroupByPartialGenerator(
 
       CodeLines.from(
         "#pragma _NEC vector",
-        "#pragma cdir nodep",
-        "#pragma _NEC ivdep",
-        "#pragma _NEC vovertake",
         CodeLines.forLoop("b", s"${nBuckets}") {
             initVars2.map(_.forEach)
         },

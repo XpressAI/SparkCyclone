@@ -53,7 +53,7 @@ namespace cyclone::log {
   #undef X
 
   // Fetch the log level from the system environment
-  static inline LogLevel log_level() {
+  inline LogLevel log_level() {
     static LogLevel level = ({
       const char* level_p = std::getenv("LIBCYCLONE_LOG_LEVEL");
       const auto  level_s = level_p ? std::string(level_p) : "";
@@ -83,11 +83,15 @@ namespace cyclone::log {
     return os;
   }
 
-  // Declare a singleton null stream
-  static NullStream null_stream;
+  /*
+    Declare a singleton mutex to control the logging.  Mark as inline since it
+    is declared in a header file:
+      https://stackoverflow.com/questions/56876624/inline-stdmutex-in-header-file
+  */
+  inline std::mutex log_mutex;
 
-  // Declare a singleton mutex to control the logging
-  static std::mutex log_mutex;
+  // Declare a singleton null stream
+  inline NullStream null_stream;
 
   template<typename ... T>
   inline void log(const LogLevel level, const char *file, const int32_t line, const std::string_view &fmt, T const & ...args) {

@@ -100,10 +100,6 @@ final case class GroupingCodeGenerator(
   def forHeadOfEachGroup(f: => CodeLines): CodeLines =
     CodeLines
       .from(
-        "#pragma _NEC vector",
-        "#pragma cdir nodep",
-        "#pragma _NEC ivdep",
-        "#pragma _NEC vovertake",
         s"for (size_t g = 0; g < ${groupsCountOutName}; g++) {",
         CodeLines
           .from(s"long i = ${sortedIdxName}[${groupsIndicesName}[g]];", f)
