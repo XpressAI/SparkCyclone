@@ -243,7 +243,7 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
  * @param od output descriptor
  * @return 0 if successful
  */
-extern "C" int handle_transfer(
+extern "C" int cyclone_handle_transfer(
     char** td,
     uintptr_t* od
 ) {
@@ -387,25 +387,11 @@ extern "C" int handle_transfer(
   // free it now.
   free(transfer);
 
-  //std::cout << "[handle_transfer] done." << std::endl;
-
   // Sanity Check: ensure that reading the header resulted in getting to the
   // same number read as the header specifies
-  if(expected_read == input_pos){
+  if (expected_read == input_pos) {
     return 0;
-  }else{
+  } else {
     return -1;
   }
-}
-
-extern "C" int cyclone_alloc(size_t size, uintptr_t* out) {
-  out[0] = reinterpret_cast<uintptr_t>(std::malloc(size));
-  return 0;
-}
-
-extern "C" int cyclone_free(uintptr_t* addresses, size_t count) {
-  for (size_t i = 0; i < count; i++) {
-    std::free(reinterpret_cast<void*>(addresses[i]));
-  }
-  return 0;
 }

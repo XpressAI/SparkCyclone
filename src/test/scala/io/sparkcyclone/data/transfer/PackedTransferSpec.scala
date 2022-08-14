@@ -22,7 +22,7 @@ import scala.util.Random
 final class PackedTransferSpec extends AnyWordSpec with WithVeProcess {
   private lazy val libRef = process.load(LibCyclone.SoPath)
 
-  "C++ handle_transfer()" should {
+  "C++ cyclone_handle_transfer()" should {
     "correctly transfer a batch of Seq[Option[Int]] to the VE and back without loss of data fidelity [1]" in {
       // Batch A
       val a1 = Seq(None, Some(4436), None, None, Some(9586), Some(2142))

@@ -116,7 +116,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       NullableScalarVec<T>* transferred = reinterpret_cast<NullableScalarVec<T>*>(od[0]);
@@ -161,7 +161,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* transferred = reinterpret_cast<nullable_varchar_vector*>(od[0]);
@@ -203,7 +203,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
@@ -261,7 +261,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* transferred1 = reinterpret_cast<nullable_varchar_vector*>(od[0]);
@@ -341,7 +341,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* varchars[2] = {vc_vec1, vc_vec2};
@@ -432,7 +432,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* varchars[3] = {vc_vec1, vc_vec2, vc_vec3};
@@ -470,19 +470,19 @@ namespace cyclone::tests {
       const std::vector <T> a{0, 4436, 0, 0, 9586, 2142, 0, 0, 0, 2149, 4297, 0, 0, 3278, 6668, 0};
       auto *vec1 = new NullableScalarVec(a);
       vec1->validityBuffer = &validity_buffers[0];
-      
+
       const std::vector <T> b{
         0, 0, 0, 8051, 0, 1383, 0, 0, 2256, 5785, 0, 0, 0, 0, 0, 4693, 0, 1849, 3790, 8995, 0, 6961, 7132, 0, 0, 0, 0, 6968, 0, 0, 3763, 0, 3558, 0, 0, 2011, 0, 0, 0, 3273, 0, 0, 9428, 0, 0, 6408, 7940, 0, 9521, 0, 0, 5832, 0, 0, 5817, 5949
       };
       auto *vec2 = new NullableScalarVec(b);
       vec2->validityBuffer = &validity_buffers[1];
-      
+
       const std::vector <T> c{
         7319, 0, 0, 4859, 524, 406, 0, 0, 1154, 0, 0, 1650, 8040, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1146, 0, 7268, 8197, 0, 0, 0, 0, 81, 2053, 6571, 4600, 0, 3699, 0, 8404, 0, 0, 8401, 0, 0, 6234, 6281, 7367, 0, 4688, 7490, 0, 5412, 0, 0, 871, 0, 9086, 0, 5362, 6516
       };
       auto *vec3 = new NullableScalarVec(c);
       vec3->validityBuffer = &validity_buffers[2];
-      
+
 
 
       auto header_size = sizeof(transfer_header) + 3 * (sizeof(size_t) + sizeof(scalar_col_in));
@@ -511,7 +511,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       NullableScalarVec<T>* transferred = reinterpret_cast<NullableScalarVec<T>*>(od[0]);
@@ -526,7 +526,7 @@ namespace cyclone::tests {
 
       CHECK(transferred->equals(merged));
     }
-    
+
     TEST_CASE("Unpacking works for three varchar vectors") {
         uint64_t validity_buffers[3] = {
           0b0000000000000000000000000000000000000000000000000110011000110010,
@@ -539,19 +539,19 @@ namespace cyclone::tests {
       const std::vector <std::string> a{"0", "4436", "0", "0", "9586", "2142", "0", "0", "0", "2149", "4297", "0", "0", "3278", "6668", "0"};
       auto *vec1 = new nullable_varchar_vector(a);
       vec1->validityBuffer = &validity_buffers[0];
-      
+
       const std::vector <std::string> b{
         "0", "0", "0", "8051", "0", "1383", "0", "0", "2256", "5785", "0", "0", "0", "0", "0", "4693", "0", "1849", "3790", "8995", "0", "6961", "7132", "0", "0", "0", "0", "6968", "0", "0", "3763", "0", "3558", "0", "0", "2011", "0", "0", "0", "3273", "0", "0", "9428", "0", "0", "6408", "7940", "0", "9521", "0", "0", "5832", "0", "0", "5817", "5949"
       };
       auto *vec2 = new nullable_varchar_vector(b);
       vec2->validityBuffer = &validity_buffers[1];
-      
+
       const std::vector <std::string> c{
         "7319", "0", "0", "4859", "524", "406", "0", "0", "1154", "0", "0", "1650", "8040", "0", "0", "0", "0", "0", "0", "0", "0", "0", "1146", "0", "7268", "8197", "0", "0", "0", "0", "81", "2053", "6571", "4600", "0", "3699", "0", "8404", "0", "0", "8401", "0", "0", "6234", "6281", "7367", "0", "4688", "7490", "0", "5412", "0", "0", "871", "0", "9086", "0", "5362", "6516"
       };
       auto *vec3 = new nullable_varchar_vector(c);
       vec3->validityBuffer = &validity_buffers[2];
-      
+
 
 
       auto header_size = sizeof(transfer_header) + 3 * (sizeof(size_t) + sizeof(varchar_col_in));
@@ -582,7 +582,7 @@ namespace cyclone::tests {
 
       char* target[1] = {transfer};
 
-      int res = handle_transfer(target, od);
+      int res = cyclone_handle_transfer(target, od);
       CHECK(res == 0);
 
       nullable_varchar_vector* transferred = reinterpret_cast<nullable_varchar_vector*>(od[0]);
