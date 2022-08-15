@@ -17,15 +17,17 @@
  * limitations under the License.
  *
  */
-#include "cyclone/example.hpp"
+#include "cyclone/util/example.hpp"
 #include "benchmarks/nanobench.h"
 #include "tests/doctest.h"
 
 namespace cyclone::benchmarks {
-  TEST_CASE("Benchmarking the factorial function") {
-    auto x = 10;
-    ankerl::nanobench::Bench().run("factorial(x)", [&]() {
-      factorial(x);
-    });
+  TEST_SUITE("cyclone::example") {
+    TEST_CASE("Benchmarking the factorial function") {
+      auto x = 10;
+      ankerl::nanobench::Bench().run("factorial(x)", [&]() {
+        cyclone::example::factorial(x);
+      });
+    }
   }
 }

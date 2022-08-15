@@ -91,10 +91,10 @@ to spin up a second VE process on a given node will fail after hanging).  This
 means that `spark.executor.resource.ve.amount` should be set to the same  value
 as `--num-executors` to avoid VE resource starvation as the job is running.
 
-In addition, it is recommended that the number of CPU cores assigned per executor
-should be set such that `num-executors x executor-cores` is roughly 90% of all
-CPU cores available in the system.  Using a machine with 2 physical VEs and 48
-CPU cores as an example, the following configuration is recommended:
+It is recommended that the number of CPU cores assigned per executor should be
+set such that `num-executors x executor-cores` is roughly 90% of all CPU cores
+available in the system.  Using a machine with 2 physical VEs and 48 CPU cores
+as an example, the following configuration is recommended:
 
 ```sh
 --num-executors=2

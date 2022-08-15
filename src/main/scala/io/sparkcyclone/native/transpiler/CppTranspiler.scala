@@ -243,7 +243,7 @@ object CppTranspiler {
         )
       },
       "",
-      s"auto matching_ids = cyclone::bitmask_to_matching_ids(bitmask);",
+      s"auto matching_ids = cyclone::bitset::bitmask_to_matching_ids(bitmask);",
       signature.outputs.zip(signature.inputs).map { case (out, in) =>
         s"${out.name}[0] = ${in.name}[0]->select(matching_ids);"
       }

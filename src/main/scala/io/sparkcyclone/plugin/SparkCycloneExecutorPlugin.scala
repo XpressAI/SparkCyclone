@@ -108,8 +108,8 @@ class SparkCycloneExecutorPlugin extends ExecutorPlugin with Logging with LazyLo
 
     /*
       Fetch and load libcyclone.so from the driver plugin, so that Cyclone C++
-      library functions such as `handle_transfer` can be called without the
-      need to load a pre-built library.
+      library functions such as `cyclone_handle_transfer` can be called without
+      the need to load a pre-built library.
     */
     laodLibCyclone(context)
     logger.info(s"Loaded libcyclone.so as part of ${getClass.getSimpleName} initialization...")

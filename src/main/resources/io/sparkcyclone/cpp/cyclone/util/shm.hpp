@@ -20,20 +20,10 @@
 #pragma once
 
 /*
-  This is the single main header to be included by code that uses the Cyclone
-  C++ Library.
-*/
+#ifdef __ve__
 
-#include "cyclone/algorithm/bitset.hpp"
-#include "cyclone/algorithm/grouping.hpp"
-#include "cyclone/algorithm/join.hpp"
-#include "cyclone/algorithm/sort.hpp"
-#include "cyclone/core/packed_transfer.hpp"
-#include "cyclone/core/transfer-definitions.hpp"
-#include "cyclone/util/func.hpp"
-#include "cyclone/util/io.hpp"
-#include "cyclone/util/log.hpp"
-#include "cyclone/util/memory.hpp"
-#include "cyclone/util/shm.hpp"
-#include "cyclone/util/time.hpp"
-#include "cyclone/util/tuple_hash.hpp"
+extern "C" int attach_vh_shm(char *path, int32_t id, size_t size_mb, void **out_p, uint64_t *out_data_vehva);
+extern "C" int dettach_vh_shm(void *p, uint64_t data_vehva);
+
+#endif
+*/

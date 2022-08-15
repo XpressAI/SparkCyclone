@@ -17,17 +17,15 @@
  * limitations under the License.
  *
  */
-#include "cyclone/packed_transfer.hpp"
-#include "cyclone/transfer-definitions.hpp"
-#include "cyclone/cyclone_utils.hpp"
-
+#include "cyclone/algorithm/bitset.hpp"
+#include "cyclone/core/packed_transfer.hpp"
+#include "cyclone/core/transfer-definitions.hpp"
 #include "frovedis/core/utility.hpp"
-
 #include <stddef.h>
 #include <stdint.h>
-#include <type_traits>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <type_traits>
 
 void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;
@@ -81,7 +79,7 @@ void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_da
 
     //std::cout << "merge_varchar_transfer: copy validity buffer" << std::endl;
     uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    cyclone::append_bitsets(
+    cyclone::bitset::append_bitsets(
       out_validity_buffer,
       processed_elements,
       batch_validity_buffer,
@@ -132,7 +130,7 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
     //std::cout << "merge_scalar_transfer: cur_data_pos=" << cur_data_pos << std::endl;
 
     uint64_t* batch_validity_buffer = reinterpret_cast<uint64_t *>(&input_data[cur_data_pos]);
-    cyclone::append_bitsets(
+    cyclone::bitset::append_bitsets(
       out_validity_buffer,
       processed_elements,
       batch_validity_buffer,
@@ -243,7 +241,7 @@ void merge_scalar_transfer(size_t batch_count, char* col_header, char* input_dat
  * @param od output descriptor
  * @return 0 if successful
  */
-extern "C" int handle_transfer(
+extern "C" int cyclone_handle_transfer(
     char** td,
     uintptr_t* od
 ) {
@@ -387,25 +385,11 @@ extern "C" int handle_transfer(
   // free it now.
   free(transfer);
 
-  //std::cout << "[handle_transfer] done." << std::endl;
-
   // Sanity Check: ensure that reading the header resulted in getting to the
   // same number read as the header specifies
-  if(expected_read == input_pos){
+  if (expected_read == input_pos) {
     return 0;
-  }else{
+  } else {
     return -1;
   }
-}
-
-extern "C" int cyclone_alloc(size_t size, uintptr_t* out) {
-  out[0] = reinterpret_cast<uintptr_t>(std::malloc(size));
-  return 0;
-}
-
-extern "C" int cyclone_free(uintptr_t* addresses, size_t count) {
-  for (size_t i = 0; i < count; i++) {
-    std::free(reinterpret_cast<void*>(addresses[i]));
-  }
-  return 0;
 }

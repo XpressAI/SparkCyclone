@@ -19,6 +19,8 @@
  */
 #pragma once
 
-namespace cyclone {
-  int factorial(int number);
-}
+#include <stddef.h>
+#include <stdint.h>
+
+extern "C" int cyclone_alloc(size_t size, uintptr_t* out);
+extern "C" int cyclone_free(uintptr_t* addresses, size_t count);

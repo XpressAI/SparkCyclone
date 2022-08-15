@@ -82,6 +82,7 @@ The following pages cover all aspects of Spark Cyclone development:
   * [Building the Plugin](docs/BuildingThePlugin.md)
   * [C++ Cyclone Library](src/main/resources/io/sparkcyclone/cpp/README.md)
   * [Testing and Continuous Integration](docs/TestingAndCI.md)
+  * [Performance Profiling](docs/PerformanceProfiling.md)
   * [Data Types](docs/DataTypes.md)
   * [Plugin Lifecycle](docs/PluginLifecycle.md)
   * [JVM-VE Interface](docs/JVMVEInterface.md)

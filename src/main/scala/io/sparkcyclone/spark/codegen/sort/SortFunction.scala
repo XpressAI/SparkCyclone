@@ -97,7 +97,7 @@ final case class SortFunction(name: String,
       )
     }
 
-    s"const auto ${SortFunction.SortedIndicesId} = cyclone::sort_columns(${inputs.head.name}->count, ${arguments.mkString(", ")});"
+    s"const auto ${SortFunction.SortedIndicesId} = cyclone::sort::sort_columns(${inputs.head.name}->count, ${arguments.mkString(", ")});"
   }
 
   private[sort] def reorderStmts: CodeLines = {

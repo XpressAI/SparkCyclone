@@ -111,7 +111,7 @@ void test_sort1() {
     std::make_tuple(2, 2.1760006f,  6ll, 7.483787l),
   };
 
-  const auto sorted_indices = sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
+  const auto sorted_indices = cyclone::sort::sort_tuples(elements, std::array<int, 4> {{ 1, 1, 1, 1 }});
 
   std::cout << "================================================================================" << std::endl;
   std::cout << "SORT TEST\n" << std::endl;
@@ -124,7 +124,7 @@ void test_sort2() {
   std::vector<float>    data2 { 3.14, 2.71, 42.0, };
   std::vector<int32_t>  data3 { 586, 951, 106, };
 
-  const auto sorted_indices = cyclone::sort_columns(
+  const auto sorted_indices = cyclone::sort::sort_columns(
     3,
     std::make_tuple(1, data1.data()),
     std::make_tuple(1, data2.data()),

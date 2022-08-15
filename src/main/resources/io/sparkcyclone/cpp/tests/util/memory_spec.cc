@@ -17,23 +17,20 @@
  * limitations under the License.
  *
  */
-#pragma once
-
-/*
-  This is the single main header to be included by code that uses the Cyclone
-  C++ Library.
-*/
-
-#include "cyclone/algorithm/bitset.hpp"
-#include "cyclone/algorithm/grouping.hpp"
-#include "cyclone/algorithm/join.hpp"
-#include "cyclone/algorithm/sort.hpp"
-#include "cyclone/core/packed_transfer.hpp"
-#include "cyclone/core/transfer-definitions.hpp"
-#include "cyclone/util/func.hpp"
-#include "cyclone/util/io.hpp"
-#include "cyclone/util/log.hpp"
 #include "cyclone/util/memory.hpp"
-#include "cyclone/util/shm.hpp"
-#include "cyclone/util/time.hpp"
-#include "cyclone/util/tuple_hash.hpp"
+#include "tests/doctest.h"
+
+namespace cyclone::tests {
+  TEST_SUITE("cyclone::memory") {
+    TEST_CASE("cyclone_alloc and cyclone_free should work") {
+      uintptr_t addresses[2];
+
+      // Allocate
+      CHECK(cyclone_alloc(1024, &addresses[0]) == 0);
+      CHECK(cyclone_alloc(2048, &addresses[1]) == 0);
+
+      // Free should not crash
+      CHECK(cyclone_free(&addresses[0], 2) == 0);
+    }
+  }
+}
