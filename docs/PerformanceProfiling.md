@@ -6,10 +6,10 @@ which comes with the JDK.
 
 ### Hadoop Configuration
 
-We need to be able to collect the JFR files after a Spark run, which are
-stored in the `appcache` directory corresponding to the Hadoop job.  By default,
-this directory is immediately cleared after the job completes.  The following
-must be added to the Hadoop configuration (`/opt/hadoop/etc/hadoop/yarn-site.xml`)
+The JFR files that are generated from a performance profiling are stored in the
+Hadoop `appcache` directory corresponding to the Spark job after a run.  By
+default, this directory is immediately cleared after the job completes.  The
+following must be added to the Hadoop configuration (`/opt/hadoop/etc/hadoop/yarn-site.xml`)
 so that the `appcache` data is retained for a set amount of time after job
 completion:
 

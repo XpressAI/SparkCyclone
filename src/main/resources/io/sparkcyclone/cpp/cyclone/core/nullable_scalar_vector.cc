@@ -17,8 +17,8 @@
  * limitations under the License.
  *
  */
-#include "cyclone/transfer-definitions.hpp"
 #include "cyclone/algorithm/bitset.hpp"
+#include "cyclone/core/transfer-definitions.hpp"
 #include "frovedis/core/utility.hpp"
 #include "frovedis/core/radix_sort.hpp"
 #include "frovedis/core/set_operations.hpp"

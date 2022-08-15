@@ -17,17 +17,15 @@
  * limitations under the License.
  *
  */
-#include "cyclone/packed_transfer.hpp"
-#include "cyclone/transfer-definitions.hpp"
 #include "cyclone/algorithm/bitset.hpp"
-
+#include "cyclone/core/packed_transfer.hpp"
+#include "cyclone/core/transfer-definitions.hpp"
 #include "frovedis/core/utility.hpp"
-
 #include <stddef.h>
 #include <stdint.h>
-#include <type_traits>
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include <type_traits>
 
 void merge_varchar_transfer(size_t batch_count, char* col_header, char* input_data, char* out_data, uint64_t* out_validity_buffer, char* out_lengths, char* out_offsets, uintptr_t* od, size_t &output_pos){
   //std::cout << "merge_varchar_transfer" << std::endl;

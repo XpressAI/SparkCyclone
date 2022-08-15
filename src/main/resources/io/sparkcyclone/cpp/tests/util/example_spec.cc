@@ -17,23 +17,17 @@
  * limitations under the License.
  *
  */
-#pragma once
+#include "cyclone/util/example.hpp"
+#include "tests/doctest.h"
 
-/*
-  This is the single main header to be included by code that uses the Cyclone
-  C++ Library.
-*/
-
-#include "cyclone/algorithm/bitset.hpp"
-#include "cyclone/algorithm/grouping.hpp"
-#include "cyclone/algorithm/join.hpp"
-#include "cyclone/algorithm/sort.hpp"
-#include "cyclone/core/packed_transfer.hpp"
-#include "cyclone/core/transfer-definitions.hpp"
-#include "cyclone/util/func.hpp"
-#include "cyclone/util/io.hpp"
-#include "cyclone/util/log.hpp"
-#include "cyclone/util/memory.hpp"
-#include "cyclone/util/shm.hpp"
-#include "cyclone/util/time.hpp"
-#include "cyclone/util/tuple_hash.hpp"
+namespace cyclone::tests {
+  TEST_SUITE("cyclone::example") {
+    TEST_CASE("factorial works") {
+      CHECK(cyclone::example::factorial(0) == 1);
+      CHECK(cyclone::example::factorial(1) == 1);
+      CHECK(cyclone::example::factorial(2) == 2);
+      CHECK(cyclone::example::factorial(3) == 6);
+      CHECK(cyclone::example::factorial(10) == 3628800);
+    }
+  }
+}

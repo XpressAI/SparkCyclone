@@ -27,9 +27,9 @@ This library has been written so that it can be built standalone (on both VE and
 
 ### Building the Library
 
-The Cyclone C++ library is generally portable, and building the library only
-requires `make` and a `c++` compiler that is visible in the `PATH` and supports
-**C++17** (with GNU extensions):
+The Cyclone C++ library is generally portable across POSIX systems, and building
+the library only requires `make` and a `c++` compiler that is visible in the
+`PATH` and supports **C++17 (with GNU extensions)**:
 
 ```sh
 make -j
@@ -39,10 +39,10 @@ On a machine with `nc++` installed, the script will look for `/opt/nec/ve/bin/nc
 
 ### Running Tests
 
-To run unit tests:
+To start from a fresh build and run unit tests:
 
 ```sh
-make test -j
+make cleanall test -j
 ```
 
 Cyclone unit tests are run using [doctest](https://github.com/doctest/doctest),
@@ -69,7 +69,7 @@ and latest source code for `doctest` can be found
 To run example code:
 
 ```sh
-make examples
+make examples -j
 ```
 
 ### Adding New Code
@@ -77,15 +77,16 @@ make examples
 The steps for adding new code to the Cyclone library are generally as follows:
 
 1.  Add the new source and header files to the `cyclone/` subdirectory (e.g.
-    `cyclone/example.hpp` and `cyclone/example.cc`).
+    [`cyclone/util/example.hpp`](cyclone/util/example.hpp) and
+    [`cyclone/util/example.cc`](cyclone/util/example.cc)).
 
 1.  Make sure the code is under the `cyclone` namespace, and the `#includes`
     reference the full path from project root (e.g. `cyclone/cyclone.hpp` instead
     of `cyclone.hpp`).
 
 1.  Add the corresponding spec as a source file to the `tests/` subdirectory
-    (e.g. `tests/example_spec.cc`).  The spec should contain the header
-    `#include "tests/doctest.h"`.
+    (e.g. [`tests/util/example_spec.cc`](tests/util/example_spec.cc)).  The spec
+    should contain the header `#include "tests/doctest.h"`.
 
 1.  Add the corresponding benchmarks as a spec source file to the `benchmarks/`
     subdirectory (e.g. `tests/example_spec.cc`).  The benchmark spec should
